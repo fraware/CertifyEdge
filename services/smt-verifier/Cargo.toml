@@ -1,0 +1,72 @@
+[package]
+name = "smt-verifier"
+version = "1.0.0"
+edition = "2021"
+authors = ["CertifyEdge Team <team@certifyedge.com>"]
+description = "CertifyEdge SMT Verification Microservice"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/certifyedge/certifyedge"
+keywords = ["smt", "verification", "z3", "cvc5", "wasm", "certifyedge"]
+categories = ["science", "development-tools"]
+
+[dependencies]
+# Core dependencies
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# gRPC
+tonic = "0.10"
+prost = "0.12"
+
+# WebAssembly
+wasmtime = "15.0"
+
+# Metrics
+prometheus = "0.13"
+opentelemetry = "0.20"
+
+# Cryptography
+uuid = { version = "1.0", features = ["v4"] }
+
+# CLI
+clap = { version = "4.0", features = ["derive"] }
+
+# Configuration
+toml = "0.8"
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# STL compiler dependency
+stl-compiler = { path = "../stl-compiler" }
+
+[dev-dependencies]
+# Testing
+proptest = "1.0"
+criterion = "0.5"
+tempfile = "3.0"
+
+# Async testing
+tokio-test = "0.4"
+
+[features]
+default = []
+test-utils = []
+
+[[bench]]
+name = "verifier_benchmark"
+harness = false
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+opt-level = 0
+debug = true 

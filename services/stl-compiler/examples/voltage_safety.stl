@@ -1,0 +1,12 @@
+voltage_safety
+// Voltage safety specification for power grid
+voltage > 220 && current < 100
+param: max_voltage real 240.0 Maximum voltage threshold
+param: max_current real 100.0 Maximum current threshold
+param: safety_margin real 0.1 Safety margin factor
+constraint: voltage_bounds bounds voltage <= 250.0
+constraint: current_bounds bounds current <= 120.0
+constraint: power_limit linear voltage * current <= 30000.0
+meta: author CertifyEdge Team
+meta: version 1.0.0
+meta: category safety 

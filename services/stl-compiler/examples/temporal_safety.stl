@@ -1,0 +1,13 @@
+temporal_safety
+// Temporal safety specification with Always and Eventually operators
+G[0,10] voltage > 220 && F[0,5] current < 100
+param: voltage_threshold real 220.0 Voltage safety threshold
+param: current_threshold real 100.0 Current safety threshold
+param: time_window real 10.0 Time window for safety check
+constraint: voltage_bounds bounds voltage <= 250.0
+constraint: current_bounds bounds current <= 120.0
+constraint: temporal_consistency temporal G[0,1] voltage > 200
+meta: author CertifyEdge Team
+meta: version 1.0.0
+meta: category temporal_safety
+meta: complexity high 

@@ -1,0 +1,78 @@
+[package]
+name = "stl-compiler"
+version = "0.1.0"
+edition = "2021"
+authors = ["CertifyEdge Team <team@certifyedge.com>"]
+description = "STL to Lean 4 compiler for CertifyEdge platform"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/fraware/CertifyEdge"
+keywords = ["stl", "lean", "formal-verification", "temporal-logic"]
+categories = ["science", "development-tools"]
+
+[dependencies]
+# Core dependencies
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+
+# ANTLR parsing
+antlr-rust = "0.3"
+peg = "0.8"
+
+# Lean 4 integration
+reqwest = { version = "0.11", features = ["json"] }
+tempfile = "3.8"
+which = "5.0"
+
+# SMT-LIB generation
+z3 = "0.9"
+cvc5 = "0.1"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Logging and observability
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+opentelemetry = { version = "0.21", features = ["rt-tokio"] }
+opentelemetry-http = "0.12"
+
+# Configuration
+config = "0.14"
+clap = { version = "4.4", features = ["derive"] }
+
+# Testing
+proptest = "1.3"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[dev-dependencies]
+tempfile = "3.8"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "compiler_benchmarks"
+harness = false
+
+[features]
+default = ["full"]
+full = ["lean4", "smt", "antlr"]
+lean4 = []
+smt = []
+antlr = []
+test-utils = []
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.dev]
+opt-level = 0
+debug = true
+overflow-checks = true 

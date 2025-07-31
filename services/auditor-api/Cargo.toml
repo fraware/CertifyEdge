@@ -1,0 +1,85 @@
+[package]
+name = "auditor-api"
+version = "0.1.0"
+edition = "2021"
+authors = ["CertifyEdge Team"]
+description = "REST auditing and provenance API for CertifyEdge"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/fraware/CertifyEdge"
+keywords = ["certification", "auditing", "provenance", "api"]
+categories = ["api-bindings", "authentication", "database"]
+
+[dependencies]
+# Web framework
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "compression-full", "trace"] }
+hyper = { version = "1.0", features = ["full"] }
+tokio = { version = "1.0", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Authentication and security
+jsonwebtoken = "9.2"
+argon2 = "0.5"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "sqlite", "chrono", "uuid"] }
+redis = { version = "0.23", features = ["tokio-comp", "connection-manager"] }
+
+# HTTP client for OPA
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Configuration
+config = "0.14"
+dotenv = "0.15"
+
+# Utilities
+chrono = { version = "0.4", features = ["serde"] }
+base64 = "0.21"
+sha2 = "0.10"
+hex = "0.4"
+
+# System utilities
+num_cpus = "1.16"
+futures = "0.3"
+
+# Testing
+proptest = "1.4"
+criterion = "0.5"
+
+[dev-dependencies]
+tokio-test = "0.4"
+mockall = "0.12"
+
+[features]
+default = ["postgres"]
+postgres = ["sqlx/postgres"]
+sqlite = ["sqlx/sqlite"]
+redis = ["redis"]
+opa = ["reqwest"]
+
+[[bench]]
+name = "api_benchmarks"
+harness = false
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+opt-level = 0
+debug = true 

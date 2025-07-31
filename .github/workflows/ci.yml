@@ -1,0 +1,517 @@
+name: CertifyEdge CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  release:
+    types: [published]
+
+env:
+  BAZEL_VERSION: 7.0.0
+  RUST_VERSION: 1.75.0
+  NODE_VERSION: 20
+  PYTHON_VERSION: 3.11
+  LEAN_VERSION: 4.0.0
+  CUDA_VERSION: 12.0
+  CUDNN_VERSION: 8.9
+
+jobs:
+  # Security and Compliance Gates
+  security-scan:
+    name: Security & Compliance Scanning
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Bazel
+        uses: bazelbuild/setup-bazelisk@v3
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          override: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Setup Lean 4
+        run: |
+          wget -q https://github.com/leanprover/lean4/releases/download/v${{ env.LEAN_VERSION }}/lean-${{ env.LEAN_VERSION }}-linux.tar.gz
+          tar -xzf lean-${{ env.LEAN_VERSION }}-linux.tar.gz
+          echo "$PWD/lean-${{ env.LEAN_VERSION }}-linux/bin" >> $GITHUB_PATH
+
+      - name: Run Security Scans
+        run: |
+          # Dependency vulnerability scanning
+          bazel test --config=ci //... --test_tag_filters=security
+
+          # Static analysis
+          bazel build --config=ci //... --aspects @rules_clippy//clippy:defs.bzl%clippy_aspect
+
+          # SBOM generation
+          bazel build --config=ci //... --aspects @rules_security//security:defs.bzl%sbom_aspect
+
+          # Sigstore signing verification
+          bazel test --config=ci //... --test_tag_filters=sigstore
+
+      - name: Run OWASP Threat Dragon Validation
+        run: |
+          bazel test --config=ci //security/threat-dragon/...
+
+      - name: Run Internal Security Review
+        run: |
+          bazel test --config=ci //security/internal-review/...
+
+      - name: Upload Security Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            bazel-testlogs/**/test.xml
+            bazel-bin/**/sbom.*
+            security-reports/
+
+  # Quality Gates
+  quality-gates:
+    name: Quality Gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: security-scan
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Bazel
+        uses: bazelbuild/setup-bazelisk@v3
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          override: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Setup Lean 4
+        run: |
+          wget -q https://github.com/leanprover/lean4/releases/download/v${{ env.LEAN_VERSION }}/lean-${{ env.LEAN_VERSION }}-linux.tar.gz
+          tar -xzf lean-${{ env.LEAN_VERSION }}-linux.tar.gz
+          echo "$PWD/lean-${{ env.LEAN_VERSION }}-linux/bin" >> $GITHUB_PATH
+
+      - name: Run Code Coverage (≥95%)
+        run: |
+          bazel coverage --config=ci //... --combined_report=lcov
+          # Verify coverage threshold
+          coverage_percentage=$(bazel coverage --config=ci //... --combined_report=lcov | grep -o '[0-9]\+\.[0-9]\+%' | head -1 | sed 's/%//')
+          if (( $(echo "$coverage_percentage < 95" | bc -l) )); then
+            echo "Coverage $coverage_percentage% is below 95% threshold"
+            exit 1
+          fi
+
+      - name: Run Mutation Testing
+        run: |
+          bazel test --config=ci //... --test_tag_filters=mutagen
+
+      - name: Run Link Checker
+        run: |
+          bazel test --config=ci //docs/... --test_tag_filters=linkchecker
+
+      - name: Run Vale Linter
+        run: |
+          bazel test --config=ci //docs/... --test_tag_filters=vale
+
+      - name: Run Contract Tests
+        run: |
+          bazel test --config=ci //... --test_tag_filters=contract
+
+      - name: Run Differential Testing (Z3 vs CVC5)
+        run: |
+          bazel test --config=ci //... --test_tag_filters=differential
+
+      - name: Upload Quality Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-reports
+          path: |
+            bazel-testlogs/**/test.xml
+            coverage-reports/
+            mutation-reports/
+
+  # Unit + Property + Formal Testing
+  testing-triple-check:
+    name: Triple-Check Testing (Unit + Property + Formal)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: quality-gates
+    strategy:
+      matrix:
+        test-type: [unit, property, formal]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Bazel
+        uses: bazelbuild/setup-bazelisk@v3
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          override: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Setup Lean 4
+        run: |
+          wget -q https://github.com/leanprover/lean4/releases/download/v${{ env.LEAN_VERSION }}/lean-${{ env.LEAN_VERSION }}-linux.tar.gz
+          tar -xzf lean-${{ env.LEAN_VERSION }}-linux.tar.gz
+          echo "$PWD/lean-${{ env.LEAN_VERSION }}-linux/bin" >> $GITHUB_PATH
+
+      - name: Run Unit Tests
+        if: matrix.test-type == 'unit'
+        run: |
+          bazel test --config=ci //... --test_tag_filters=unit
+
+      - name: Run Property-Based Tests
+        if: matrix.test-type == 'property'
+        run: |
+          bazel test --config=ci //... --test_tag_filters=property
+
+      - name: Run Formal Verification Tests
+        if: matrix.test-type == 'formal'
+        run: |
+          bazel test --config=ci //... --test_tag_filters=formal
+
+      - name: Upload Test Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ matrix.test-type }}
+          path: |
+            bazel-testlogs/**/test.xml
+            test-reports/
+
+  # Performance Testing
+  performance-testing:
+    name: Performance Testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: testing-triple-check
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Bazel
+        uses: bazelbuild/setup-bazelisk@v3
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          override: true
+
+      - name: Run Performance Benchmarks
+        run: |
+          bazel test --config=ci //... --test_tag_filters=benchmark
+
+      - name: Run Performance Regression Detection
+        run: |
+          bazel test --config=ci //... --test_tag_filters=performance
+
+      - name: Upload Performance Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-reports
+          path: |
+            bazel-testlogs/**/test.xml
+            performance-reports/
+
+  # End-to-End Grid-in-Loop Tests
+  grid-in-loop-tests:
+    name: Grid-in-Loop Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    needs: performance-testing
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Bazel
+        uses: bazelbuild/setup-bazelisk@v3
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          override: true
+
+      - name: Setup GridLAB-D
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gridlab-d
+
+      - name: Setup OpenDSS
+        run: |
+          # Install OpenDSS or use container
+          docker pull opendss/opendss:latest
+
+      - name: Setup PowerFactory 2019
+        run: |
+          # Install PowerFactory or use container
+          docker pull powerfactory/powerfactory:2019
+
+      - name: Run GridLAB-D Tests
+        run: |
+          bazel test --config=ci //tests/grid-in-loop/gridlab-d/...
+
+      - name: Run OpenDSS Tests
+        run: |
+          bazel test --config=ci //tests/grid-in-loop/opendss/...
+
+      - name: Run PowerFactory Tests
+        run: |
+          bazel test --config=ci //tests/grid-in-loop/powerfactory/...
+
+      - name: Upload Grid-in-Loop Test Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: grid-in-loop-reports
+          path: |
+            bazel-testlogs/**/test.xml
+            grid-in-loop-reports/
+
+  # Build and Package
+  build-package:
+    name: Build and Package
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: grid-in-loop-tests
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Bazel
+        uses: bazelbuild/setup-bazelisk@v3
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          override: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Setup Lean 4
+        run: |
+          wget -q https://github.com/leanprover/lean4/releases/download/v${{ env.LEAN_VERSION }}/lean-${{ env.LEAN_VERSION }}-linux.tar.gz
+          tar -xzf lean-${{ env.LEAN_VERSION }}-linux.tar.gz
+          echo "$PWD/lean-${{ env.LEAN_VERSION }}-linux/bin" >> $GITHUB_PATH
+
+      - name: Build All Targets
+        run: |
+          bazel build --config=ci //... --build_tag_filters=release
+
+      - name: Generate SBOM
+        run: |
+          bazel build --config=ci //... --aspects @rules_security//security:defs.bzl%sbom_aspect
+
+      - name: Sign Artifacts with Sigstore
+        run: |
+          bazel build --config=ci //... --aspects @rules_sigstore//sigstore:defs.bzl%sigstore_aspect
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            bazel-bin/**/*.tar.gz
+            bazel-bin/**/*.zip
+            bazel-bin/**/*.deb
+            bazel-bin/**/*.rpm
+            bazel-bin/**/*.wasm
+            bazel-bin/**/*.sig
+            bazel-bin/**/sbom.*
+
+  # Documentation Generation
+  documentation:
+    name: Documentation Generation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: build-package
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Bazel
+        uses: bazelbuild/setup-bazelisk@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Generate Documentation
+        run: |
+          bazel build --config=ci //docs/... --aspects @rules_mkdocs//mkdocs:defs.bzl%mkdocs_aspect
+
+      - name: Generate API Documentation
+        run: |
+          bazel build --config=ci //... --aspects @rules_mkdocs//mkdocs:defs.bzl%api_docs_aspect
+
+      - name: Upload Documentation
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation
+          path: |
+            bazel-bin/docs/
+            bazel-bin/api-docs/
+
+  # Release Management
+  release:
+    name: Release Management
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [documentation]
+    if: github.event_name == 'release'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Bazel
+        uses: bazelbuild/setup-bazelisk@v3
+
+      - name: Verify SLSA Level 3 Provenance
+        run: |
+          bazel build --config=ci //... --aspects @rules_security//security:defs.bzl%slsa_aspect
+
+      - name: Sign CHANGELOG.md
+        run: |
+          bazel build --config=ci //... --aspects @rules_sigstore//sigstore:defs.bzl%changelog_sign_aspect
+
+      - name: Upload Release Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: |
+            bazel-bin/**/*.tar.gz
+            bazel-bin/**/*.zip
+            bazel-bin/**/*.deb
+            bazel-bin/**/*.rpm
+            bazel-bin/**/*.sig
+            bazel-bin/**/sbom.*
+            bazel-bin/**/slsa.*
+            CHANGELOG.md.sig
+
+  # Notifications and Reporting
+  notifications:
+    name: Notifications and Reporting
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs:
+      [
+        security-scan,
+        quality-gates,
+        testing-triple-check,
+        performance-testing,
+        grid-in-loop-tests,
+        build-package,
+        documentation,
+      ]
+    if: always()
+    steps:
+      - name: Download All Reports
+        uses: actions/download-artifact@v4
+        with:
+          path: reports/
+
+      - name: Generate Summary Report
+        run: |
+          echo "# CertifyEdge CI/CD Pipeline Summary" > summary.md
+          echo "## Security & Compliance: ${{ needs.security-scan.result }}" >> summary.md
+          echo "## Quality Gates: ${{ needs.quality-gates.result }}" >> summary.md
+          echo "## Testing Triple-Check: ${{ needs.testing-triple-check.result }}" >> summary.md
+          echo "## Performance Testing: ${{ needs.performance-testing.result }}" >> summary.md
+          echo "## Grid-in-Loop Tests: ${{ needs.grid-in-loop-tests.result }}" >> summary.md
+          echo "## Build & Package: ${{ needs.build-package.result }}" >> summary.md
+          echo "## Documentation: ${{ needs.documentation.result }}" >> summary.md
+
+      - name: Upload Summary Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: summary-report
+          path: summary.md
+
+      - name: Send Notifications
+        if: failure()
+        run: |
+          # Send failure notifications to team
+          echo "CI/CD pipeline failed. Check the logs for details."

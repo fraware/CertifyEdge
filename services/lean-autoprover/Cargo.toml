@@ -1,0 +1,65 @@
+[package]
+name = "lean-autoprover"
+version = "1.0.0"
+edition = "2021"
+authors = ["CertifyEdge Team <team@certifyedge.com>"]
+description = "CertifyEdge Lean 4 Autoprover Plugin"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/certifyedge/certifyedge"
+keywords = ["lean", "formal-verification", "stl", "theorem-prover", "certifyedge"]
+categories = ["science", "development-tools"]
+
+[dependencies]
+# Core dependencies
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "chrono"] }
+
+# Cryptography
+sha2 = "0.10"
+uuid = { version = "1.0", features = ["v4"] }
+
+# CLI
+clap = { version = "4.0", features = ["derive"] }
+
+# Configuration
+toml = "0.8"
+
+# System
+num_cpus = "1.0"
+
+# STL compiler dependency
+stl-compiler = { path = "../stl-compiler" }
+
+[dev-dependencies]
+# Testing
+proptest = "1.0"
+criterion = "0.5"
+tempfile = "3.0"
+
+# Async testing
+tokio-test = "0.4"
+
+[features]
+default = []
+test-utils = []
+
+[[bench]]
+name = "autoprover_benchmark"
+harness = false
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+opt-level = 0
+debug = true 
