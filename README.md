@@ -145,70 +145,6 @@ let certificate = certificate_service::create_certificate(
 )?;
 ```
 
-## Documentation
-
-### Architecture
-
-- [System Architecture & Threat Model](docs/architecture/001-system-architecture-threat-model.md)
-- [Threat Model Details](docs/architecture/threat-model.md)
-- [Architecture Overview](docs/architecture/README.md)
-
-### Development
-
-- [Contributing Guidelines](CONTRIBUTING.md)
-- [Code of Conduct](CODE_OF_CONDUCT.md)
-- [Security Policy](SECURITY.md)
-
-### API Reference
-
-- [REST API Documentation](docs/api/README.md)
-- [gRPC API Reference](docs/api/grpc.md)
-- [Certificate Format](docs/api/certificate.md)
-
-## Security
-
-CertifyEdge implements defense-in-depth security controls:
-
-### Network Security
-- mTLS for all inter-service communication
-- Kubernetes network policies
-- API gateway with rate limiting
-
-### Application Security
-- OPA policies for authorization
-- Input validation and sanitization
-- Static analysis and dependency scanning
-
-### Cryptographic Security
-- Ed25519 signatures for certificates
-- Sigstore integration for transparency
-- Hardware security modules (production)
-
-### Compliance
-- UL 2900-1: Software bill of materials
-- IEC 61850: Grid communication security
-- SOC 2 Type II: Access controls and monitoring
-
-## Testing
-
-### Quality Gates
-
-| Metric | Target | Current |
-|--------|--------|---------|
-| Test Coverage | ≥ 95% | TBD |
-| Security Scan | 0 HIGH | TBD |
-| Build Time | < 10 min | TBD |
-| API Latency | < 100ms P99 | TBD |
-
-### Test Types
-
-- **Unit Tests**: Component-level testing
-- **Integration Tests**: Service interaction testing
-- **Property Tests**: Formal property verification
-- **Mutation Tests**: Code quality validation
-- **Security Tests**: Vulnerability assessment
-- **Performance Tests**: Load and stress testing
-
 ## Monitoring
 
 ### Metrics
@@ -236,13 +172,6 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 3. Make your changes
 4. Add tests and documentation
 5. Submit a pull request
-
-### Code Quality
-
-- Follow Rust and TypeScript style guides
-- Maintain 95% test coverage
-- Pass all security scans
-- Include formal verification where applicable
 
 ## License
 
