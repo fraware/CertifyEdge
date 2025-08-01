@@ -1,9 +1,6 @@
 # CertifyEdge
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Rust](https://github.com/fraware/CertifyEdge/actions/workflows/rust.yml/badge.svg)](https://github.com/fraware/CertifyEdge/actions/workflows/rust.yml)
-[![TypeScript](https://github.com/fraware/CertifyEdge/actions/workflows/typescript.yml/badge.svg)](https://github.com/fraware/CertifyEdge/actions/workflows/typescript.yml)
-[![Security](https://github.com/fraware/CertifyEdge/actions/workflows/security.yml/badge.svg)](https://github.com/fraware/CertifyEdge/actions/workflows/security.yml)
 
 > **Formally-verified platform for certifying AI agents in power grid applications**
 
@@ -18,6 +15,10 @@ Enable safe deployment of AI agents in critical power grid infrastructure throug
 - **Compliance**: Built-in support for UL 2900-1, IEC 61850, and SOC 2
 - **Security**: Defense-in-depth with mTLS, OPA policies, and cryptographic signatures
 - **Performance**: High-throughput verification with GPU acceleration
+
+<p align="center">
+  <img src=".github/assets/CertifyEdge1.png" alt="CertifyEdge Logo" width="200"/>
+</p>
 
 ## Architecture
 
