@@ -1,7 +1,4 @@
-//! Provenance Service for CertifyEdge
-//! 
-//! This service tracks the complete provenance chain for certificates,
-//! providing immutable audit trails and compliance verification.
+//! Tracks where certificates and related artifacts came from for auditing.
 
 pub mod api;
 pub mod config;

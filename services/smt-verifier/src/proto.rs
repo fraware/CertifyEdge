@@ -131,8 +131,9 @@ pub struct SolverStats {
 /// Convert VerificationResult to gRPC response
 impl From<VerificationResult> for VerificationResponse {
     fn from(result: VerificationResult) -> Self {
+        let request_id = result.verification_id.clone();
         Self {
-            request_id: result.verification_id,
+            request_id,
             result,
             timestamp: chrono::Utc::now().to_rfc3339(),
         }

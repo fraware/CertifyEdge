@@ -1,0 +1,39 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_library(
+    name = "smt_verifier",
+    srcs = glob(["src/**/*.rs"]),
+    edition = "2021",
+    proc_macro_deps = ["@crates//:serde_derive"],
+    deps = [
+        "//services/stl-compiler:stl_compiler_lib",
+        "@crates//:chrono",
+        "@crates//:clap",
+        "@crates//:prometheus",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:tempfile",
+        "@crates//:thiserror",
+        "@crates//:tokio",
+        "@crates//:toml",
+        "@crates//:tracing",
+        "@crates//:tracing-subscriber",
+        "@crates//:uuid",
+    ],
+)
+
+rust_binary(
+    name = "verifierd",
+    srcs = ["src/main.rs"],
+    edition = "2021",
+    deps = [
+        ":smt_verifier",
+        "@crates//:clap",
+        "@crates//:serde_json",
+        "@crates//:tokio",
+        "@crates//:tracing",
+        "@crates//:tracing-subscriber",
+    ],
+)

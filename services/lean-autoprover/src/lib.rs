@@ -1,9 +1,4 @@
-//! CertifyEdge Lean 4 Autoprover Plugin
-//! 
-//! This crate provides a Lean 4 plugin that wraps simp, linarith, and aesop
-//! into a one-shot autoprove tactic tuned for STL formulas. It caches proof
-//! traces to avoid re-solving unchanged goals and folds successful proofs into
-//! CertifyEdge.Certificate objects.
+//! Lean 4 automation helpers: tactics and caching aimed at goals that arise from temporal specifications.
 
 pub mod tactics;
 pub mod cache;

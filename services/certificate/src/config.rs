@@ -19,6 +19,9 @@ pub struct CertificateConfig {
     
     /// Ed25519 public key path
     pub ed25519_public_key_path: Option<PathBuf>,
+
+    /// Raw Ed25519 verifying key (32 bytes), e.g. paired with an ephemeral signer in `CertificateService::new`.
+    pub ed25519_verifying_key: Option<Vec<u8>>,
     
     /// Sigstore configuration
     pub sigstore: SigstoreConfig,
@@ -71,9 +74,10 @@ impl Default for CertificateConfig {
     fn default() -> Self {
         Self {
             enable_ed25519: true,
-            enable_sigstore: true,
+            enable_sigstore: false,
             ed25519_private_key_path: None,
             ed25519_public_key_path: None,
+            ed25519_verifying_key: None,
             sigstore: SigstoreConfig::default(),
             validity_period_seconds: 31536000, // 1 year
             max_certificate_size_bytes: 1024 * 1024, // 1MB
@@ -87,7 +91,7 @@ impl Default for CertificateConfig {
 impl Default for SigstoreConfig {
     fn default() -> Self {
         Self {
-            enabled: true,
+            enabled: false,
             fulcio_endpoint: "https://fulcio.sigstore.dev".to_string(),
             rekor_endpoint: "https://rekor.sigstore.dev".to_string(),
             oidc_issuer: "https://oauth2.sigstore.dev/auth".to_string(),
@@ -134,11 +138,11 @@ impl CertificateConfig {
             ));
         }
 
-        // Validate Ed25519 configuration
-        if self.enable_ed25519 {
+        // Validate Ed25519 configuration (file-based keys)
+        if self.enable_ed25519 && self.ed25519_verifying_key.is_none() {
             if self.ed25519_private_key_path.is_none() {
                 return Err(crate::error::CertificateError::ConfigError(
-                    "Ed25519 private key path is required when Ed25519 signing is enabled".to_string()
+                    "Ed25519 private key path is required when Ed25519 signing is enabled and no in-memory verifying key is set".to_string(),
                 ));
             }
         }
@@ -242,7 +246,7 @@ mod tests {
     fn test_default_config() {
         let config = CertificateConfig::default();
         assert!(config.enable_ed25519);
-        assert!(config.enable_sigstore);
+        assert!(!config.enable_sigstore);
         assert!(config.validity_period_seconds > 0);
         assert!(config.max_certificate_size_bytes > 0);
     }
@@ -260,16 +264,15 @@ mod tests {
     fn test_signing_methods() {
         let config = CertificateConfig::default();
         let methods = config.get_signing_methods();
-        
-        assert_eq!(methods.len(), 2);
+
+        assert_eq!(methods.len(), 1);
         assert!(methods.contains(&"ed25519".to_string()));
-        assert!(methods.contains(&"sigstore".to_string()));
     }
 
     #[test]
     fn test_sigstore_config() {
         let config = SigstoreConfig::default();
-        assert!(config.enabled);
+        assert!(!config.enabled);
         assert!(!config.fulcio_endpoint.is_empty());
         assert!(!config.rekor_endpoint.is_empty());
     }

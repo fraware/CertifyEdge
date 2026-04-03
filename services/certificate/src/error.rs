@@ -37,6 +37,15 @@ pub enum CertificateError {
     #[error("Invalid Ed25519 signature")]
     InvalidEd25519Signature,
 
+    #[error("Missing Ed25519 verifying key in configuration")]
+    MissingVerificationKey,
+
+    #[error("Invalid Ed25519 verifying key")]
+    InvalidVerificationKey,
+
+    #[error("Invalid signature encoding")]
+    InvalidSignature,
+
     #[error("Invalid Sigstore signature")]
     InvalidSigstoreSignature,
 
@@ -83,12 +92,6 @@ impl From<serde_json::Error> for CertificateError {
 impl From<std::io::Error> for CertificateError {
     fn from(err: std::io::Error) -> Self {
         CertificateError::IOError(err.to_string())
-    }
-}
-
-impl From<ed25519_dalek::ed25519::Error> for CertificateError {
-    fn from(err: ed25519_dalek::ed25519::Error) -> Self {
-        CertificateError::SigningError(err.to_string())
     }
 }
 

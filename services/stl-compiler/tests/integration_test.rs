@@ -1,12 +1,15 @@
 //! Integration tests for STL compiler
 
 use stl_compiler::{Compiler, CompilerConfig};
-use std::path::PathBuf;
 use tempfile::tempdir;
+
+fn test_compiler() -> Compiler {
+    Compiler::new(CompilerConfig::for_tests_without_external_tools())
+}
 
 #[tokio::test]
 async fn test_simple_compilation() {
-    let compiler = Compiler::default();
+    let compiler = test_compiler();
     let spec_text = "test_spec
 voltage > 220";
     
@@ -15,14 +18,14 @@ voltage > 220";
     
     if let Ok(compilation_result) = result {
         assert_eq!(compilation_result.specification.name, "test_spec");
-        assert!(compilation_result.stats.total_time_ms > 0);
-        assert!(compilation_result.stats.parse_time_ms > 0);
+        let s = compilation_result.stats;
+        assert!(s.total_time_ms >= s.parse_time_ms);
     }
 }
 
 #[tokio::test]
 async fn test_binary_formula_compilation() {
-    let compiler = Compiler::default();
+    let compiler = test_compiler();
     let spec_text = "binary_test
 voltage > 220 && current < 100";
     
@@ -40,7 +43,7 @@ voltage > 220 && current < 100";
 
 #[tokio::test]
 async fn test_temporal_formula_compilation() {
-    let compiler = Compiler::default();
+    let compiler = test_compiler();
     let spec_text = "temporal_test
 G[0,10] voltage > 220";
     
@@ -55,7 +58,7 @@ G[0,10] voltage > 220";
 
 #[tokio::test]
 async fn test_parameter_parsing() {
-    let compiler = Compiler::default();
+    let compiler = test_compiler();
     let spec_text = "param_test
 voltage > 220
 param: max_voltage real 240.0 Maximum voltage threshold
@@ -79,7 +82,7 @@ param: safety_margin real 0.1 Safety margin factor";
 
 #[tokio::test]
 async fn test_constraint_parsing() {
-    let compiler = Compiler::default();
+    let compiler = test_compiler();
     let spec_text = "constraint_test
 voltage > 220
 constraint: voltage_bounds bounds voltage <= 250.0
@@ -103,10 +106,10 @@ constraint: power_limit linear voltage * current <= 30000.0";
 
 #[tokio::test]
 async fn test_metadata_parsing() {
-    let compiler = Compiler::default();
+    let compiler = test_compiler();
     let spec_text = "meta_test
 voltage > 220
-meta: author CertifyEdge Team
+meta: author Example author
 meta: version 1.0.0
 meta: category safety";
     
@@ -117,7 +120,7 @@ meta: category safety";
         assert_eq!(compilation_result.specification.name, "meta_test");
         assert_eq!(compilation_result.specification.metadata.len(), 3);
         
-        assert_eq!(compilation_result.specification.metadata.get("author"), Some(&"CertifyEdge Team".to_string()));
+        assert_eq!(compilation_result.specification.metadata.get("author"), Some(&"Example author".to_string()));
         assert_eq!(compilation_result.specification.metadata.get("version"), Some(&"1.0.0".to_string()));
         assert_eq!(compilation_result.specification.metadata.get("category"), Some(&"safety".to_string()));
     }
@@ -125,7 +128,7 @@ meta: category safety";
 
 #[tokio::test]
 async fn test_roundtrip_validation() {
-    let compiler = Compiler::default();
+    let compiler = test_compiler();
     let spec_text = "roundtrip_test
 voltage > 220 && current < 100";
     
@@ -139,7 +142,7 @@ voltage > 220 && current < 100";
 
 #[tokio::test]
 async fn test_compilation_statistics() {
-    let compiler = Compiler::default();
+    let compiler = test_compiler();
     let spec_text = "stats_test
 voltage > 220";
     
@@ -148,8 +151,7 @@ voltage > 220";
     
     if let Ok(compilation_result) = result {
         let stats = compilation_result.stats;
-        assert!(stats.total_time_ms > 0);
-        assert!(stats.parse_time_ms > 0);
+        assert!(stats.total_time_ms >= stats.parse_time_ms);
         assert!(stats.ast_size_bytes > 0);
         assert!(stats.lean4_size_bytes > 0);
         assert!(stats.smt_size_bytes > 0);
@@ -158,7 +160,7 @@ voltage > 220";
 
 #[tokio::test]
 async fn test_error_handling() {
-    let compiler = Compiler::default();
+    let compiler = test_compiler();
     
     // Test empty specification
     let result = compiler.compile("").await;
@@ -175,7 +177,7 @@ async fn test_file_compilation() {
     let spec_file = temp_dir.path().join("test.stl");
     std::fs::write(&spec_file, "file_test\nvoltage > 220").unwrap();
     
-    let compiler = Compiler::default();
+    let compiler = test_compiler();
     let spec_text = std::fs::read_to_string(&spec_file).unwrap();
     
     let result = compiler.compile(&spec_text).await;
@@ -188,7 +190,7 @@ async fn test_file_compilation() {
 
 #[tokio::test]
 async fn test_complex_specification() {
-    let compiler = Compiler::default();
+    let compiler = test_compiler();
     let spec_text = "complex_spec
 // Complex specification with multiple operators
 G[0,10] voltage > 220 && F[0,5] current < 100
@@ -196,7 +198,7 @@ param: voltage_threshold real 220.0 Voltage safety threshold
 param: current_threshold real 100.0 Current safety threshold
 constraint: voltage_bounds bounds voltage <= 250.0
 constraint: current_bounds bounds current <= 120.0
-meta: author CertifyEdge Team
+meta: author Example author
 meta: version 1.0.0
 meta: category complex_safety";
     

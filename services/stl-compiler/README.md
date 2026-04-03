@@ -1,302 +1,98 @@
-# STL Compiler
+# STL compiler (`stl-compiler`)
 
-The STL (Signal Temporal Logic) Compiler is a core component of the CertifyEdge platform that translates STL specifications into Lean 4 definitions and SMT-LIB expressions for formal verification.
+Rust library and CLI that parse **signal temporal logic (STL)**-style specifications and produce **Lean 4**-oriented output and **SMT-LIB** where configured. It lives in the [CertifyEdge](../../README.md) workspace.
 
-## Features
+## What it does today
 
-- **STL Parsing**: Parse STL specifications using ANTLR-generated grammar
-- **Lean 4 Translation**: Generate Lean 4 definitions and proof skeletons
-- **SMT-LIB Translation**: Generate SMT-LIB expressions for Z3 and CVC5 solvers
-- **Round-trip Validation**: Validate AST ↔ JSON round-trip idempotence
-- **Property-based Testing**: Comprehensive test coverage with proptest
-- **Performance Optimization**: Fast compilation with caching and parallel execution
+- **Parse** specifications from text (custom parser in Rust, not code-generated grammar).
+- **Emit** Lean-oriented and SMT-LIB artifacts through the `Compiler` API and related types.
+- **Configure** Lean, Z3, and CVC5 paths and behavior via `CompilerConfig` (see `src/config.rs`).
+- **Test without local provers** using `CompilerConfig::for_tests_without_external_tools()` for automated runs that skip external Lean/Z3/CVC5 binaries.
 
-## Architecture
+## Requirements
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   STL Input     │    │   STL Parser    │    │   AST           │
-│   (Text)        │───▶│   (ANTLR)       │───▶│   (Rust)        │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                                           │
-                                                           ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Lean 4        │◀───│   Lean 4        │◀───│   AST           │
-│   Output        │    │   Translator    │    │   (Rust)        │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                                           │
-                                                           ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   SMT-LIB       │◀───│   SMT           │◀───│   AST           │
-│   Output        │    │   Translator    │    │   (Rust)        │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
+- **Rust:** same toolchain as the repo root ([`rust-toolchain.toml`](../../rust-toolchain.toml)); currently **1.88.0**.
+- **Lean / Z3 / CVC5:** optional; enable and install when you want full toolchains (not required for the default integration test configuration).
 
-## Installation
+## Build and test
 
-### Prerequisites
-
-- Rust 1.75.0 or later
-- Lean 4.0.0 or later
-- Z3 4.13.0 or later
-- CVC5 1.2.0 or later
-
-### Building with Bazel
+From the **repository root** (this crate is a workspace member):
 
 ```bash
-# Build the STL compiler
+cargo check -p stl-compiler
+cargo test -p stl-compiler
+```
+
+### Bazel (from repository root)
+
+Targets defined in [`BUILD.bazel`](BUILD.bazel):
+
+```bash
+# Library
+bazel build //services/stl-compiler:stl_compiler_lib
+
+# CLI binary
 bazel build //services/stl-compiler:stl_compiler
 
-# Run tests
-bazel test //services/stl-compiler:all_tests
-
-# Run benchmarks
-bazel test //services/stl-compiler:stl_compiler_benchmarks
+# Integration-style tests (this crate’s Bazel `rust_test`)
+bazel test //services/stl-compiler:stl_compiler_integration_tests
 ```
 
-### Building with Cargo
+## CLI usage
 
-```bash
-# Build the STL compiler
-cargo build --release
+After `cargo build -p stl-compiler` or the Bazel binary above, the `stl-compiler` executable exposes subcommands (see `src/main.rs` and `--help`). Typical flows include compiling or validating a specification file.
 
-# Run tests
-cargo test
-
-# Run benchmarks
-cargo bench
-```
-
-## Usage
-
-### Command Line Interface
-
-```bash
-# Compile STL specification
-stl-compiler compile input.stl --output output_dir
-
-# Validate STL specification
-stl-compiler validate input.stl
-
-# Start compiler server
-stl-compiler serve --port 8080
-
-# Show compiler information
-stl-compiler info
-```
-
-### Example STL Specification
-
-```stl
-voltage_safety
-// Voltage safety specification for power grid
-voltage > 220 && current < 100
-param: max_voltage real 240.0 Maximum voltage threshold
-param: max_current real 100.0 Maximum current threshold
-constraint: voltage_bounds bounds voltage <= 250.0
-constraint: current_bounds bounds current <= 120.0
-meta: author CertifyEdge Team
-meta: version 1.0.0
-```
-
-### Temporal Operators
-
-The STL compiler supports the following temporal operators:
-
-- `G[0,10] φ` - Always (Globally) φ in time interval [0,10]
-- `F[0,5] φ` - Eventually (Finally) φ in time interval [0,5]
-- `φ U[0,10] ψ` - φ Until ψ in time interval [0,10]
-- `X φ` - Next φ
-
-### Logical Operators
-
-- `φ && ψ` - Logical AND
-- `φ || ψ` - Logical OR
-- `!φ` - Logical NOT
-- `φ -> ψ` - Implication
-- `φ <-> ψ` - Equivalence
-
-### Comparison Operators
-
-- `variable > threshold` - Greater than
-- `variable >= threshold` - Greater than or equal
-- `variable < threshold` - Less than
-- `variable <= threshold` - Less than or equal
-- `variable == threshold` - Equal
-- `variable != threshold` - Not equal
-
-## Configuration
-
-The STL compiler can be configured using a JSON configuration file:
-
-```json
-{
-  "lean4": {
-    "version": "4.0.0",
-    "timeout_ms": 30000,
-    "memory_limit_mb": 1024,
-    "enable_native": true
-  },
-  "smt": {
-    "default_solver": "z3",
-    "enable_differential_testing": true,
-    "timeout_ms": 10000,
-    "z3": {
-      "version": "4.13.0",
-      "enabled": true
-    },
-    "cvc5": {
-      "version": "1.2.0",
-      "enabled": true
-    }
-  },
-  "compilation": {
-    "optimize": true,
-    "debug": false,
-    "warnings": true,
-    "strict": true,
-    "validate": true
-  },
-  "performance": {
-    "max_compilation_time_ms": 60000,
-    "max_memory_mb": 2048,
-    "parallel": true,
-    "num_threads": 8,
-    "enable_cache": true
-  }
-}
-```
-
-## API
-
-### Rust Library
+## Library usage
 
 ```rust
 use stl_compiler::{Compiler, CompilerConfig};
 
-// Create compiler
 let config = CompilerConfig::default();
 let compiler = Compiler::new(config);
 
-// Compile STL specification
-let spec_text = "test_spec\nvoltage > 220";
+// async context
+let spec_text = "my_spec\nvoltage > 220";
 let result = compiler.compile(spec_text).await?;
-
-// Access results
-println!("Lean 4 code: {}", result.lean4_output.lean4_code);
-println!("SMT-LIB code: {}", result.smt_output.smt_lib_code);
-println!("Compilation time: {}ms", result.stats.total_time_ms);
+// result.lean4_output, result.smt_output, result.stats, …
 ```
 
-### gRPC Service
+For tests that must not spawn external tools, use `CompilerConfig::for_tests_without_external_tools()` instead of `default()`.
 
-The STL compiler provides a gRPC service for integration with other components:
+## Protocol buffers
 
-```protobuf
-service STLCompiler {
-  rpc Compile(CompileRequest) returns (CompileResponse);
-  rpc Validate(ValidateRequest) returns (ValidateResponse);
-  rpc GetInfo(InfoRequest) returns (InfoResponse);
-}
+`proto/stl_compiler.proto` defines a schema for interoperability. Bazel exposes it as `//services/stl-compiler:stl_compiler_proto`. See [ADR 003: Protocol buffers and gRPC](../../docs/adr/003-proto-and-grpc.md).
+
+## Configuration
+
+JSON-shaped configuration is supported via `CompilerConfig` serialization (see `src/config.rs` and tests for fields). Versions and paths for Lean and SMT solvers should match what you have installed when those features are enabled.
+
+## Specification syntax (summary)
+
+Example body:
+
+```text
+voltage_safety
+voltage > 220 && current < 100
+param: max_voltage real 240.0 Maximum voltage threshold
+constraint: voltage_bounds bounds voltage <= 250.0
+meta: author Example author
+meta: version 1.0.0
 ```
 
-## Testing
-
-### Unit Tests
-
-```bash
-# Run unit tests
-bazel test //services/stl-compiler:stl_compiler_unit_tests
-
-# Run with coverage
-bazel coverage //services/stl-compiler:stl_compiler_unit_tests
-```
-
-### Integration Tests
-
-```bash
-# Run integration tests
-bazel test //services/stl-compiler:stl_compiler_integration_tests
-```
-
-### Property-based Tests
-
-```bash
-# Run property-based tests
-bazel test //services/stl-compiler:stl_compiler_property_tests
-```
-
-### Performance Benchmarks
-
-```bash
-# Run benchmarks
-bazel test //services/stl-compiler:stl_compiler_benchmarks
-```
-
-## Performance
-
-The STL compiler is optimized for performance:
-
-- **Compilation Time**: < 10ms per specification on M1 Pro
-- **Memory Usage**: < 100MB for typical specifications
-- **Parallel Execution**: Multi-threaded compilation
-- **Caching**: Incremental compilation with cache
-- **Optimization**: LTO and aggressive optimizations
-
-## Quality Gates
-
-The STL compiler enforces strict quality gates:
-
-- **Code Coverage**: ≥ 95% coverage requirement
-- **Property-based Testing**: Comprehensive input space coverage
-- **Round-trip Validation**: AST ↔ JSON idempotence
-- **Performance Regression**: Automated benchmark comparison
-- **Static Analysis**: Clippy with strict warnings
-
-## Security
-
-The STL compiler implements security best practices:
-
-- **Input Validation**: All inputs validated against schemas
-- **Sandboxing**: SMT solvers run in isolated environments
-- **Resource Limits**: Timeout and memory limits enforced
-- **Dependency Scanning**: Automated vulnerability scanning
-- **Audit Trail**: Complete compilation provenance
+Temporal operators include forms such as `G[0,10] φ` (always over an interval), `F[0,5] φ` (eventually), `X φ` (next), with `&&`, `||`, `!`, `->`, `<->` for boolean structure. See `src/parser.rs` for the exact supported surface.
 
 ## Contributing
 
-### Development Setup
-
-1. Clone the repository
-2. Install dependencies: `bazel sync`
-3. Run tests: `bazel test //services/stl-compiler:all_tests`
-4. Build: `bazel build //services/stl-compiler:stl_compiler`
-
-### Code Style
-
-- Follow Rust coding standards
-- Use `rustfmt` for formatting
-- Use `clippy` for linting
-- Write comprehensive tests
-- Document all public APIs
-
-### Testing Guidelines
-
-- Unit tests for all functions
-- Integration tests for complete workflows
-- Property-based tests for AST operations
-- Performance benchmarks for critical paths
-- Error handling tests for edge cases
+Follow the repository [Contributing guide](../../CONTRIBUTING.md): `cargo fmt`, `cargo test --workspace`, and (if you touch Bazel or protos) `bazel test --config=ci //tests/pipeline_integration:pipeline_integration`.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](../LICENSE) file for details.
+Apache License 2.0 — see [LICENSE](../../LICENSE).
 
 ## References
 
-- [Signal Temporal Logic](https://en.wikipedia.org/wiki/Signal_temporal_logic)
+- [Signal temporal logic](https://en.wikipedia.org/wiki/Signal_temporal_logic)
 - [Lean 4](https://leanprover.github.io/lean4/)
-- [SMT-LIB](http://smtlib.cs.uiowa.edu/)
-- [Z3 Theorem Prover](https://github.com/Z3Prover/z3)
-- [CVC5](https://cvc5.github.io/)
-- [ANTLR](https://www.antlr.org/) 
+- [SMT-LIB](https://smtlib.cs.uiowa.edu/)
+- [Z3](https://github.com/Z3Prover/z3)
+- [cvc5](https://cvc5.github.io/)

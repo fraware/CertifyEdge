@@ -1,7 +1,4 @@
-//! Certificate Management Service for CertifyEdge
-//! 
-//! This service handles certificate lifecycle operations including
-//! creation, validation, revocation, and renewal.
+//! Certificate lifecycle operations: create, validate, revoke, and renew.
 
 pub mod api;
 pub mod config;

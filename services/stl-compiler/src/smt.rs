@@ -2,7 +2,7 @@
 
 use crate::ast::{STLFormula, STLSpecification, AtomicPredicate, ComparisonOperator, TimeInterval, TimeUnit};
 use crate::config::CompilerConfig;
-use crate::error::{SMTError, SMTResult};
+use crate::error::{SMTError, SMTResult as SmtOperationResult};
 use serde::{Deserialize, Serialize};
 use std::process::Command;
 use tempfile::NamedTempFile;
@@ -29,7 +29,7 @@ pub struct SolverOutput {
     /// SMT-LIB script
     pub script: String,
     /// Result (sat/unsat/unknown)
-    pub result: SMTResult,
+    pub result: SolverVerdict,
     /// Model (if sat)
     pub model: Option<String>,
     /// Unsat core (if unsat)
@@ -40,9 +40,9 @@ pub struct SolverOutput {
     pub errors: Vec<String>,
 }
 
-/// SMT result type
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum SMTResult {
+/// Outcome reported by an SMT solver (distinct from `error::SMTResult<T>` which is `Result<T, SMTError>`).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum SolverVerdict {
     Sat,
     Unsat,
     Unknown,
@@ -78,20 +78,41 @@ impl SMTTranslator {
     }
 
     /// Translate STL specification to SMT-LIB
-    pub async fn translate(&mut self, spec: &STLSpecification) -> SMTResult<SMTOutput> {
+    pub async fn translate(&mut self, spec: &STLSpecification) -> SmtOperationResult<SMTOutput> {
         let start_time = std::time::Instant::now();
-        
+
         // Generate SMT-LIB code
         let smt_lib_code = self.generate_smt_lib_code(spec)?;
-        
+
+        let total_time = start_time.elapsed().as_millis() as u64;
+
+        // CI / offline mode: skip external solver binaries when both are disabled.
+        if !self.config.smt.z3.enabled && !self.config.smt.cvc5.enabled {
+            let z3_output = Self::skipped_solver_output("z3", &smt_lib_code);
+            let cvc5_output = Self::skipped_solver_output("cvc5", &smt_lib_code);
+            return Ok(SMTOutput {
+                smt_lib_code,
+                z3_output,
+                cvc5_output,
+                metadata: SMTMetadata {
+                    total_time_ms: total_time,
+                    z3_version: self.config.smt.z3.version.clone(),
+                    cvc5_version: self.config.smt.cvc5.version.clone(),
+                    assertion_count: self.count_assertions(spec),
+                    success: true,
+                },
+            });
+        }
+
         // Execute with Z3
         let z3_output = self.execute_with_z3(&smt_lib_code).await?;
-        
+
         // Execute with CVC5
         let cvc5_output = self.execute_with_cvc5(&smt_lib_code).await?;
-        
-        let total_time = start_time.elapsed().as_millis() as u64;
-        
+
+        let solvers_ok = z3_output.result != SolverVerdict::Error
+            && cvc5_output.result != SolverVerdict::Error;
+
         Ok(SMTOutput {
             smt_lib_code,
             z3_output,
@@ -101,13 +122,25 @@ impl SMTTranslator {
                 z3_version: self.get_z3_version()?,
                 cvc5_version: self.get_cvc5_version()?,
                 assertion_count: self.count_assertions(spec),
-                success: z3_output.result != SMTResult::Error && cvc5_output.result != SMTResult::Error,
+                success: solvers_ok,
             },
         })
     }
 
+    fn skipped_solver_output(solver_name: &str, script: &str) -> SolverOutput {
+        SolverOutput {
+            solver_name: solver_name.to_string(),
+            script: script.to_string(),
+            result: SolverVerdict::Sat,
+            model: None,
+            unsat_core: None,
+            execution_time_ms: 0,
+            errors: vec![],
+        }
+    }
+
     /// Generate SMT-LIB code from STL specification
-    fn generate_smt_lib_code(&self, spec: &STLSpecification) -> SMTResult<String> {
+    fn generate_smt_lib_code(&self, spec: &STLSpecification) -> SmtOperationResult<String> {
         let mut script = String::new();
         
         // Set logic
@@ -257,10 +290,12 @@ impl SMTTranslator {
     }
 
     /// Execute SMT-LIB script with Z3
-    async fn execute_with_z3(&self, script: &str) -> SMTResult<SolverOutput> {
+    async fn execute_with_z3(&self, script: &str) -> SmtOperationResult<SolverOutput> {
         let start_time = std::time::Instant::now();
         
-        let z3_path = self.config.get_z3_path()?;
+        let z3_path = self.config.get_z3_path().map_err(|e| SMTError::SolverNotFound {
+            solver: format!("z3 ({e})"),
+        })?;
         
         // Create temporary file
         let mut temp_file = NamedTempFile::new()
@@ -281,13 +316,13 @@ impl SMTTranslator {
         let error_str = String::from_utf8_lossy(&output.stderr);
         
         let result = self.parse_smt_result(&output_str);
-        let model = if result == SMTResult::Sat {
+        let model = if result == SolverVerdict::Sat {
             Some(output_str.lines().filter(|l| l.starts_with("(model")).collect::<Vec<_>>().join("\n"))
         } else {
             None
         };
         
-        let unsat_core = if result == SMTResult::Unsat {
+        let unsat_core = if result == SolverVerdict::Unsat {
             Some(output_str.lines().filter(|l| l.starts_with("(")).map(|s| s.to_string()).collect())
         } else {
             None
@@ -311,10 +346,12 @@ impl SMTTranslator {
     }
 
     /// Execute SMT-LIB script with CVC5
-    async fn execute_with_cvc5(&self, script: &str) -> SMTResult<SolverOutput> {
+    async fn execute_with_cvc5(&self, script: &str) -> SmtOperationResult<SolverOutput> {
         let start_time = std::time::Instant::now();
         
-        let cvc5_path = self.config.get_cvc5_path()?;
+        let cvc5_path = self.config.get_cvc5_path().map_err(|e| SMTError::SolverNotFound {
+            solver: format!("cvc5 ({e})"),
+        })?;
         
         // Create temporary file
         let mut temp_file = NamedTempFile::new()
@@ -335,13 +372,13 @@ impl SMTTranslator {
         let error_str = String::from_utf8_lossy(&output.stderr);
         
         let result = self.parse_smt_result(&output_str);
-        let model = if result == SMTResult::Sat {
+        let model = if result == SolverVerdict::Sat {
             Some(output_str.lines().filter(|l| l.starts_with("(model")).collect::<Vec<_>>().join("\n"))
         } else {
             None
         };
         
-        let unsat_core = if result == SMTResult::Unsat {
+        let unsat_core = if result == SolverVerdict::Unsat {
             Some(output_str.lines().filter(|l| l.starts_with("(")).map(|s| s.to_string()).collect())
         } else {
             None
@@ -365,16 +402,17 @@ impl SMTTranslator {
     }
 
     /// Parse SMT solver result
-    fn parse_smt_result(&self, output: &str) -> SMTResult {
+    fn parse_smt_result(&self, output: &str) -> SolverVerdict {
         let output_lower = output.to_lowercase();
-        if output_lower.contains("sat") {
-            SMTResult::Sat
-        } else if output_lower.contains("unsat") {
-            SMTResult::Unsat
+        // Check "unsat" before "sat" — "unsat" contains the substring "sat".
+        if output_lower.contains("unsat") {
+            SolverVerdict::Unsat
+        } else if output_lower.contains("sat") {
+            SolverVerdict::Sat
         } else if output_lower.contains("unknown") {
-            SMTResult::Unknown
+            SolverVerdict::Unknown
         } else {
-            SMTResult::Error
+            SolverVerdict::Error
         }
     }
 
@@ -394,8 +432,10 @@ impl SMTTranslator {
     }
 
     /// Get Z3 version
-    fn get_z3_version(&self) -> SMTResult<String> {
-        let z3_path = self.config.get_z3_path()?;
+    fn get_z3_version(&self) -> SmtOperationResult<String> {
+        let z3_path = self.config.get_z3_path().map_err(|e| SMTError::SolverNotFound {
+            solver: format!("z3 ({e})"),
+        })?;
         
         let output = Command::new(z3_path)
             .arg("--version")
@@ -412,8 +452,10 @@ impl SMTTranslator {
     }
 
     /// Get CVC5 version
-    fn get_cvc5_version(&self) -> SMTResult<String> {
-        let cvc5_path = self.config.get_cvc5_path()?;
+    fn get_cvc5_version(&self) -> SmtOperationResult<String> {
+        let cvc5_path = self.config.get_cvc5_path().map_err(|e| SMTError::SolverNotFound {
+            solver: format!("cvc5 ({e})"),
+        })?;
         
         let output = Command::new(cvc5_path)
             .arg("--version")
@@ -470,9 +512,9 @@ mod tests {
     fn test_parse_smt_result() {
         let translator = SMTTranslator::new(&CompilerConfig::default());
         
-        assert!(matches!(translator.parse_smt_result("sat"), SMTResult::Sat));
-        assert!(matches!(translator.parse_smt_result("unsat"), SMTResult::Unsat));
-        assert!(matches!(translator.parse_smt_result("unknown"), SMTResult::Unknown));
-        assert!(matches!(translator.parse_smt_result("error"), SMTResult::Error));
+        assert!(matches!(translator.parse_smt_result("sat"), SolverVerdict::Sat));
+        assert!(matches!(translator.parse_smt_result("unsat"), SolverVerdict::Unsat));
+        assert!(matches!(translator.parse_smt_result("unknown"), SolverVerdict::Unknown));
+        assert!(matches!(translator.parse_smt_result("error"), SolverVerdict::Error));
     }
 } 

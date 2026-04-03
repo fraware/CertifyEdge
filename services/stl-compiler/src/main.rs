@@ -274,7 +274,7 @@ fn show_info(compiler: Compiler) {
     println!();
     
     println!("Configuration:");
-    let config = compiler.config;
+    let config = compiler.config();
     println!("  Lean 4 version: {}", config.lean4.version);
     println!("  Z3 version: {}", config.smt.z3.version);
     println!("  CVC5 version: {}", config.smt.cvc5.version);

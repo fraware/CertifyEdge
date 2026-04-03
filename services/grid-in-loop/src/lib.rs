@@ -1,9 +1,5 @@
-//! CertifyEdge Grid-in-Loop Testing Service
-//! 
-//! This crate provides a comprehensive testing harness for grid-in-loop validation
-//! that spins up GridLAB-D or OpenDSS feeder models, injects stochastic load
-//! profiles, wraps ML agents behind certify_policy_adapter, and asserts STL
-//! invariants in runtime monitor.
+//! Simulation-oriented testing for power-grid scenarios: models, load profiles,
+//! policy adapters, and runtime checks against temporal specifications.
 
 pub mod simulator;
 pub mod load_profiles;
@@ -28,7 +24,7 @@ use crate::monitor::RuntimeMonitor;
 use crate::stl_validator::STLValidator;
 use crate::metrics::MetricsCollector;
 
-/// Main grid-in-loop testing service
+/// Coordinates simulation-based grid tests
 #[derive(Debug, Clone)]
 pub struct GridInLoopTester {
     config: GridInLoopConfig,
@@ -43,7 +39,7 @@ pub struct GridInLoopTester {
 }
 
 impl GridInLoopTester {
-    /// Create a new grid-in-loop tester with default configuration
+    /// New tester with default configuration
     pub fn new() -> Result<Self, GridInLoopError> {
         let config = GridInLoopConfig::default();
         let gridlabd = GridLABD::new(&config)?;
@@ -68,7 +64,7 @@ impl GridInLoopTester {
         })
     }
 
-    /// Create a new grid-in-loop tester with custom configuration
+    /// New tester with custom configuration
     pub fn with_config(config: GridInLoopConfig) -> Result<Self, GridInLoopError> {
         let gridlabd = GridLABD::new(&config)?;
         let opendss = OpenDSS::new(&config)?;
@@ -92,7 +88,7 @@ impl GridInLoopTester {
         })
     }
 
-    /// Run a complete grid-in-loop test
+    /// Run a full simulation test pass
     pub async fn run_test(
         &mut self,
         test_request: GridInLoopTestRequest,
@@ -291,7 +287,7 @@ impl GridInLoopTester {
 
 impl Default for GridInLoopTester {
     fn default() -> Self {
-        Self::new().expect("Failed to create default grid-in-loop tester")
+        Self::new().expect("Failed to create default simulation tester")
     }
 }
 

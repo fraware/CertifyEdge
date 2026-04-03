@@ -1,0 +1,12 @@
+"""Root package — re-exports docs and config filegroups for tooling."""
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "Cargo.toml",
+    "Cargo.lock",
+    "MODULE.bazel",
+    "WORKSPACE",
+    "README.md",
+    "LICENSE",
+])

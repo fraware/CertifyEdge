@@ -1,7 +1,4 @@
-//! CertifyEdge Auditor API
-//! 
-//! This crate provides a REST API for auditing and provenance tracking with
-//! OIDC JWT authentication and OPA/Rego policies per auditor role.
+//! HTTP API for audit and provenance: authentication, policy checks, and storage helpers.
 
 pub mod api;
 pub mod auth;

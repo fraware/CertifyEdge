@@ -1,7 +1,5 @@
-//! CertifyEdge Certificate Service
-//! 
-//! This crate provides cryptographic certificate format with Ed25519 signatures
-//! and Sigstore integration for tamper-proof verification of AI models.
+//! Signed certificate format (Ed25519), verification helpers, and optional hooks
+//! for external signing services.
 
 pub mod format;
 pub mod signing;
@@ -21,7 +19,7 @@ use crate::signing::CertificateSigner;
 use crate::verification::CertificateVerifier;
 
 /// Main certificate service
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct CertificateService {
     config: config::CertificateConfig,
     signer: CertificateSigner,
@@ -31,10 +29,11 @@ pub struct CertificateService {
 impl CertificateService {
     /// Create a new certificate service with default configuration
     pub fn new() -> Result<Self, CertificateError> {
-        let config = config::CertificateConfig::default();
+        let mut config = config::CertificateConfig::default();
         let signer = CertificateSigner::new(&config)?;
+        config.ed25519_verifying_key = Some(signer.verifying_key_bytes().to_vec());
         let verifier = CertificateVerifier::new(&config)?;
-        
+
         Ok(Self {
             config,
             signer,
@@ -43,10 +42,13 @@ impl CertificateService {
     }
 
     /// Create a new certificate service with custom configuration
-    pub fn with_config(config: config::CertificateConfig) -> Result<Self, CertificateError> {
+    pub fn with_config(mut config: config::CertificateConfig) -> Result<Self, CertificateError> {
         let signer = CertificateSigner::new(&config)?;
+        if config.ed25519_verifying_key.is_none() {
+            config.ed25519_verifying_key = Some(signer.verifying_key_bytes().to_vec());
+        }
         let verifier = CertificateVerifier::new(&config)?;
-        
+
         Ok(Self {
             config,
             signer,
@@ -89,6 +91,8 @@ impl CertificateService {
 
         // Sign the certificate
         certificate = self.signer.sign_certificate(certificate).await?;
+        let sigstore = sigstore::SigstoreIntegration::from_config(&self.config);
+        certificate = sigstore.attach_signature_if_enabled(certificate).await?;
 
         Ok(certificate)
     }
