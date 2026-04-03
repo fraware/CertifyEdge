@@ -1,0 +1,33 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_library(
+    name = "certificate",
+    srcs = glob(["src/**/*.rs"]),
+    edition = "2021",
+    proc_macro_deps = ["@crates//:serde_derive"],
+    deps = [
+        "@crates//:chrono",
+        "@crates//:ed25519-dalek",
+        "@crates//:rand",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+        "@crates//:thiserror",
+        "@crates//:tokio",
+        "@crates//:toml",
+        "@crates//:tracing",
+        "@crates//:uuid",
+    ],
+)
+
+rust_binary(
+    name = "certctl",
+    srcs = ["src/main.rs"],
+    edition = "2021",
+    deps = [
+        ":certificate",
+        "@crates//:clap",
+    ],
+)

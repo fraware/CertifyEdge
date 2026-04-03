@@ -185,12 +185,13 @@ async fn verify_script(
                 let response = VerificationResponse {
                     request_id: result.verification_id.clone(),
                     result: result.clone(),
-                    timestamp: chrono::Utc::now().to_rfc3339(),
+                    timestamp: std::time::SystemTime::now(),
                 };
-                
+
                 let response_json = serde_json::to_string_pretty(&response)?;
-                std::fs::write(output_path, response_json)?;
-                info!("Result saved to: {}", output_path.display());
+                let dest = output_path.display().to_string();
+                std::fs::write(&output_path, response_json)?;
+                info!("Result saved to: {}", dest);
             }
         }
         false => {

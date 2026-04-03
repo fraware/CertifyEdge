@@ -1,7 +1,4 @@
-//! CertifyEdge GPU-Backed Verification Farm
-//! 
-//! This crate provides a Kubernetes-based GPU farm for Lean proof search fallback,
-//! with autoscaling spot GPU nodes (A10/A100) using Karpenter and budget caps.
+//! Experimental: coordinate optional GPU-backed proof search (deployment-specific).
 
 pub mod kubernetes;
 pub mod autoscaler;

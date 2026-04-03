@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// STL Specification - the root AST node
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct STLSpecification {
     pub name: String,
     pub description: Option<String>,
@@ -15,7 +15,7 @@ pub struct STLSpecification {
 }
 
 /// STL Formula - represents a temporal logic expression
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum STLFormula {
     /// Atomic predicate: variable comparison with threshold
     Atomic(AtomicPredicate),
@@ -46,7 +46,7 @@ pub enum STLFormula {
 }
 
 /// Atomic predicate for signal comparison
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AtomicPredicate {
     pub variable: String,
     pub operator: ComparisonOperator,
@@ -66,7 +66,7 @@ pub enum ComparisonOperator {
 }
 
 /// Time interval for temporal operators
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TimeInterval {
     pub start: Option<f64>,
     pub end: Option<f64>,
@@ -102,7 +102,7 @@ pub enum ParameterType {
 }
 
 /// Parameter values
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ParameterValue {
     Real(f64),
     Integer(i64),

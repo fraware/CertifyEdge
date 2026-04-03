@@ -1,0 +1,8 @@
+"""Lean autoprover sources only — Bazel Rust targets deferred until Lean rules are wired."""
+
+package(default_visibility = ["//visibility:public"])
+
+filegroup(
+    name = "sources",
+    srcs = glob(["**/*"]),
+)

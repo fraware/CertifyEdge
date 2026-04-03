@@ -1,194 +1,128 @@
+<div align="center">
+
 # CertifyEdge
 
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+**Specifications, solvers, and signed artifacts for temporal properties**
 
-> **Formally-verified platform for certifying AI agents in power grid applications**
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/rust-1.88.0-orange.svg)](rust-toolchain.toml)
 
-CertifyEdge provides end-to-end verification from STL specification authoring through Lean 4 compilation, SMT solving, certificate signing, and CI/CD gating with comprehensive auditing capabilities.
+<br/>
 
-## Mission
+<img src=".github/assets/CertifyEdge1.png" alt="CertifyEdge" width="220"/>
 
-Enable safe deployment of AI agents in critical power grid infrastructure through:
+<br/>
 
-- **Formal Verification**: Mathematical proof of correctness using Lean 4
-- **Audit Trail**: Complete provenance from specification to certificate
-- **Compliance**: Built-in support for UL 2900-1, IEC 61850, and SOC 2
-- **Security**: Defense-in-depth with mTLS, OPA policies, and cryptographic signatures
-- **Performance**: High-throughput verification with GPU acceleration
+[Documentation](docs/README.md) · [Quick start](docs/quick-start.md) · [Contributing](CONTRIBUTING.md)
 
-<p align="center">
-  <img src=".github/assets/CertifyEdge1.png" alt="CertifyEdge Logo" width="200"/>
-</p>
-
-## Architecture
-
-CertifyEdge follows a hexagonal architecture pattern with microservices:
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           CertifyEdge Platform                              │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐   │
-│  │   Web UI    │    │  STL Editor │    │  Cert Mgmt  │    │   Auditor   │   │
-│  │ (Next.js)   │    │ (TypeScript)│    │   (Rust)    │    │   (Rust)    │   │
-│  └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘   │
-│           │                   │                   │                   │     │
-│           └───────────────────┼───────────────────┼───────────────────┘     │
-│                               │                   │                         │
-│  ┌─────────────┐    ┌───────────────┐    ┌─────────────┐    ┌─────────────┐ │
-│  │ STL Compiler│    │Lean Autoprover│    │ SMT Verifier│    │ GPU Farm    │ │
-│  │   (Rust)    │    │   (Lean 4)    │    │   (Rust)    │    │(K8s + GPU)  │ │
-│  └─────────────┘    └───────────────┘    └─────────────┘    └─────────────┘ │
-│           │                   │                   │                   │     │
-│           └───────────────────┼───────────────────┼───────────────────┘     │
-│                               │                   │                         │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐   │
-│  │ Certificate │    │   Provenance│    │   Policy    │    │   Monitoring│   │
-│  │   Service   │    │    Service  │    │   Engine    │    │ (Prometheus │   │
-│  │   (Rust)    │    │   (Rust)    │    │   (OPA)     │    │   + Grafana)│   │
-│  └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘   │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Technology Stack
-
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| **Core Services** | Rust + Tokio | High-performance microservices |
-| **Web UI** | Next.js + TypeScript | Developer experience |
-| **Formal Verification** | Lean 4 | Theorem proving |
-| **SMT Solving** | Z3, CVC5 | Satisfiability modulo theories |
-| **Container Runtime** | WebAssembly | Sandboxed execution |
-| **Orchestration** | Kubernetes | Container orchestration |
-| **Build System** | Bazel | Hermetic, reproducible builds |
-| **Monitoring** | Prometheus + Grafana | Metrics and visualization |
-
-## Quick Start
-
-### Prerequisites
-
-- Rust 1.75+ with Cargo
-- Node.js 18+ with npm
-- Docker and Kubernetes
-- Lean 4 nightly
-- Bazel 6.0+
-
-### Development Setup
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/fraware/CertifyEdge.git
-   ```
-
-2. **Install dependencies**
-   ```bash
-   # Install Rust dependencies
-   cargo install cargo-audit cargo-tarpaulin
-   
-   # Install Node.js dependencies
-   npm install
-   
-   # Install Lean 4
-   curl -L https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh
-   elan default leanprover/lean4:nightly
-   ```
-
-3. **Build the project**
-   ```bash
-   # Build all targets
-   bazel build //...
-   
-   # Run tests
-   bazel test //...
-   ```
-
-4. **Start development environment**
-   ```bash
-   # Start local development
-   bazel run //web:dev
-   bazel run //services/certificate:dev
-   ```
-
-### Example Usage
-
-```rust
-// Create an STL specification
-let spec = STLSpecification {
-    name: "transformer_overload".to_string(),
-    description: "Prevent transformer overload".to_string(),
-    formula: STLFormula::Always(
-        Box::new(STLFormula::Atomic(
-            AtomicPredicate {
-                variable: "transformer_load".to_string(),
-                operator: ComparisonOperator::LessThan,
-                threshold: 0.9,
-            }
-        ))
-    ),
-    author: "grid_operator@example.com".to_string(),
-    ..Default::default()
-};
-
-// Compile to Lean 4
-let lean_code = stl_compiler::compile(&spec)?;
-
-// Verify with SMT solver
-let verification_result = smt_verifier::verify(&lean_code)?;
-
-// Generate certificate
-let certificate = certificate_service::create_certificate(
-    &spec,
-    &verification_result,
-    &model_hash
-)?;
-```
-
-## Monitoring
-
-### Metrics
-
-- **Performance**: Response times, throughput, error rates
-- **Security**: Authentication failures, suspicious activity
-- **Business**: Certificate generation rate, verification success
-- **Infrastructure**: Resource utilization, availability
-
-### Alerting
-
-- **Critical**: Certificate forgery attempts, security breaches
-- **High**: Performance degradation, service failures
-- **Medium**: Resource exhaustion, configuration drift
-- **Low**: Informational events, maintenance windows
-
-## Contributing
-
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
-
-### Development Workflow
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests and documentation
-5. Submit a pull request
-
-## License
-
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- [Lean 4](https://leanprover.github.io/) for formal verification
-- [Supabase](https://supabase.com/) for edge function patterns
-- [Sigstore](https://sigstore.dev/) for cryptographic transparency
-- [OWASP](https://owasp.org/) for security guidance
-
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/fraware/CertifyEdge/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/fraware/CertifyEdge/discussions)
+</div>
 
 ---
 
-**CertifyEdge**: Making AI safe for critical infrastructure through formal verification. 
+CertifyEdge is a **Rust** workspace for **signal temporal logic (STL)** specifications: parse and compile them, generate **SMT-LIB** and Lean-oriented output when configured, run **SMT** checks through a verifier service, and emit **Ed25519-signed certificates** that summarize what was checked. Power grids and AI agents are motivating domains; the code does not assume a specific industry.
+
+---
+
+## What you can do here
+
+| | |
+|:---|:---|
+| **Author specs** | Text-based STL-style formulas, parameters, constraints, and metadata. |
+| **Compile** | `stl_compiler` produces Lean and SMT-LIB artifacts from configuration. |
+| **Verify** | `smt_verifier` runs scripts against solvers such as Z3 or CVC5 when enabled. |
+| **Certify** | `certificate` builds and verifies signed certificate payloads. |
+| **Automate** | The same flow is tested in CI with **Cargo** and **Bazel** so behavior stays honest. |
+
+---
+
+## Repository map
+
+```mermaid
+flowchart LR
+  subgraph today["In this repository"]
+    A[STL compiler] --> B[SMT verifier]
+    B --> C[Certificate library]
+  end
+  subgraph optional["Optional tooling"]
+    L[Lean]
+    Z[Z3 / CVC5]
+  end
+  A -.-> L
+  B -.-> Z
+```
+
+Broader platform pieces (web UI, full policy stack, production monitoring) are **partial** or **planned**; the diagram above is the spine that is exercised end-to-end in tests.
+
+---
+
+## Stack
+
+| Layer | Choice | Note |
+|------|--------|------|
+| Language | Rust (async) | Workspace crates under `services/` |
+| Proof / logic | Lean | Optional; toggled in compiler config |
+| Solvers | Z3, CVC5 | Optional; paths and flags in config |
+| Builds | Cargo + Bazel | Cargo for day-to-day iteration; Bazel matches CI |
+| Protos | `protobuf` | Schema under `services/stl-compiler/proto/` |
+
+---
+
+## Quick start
+
+**Requirements:** Rust toolchain from [`rust-toolchain.toml`](rust-toolchain.toml). Optional: [Bazelisk](https://github.com/bazelbuild/bazelisk) for Bazel ([`.bazelversion`](.bazelversion)).
+
+```bash
+git clone <URL from this repository’s GitHub page>
+cd CertifyEdge
+
+cargo check --workspace
+cargo test --workspace
+cargo test -p integration_tests
+```
+
+Bazel (same integration test as CI):
+
+```bash
+bazel test --config=ci //tests/pipeline_integration:pipeline_integration
+```
+
+**Primary APIs:** `stl_compiler::Compiler`, `smt_verifier::SMTVerifier`, `certificate::CertificateService`. A full walkthrough of flags and layout lives in [docs/quick-start.md](docs/quick-start.md); crate-level detail in [services/stl-compiler/README.md](services/stl-compiler/README.md).
+
+---
+
+## Documentation
+
+| Resource | Description |
+|----------|-------------|
+| [docs/README.md](docs/README.md) | Index of guides and architecture decisions |
+| [docs/quick-start.md](docs/quick-start.md) | Setup, commands, troubleshooting |
+| [docs/adr/](docs/adr/) | Decision records (Bazel, CI, protos, security outline) |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Pull requests, formatting, review expectations |
+
+---
+
+## Contributing
+
+Contributions are welcome. Fork, branch from `main`, keep changes focused, run tests and `cargo fmt`, and open a pull request. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full checklist.
+
+---
+
+## License
+
+[Apache License 2.0](LICENSE)
+
+---
+
+## Acknowledgments
+
+[Lean 4](https://leanprover.github.io/) · [Sigstore](https://sigstore.dev/) · [OWASP](https://owasp.org/)
+
+---
+
+<div align="center">
+
+**Questions or ideas?** Use **Issues** and **Discussions** on this repository’s GitHub page.
+
+<sub>CertifyEdge — temporal specifications, automated checking, and auditable certificates.</sub>
+
+</div>

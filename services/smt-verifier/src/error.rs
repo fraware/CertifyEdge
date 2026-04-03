@@ -19,7 +19,7 @@ pub enum VerifierError {
     #[error("Solver disagreement for verification {verification_id}: {results:?}")]
     SolverDisagreement {
         verification_id: String,
-        results: Vec<crate::verifier::SMTResult>,
+        results: Vec<crate::verifier::VerificationResult>,
     },
 
     #[error("Solver execution error: {0}")]
@@ -74,15 +74,15 @@ impl From<std::io::Error> for VerifierError {
     }
 }
 
-impl From<tokio::time::error::Elapsed> for VerifierError {
-    fn from(err: tokio::time::error::Elapsed) -> Self {
-        VerifierError::TimeoutError(err.to_string())
+impl From<std::time::SystemTimeError> for VerifierError {
+    fn from(err: std::time::SystemTimeError) -> Self {
+        VerifierError::InternalError(err.to_string())
     }
 }
 
-impl From<wasmtime::Error> for VerifierError {
-    fn from(err: wasmtime::Error) -> Self {
-        VerifierError::SandboxError(err.to_string())
+impl From<tokio::time::error::Elapsed> for VerifierError {
+    fn from(err: tokio::time::error::Elapsed) -> Self {
+        VerifierError::TimeoutError(err.to_string())
     }
 }
 

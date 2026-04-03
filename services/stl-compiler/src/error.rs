@@ -139,30 +139,6 @@ pub enum ConfigError {
     ValidationFailed { message: String },
 }
 
-impl From<ParseError> for CompilerError {
-    fn from(err: ParseError) -> Self {
-        CompilerError::ParseError(err)
-    }
-}
-
-impl From<Lean4Error> for CompilerError {
-    fn from(err: Lean4Error) -> Self {
-        CompilerError::Lean4Error(err)
-    }
-}
-
-impl From<SMTError> for CompilerError {
-    fn from(err: SMTError) -> Self {
-        CompilerError::SMTError(err)
-    }
-}
-
-impl From<ConfigError> for CompilerError {
-    fn from(err: ConfigError) -> Self {
-        CompilerError::ConfigError(err)
-    }
-}
-
 /// Result type for the STL compiler
 pub type CompilerResult<T> = Result<T, CompilerError>;
 

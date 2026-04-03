@@ -22,6 +22,8 @@ pub struct CompilerConfig {
 /// Lean 4 specific configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Lean4Config {
+    /// When true, skip invoking the Lean executable (CI / offline pipeline tests).
+    pub skip_validation: bool,
     /// Path to Lean 4 executable
     pub lean4_path: Option<PathBuf>,
     /// Lean 4 version
@@ -156,6 +158,7 @@ impl Default for CompilerConfig {
 impl Default for Lean4Config {
     fn default() -> Self {
         Self {
+            skip_validation: false,
             lean4_path: None,
             version: "4.0.0".to_string(),
             timeout_ms: 30000, // 30 seconds
@@ -220,7 +223,9 @@ impl Default for PerformanceConfig {
             max_compilation_time_ms: 60000, // 1 minute
             max_memory_mb: 2048, // 2GB
             parallel: true,
-            num_threads: num_cpus::get(),
+            num_threads: std::thread::available_parallelism()
+                .map(|n| n.get())
+                .unwrap_or(4),
             enable_cache: true,
             cache_dir: None,
         }
@@ -241,6 +246,15 @@ impl Default for OutputConfig {
 }
 
 impl CompilerConfig {
+    /// Settings for automated tests when Lean, Z3, and CVC5 are not installed or not used.
+    pub fn for_tests_without_external_tools() -> Self {
+        let mut c = CompilerConfig::default();
+        c.lean4.skip_validation = true;
+        c.smt.z3.enabled = false;
+        c.smt.cvc5.enabled = false;
+        c
+    }
+
     /// Load configuration from file
     pub fn from_file(path: &PathBuf) -> ConfigResult<Self> {
         let content = std::fs::read_to_string(path)

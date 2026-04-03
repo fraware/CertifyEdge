@@ -1,0 +1,11 @@
+[package]
+name = "integration_tests"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+certificate = { path = "../../services/certificate" }
+smt-verifier = { path = "../../services/smt-verifier" }
+stl-compiler = { path = "../../services/stl-compiler" }
+tokio = { version = "1.40", features = ["macros", "rt-multi-thread"] }

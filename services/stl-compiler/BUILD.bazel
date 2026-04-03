@@ -1,0 +1,62 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("@rules_proto//proto:defs.bzl", "proto_library")
+
+package(default_visibility = ["//visibility:public"])
+
+proto_library(
+    name = "stl_compiler_proto",
+    srcs = ["proto/stl_compiler.proto"],
+    deps = ["@protobuf//:timestamp_proto"],
+)
+
+rust_library(
+    name = "stl_compiler_lib",
+    srcs = glob(["src/**/*.rs"]),
+    edition = "2021",
+    proc_macro_deps = [
+        "@crates//:serde_derive",
+    ],
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:axum",
+        "@crates//:clap",
+        "@crates//:config",
+        "@crates//:reqwest",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:tempfile",
+        "@crates//:thiserror",
+        "@crates//:tokio",
+        "@crates//:tower",
+        "@crates//:tower-http",
+        "@crates//:tracing",
+        "@crates//:tracing-subscriber",
+        "@crates//:which",
+    ],
+)
+
+rust_binary(
+    name = "stl_compiler",
+    srcs = ["src/main.rs"],
+    edition = "2021",
+    deps = [
+        ":stl_compiler_lib",
+        "@crates//:clap",
+        "@crates//:serde_json",
+        "@crates//:tokio",
+        "@crates//:tracing",
+        "@crates//:tracing-subscriber",
+    ],
+)
+
+rust_test(
+    name = "stl_compiler_integration_tests",
+    srcs = ["tests/integration_test.rs"],
+    edition = "2021",
+    deps = [
+        ":stl_compiler_lib",
+        "@crates//:tempfile",
+        "@crates//:tokio",
+    ],
+    tags = ["integration"],
+)

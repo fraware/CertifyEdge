@@ -1,61 +1,19 @@
-# CertifyEdge Platform - Bazel Configuration
-# Production-grade, formally-verified, audit-ready platform
+# CertifyEdge — Bazel settings. Keep flags minimal and valid for the current build graph.
 
-# Enable workspace mode to use WORKSPACE file
-build --enable_workspace
+common --enable_bzlmod
+common --lockfile_mode=off
 
-# Build performance optimizations
-build --enable_platform_specific_config
-build --incompatible_allow_python_version_transitions=true
-build --incompatible_default_to_explicit_init_py=true
-build --incompatible_use_python_toolchains=true
-build --python_version=PY3
-
-# Rust-specific settings
-build --@rules_rust//rust:default_edition=2021
-build --@rules_rust//rust:default_rust_version=1.75.0
-
-# TypeScript/JavaScript settings
-build --@aspect_rules_ts//ts:default_tsconfig=//:tsconfig.json
-build --@aspect_rules_ts//ts:default_eslint_config=//:eslint.config.js
-
-# Lean 4 settings
-build --@rules_lean//lean:default_version=4.0.0
-
-# Build optimizations
-build --jobs=8
-build --local_cpu_resources=8
-build --local_ram_resources=8192
-
-# Verbose output for debugging
-build --verbose_failures
+build --incompatible_strict_action_env
 build --show_timestamps
+build --verbose_failures
 
-# Test settings
-test --test_timeout=300
-test --test_output=errors
-test --test_verbose_timeout_warnings
-test --test_summary=detailed
-test --test_strategy=exclusive
-test --test_keep_going
-
-# Platform-specific settings
 build:linux --copt=-fPIC
-build:linux --host_copt=-fPIC
 build:macos --copt=-fPIC
-build:macos --host_copt=-fPIC
 build:windows --copt=/bigobj
-build:windows --host_copt=/bigobj
 
-# Debugging support
-build --strip=never
-build --compilation_mode=dbg
+# CI: reproducible, no machine-specific resource caps
+build:ci --compilation_mode=fastbuild
+build:ci --worker_sandboxing=false
 
-# Release mode overrides
-build:release --compilation_mode=opt
-build:release --strip=always
-build:release --debug_symbols=false
-
-# Development mode
-build:dev --compilation_mode=fastbuild
-build:dev --strip=never 
+test:ci --test_output=errors
+test:ci --test_summary=detailed

@@ -1,0 +1,18 @@
+load("@rules_rust//rust:defs.bzl", "rust_test")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_test(
+    name = "pipeline_integration",
+    srcs = ["tests/pipeline_integration.rs"],
+    edition = "2021",
+    deps = [
+        "//services/certificate:certificate",
+        "//services/smt-verifier:smt_verifier",
+        "//services/stl-compiler:stl_compiler_lib",
+        "@crates//:tokio",
+    ],
+    tags = [
+        "integration",
+    ],
+)

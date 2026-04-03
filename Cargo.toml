@@ -1,0 +1,25 @@
+[workspace]
+resolver = "2"
+members = [
+    "services/stl-compiler",
+    "services/smt-verifier",
+    "services/certificate",
+    "tests/pipeline_integration",
+]
+
+[workspace.package]
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/fraware/CertifyEdge"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.dev]
+opt-level = 0
+debug = true
+overflow-checks = true

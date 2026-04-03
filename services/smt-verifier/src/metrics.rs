@@ -3,7 +3,7 @@
 //! This module provides Prometheus metrics and OpenTelemetry tracing
 //! for the SMT verification service.
 
-use prometheus::{Counter, Histogram, Gauge, Registry};
+use prometheus::{Counter, Gauge, Histogram, HistogramOpts, Registry};
 use std::collections::HashMap;
 use std::time::SystemTime;
 
@@ -72,15 +72,24 @@ impl VerifierMetrics {
             "Number of ERROR results"
         ).unwrap();
         
-        let verification_duration = Histogram::new(
-            "smt_verifier_duration_seconds",
-            "Verification duration in seconds"
-        ).unwrap();
-        
-        let memory_usage = Histogram::new(
-            "smt_verifier_memory_usage_mb",
-            "Memory usage in MB"
-        ).unwrap();
+        let buckets = vec![0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0];
+        let verification_duration = Histogram::with_opts(
+            HistogramOpts::new(
+                "smt_verifier_duration_seconds",
+                "Verification duration in seconds",
+            )
+            .buckets(buckets.clone()),
+        )
+        .unwrap();
+
+        let memory_usage = Histogram::with_opts(
+            HistogramOpts::new(
+                "smt_verifier_memory_usage_mb",
+                "Memory usage in MB",
+            )
+            .buckets(buckets),
+        )
+        .unwrap();
         
         let active_verifications = Gauge::new(
             "smt_verifier_active_verifications",
@@ -184,10 +193,22 @@ impl VerifierMetrics {
             unsat_count: self.unsat_results.get() as u64,
             unknown_count: self.unknown_results.get() as u64,
             error_count: self.error_results.get() as u64,
-            average_execution_time_ms: (self.verification_duration.get_sample_sum() / 
-                self.verification_duration.get_sample_count()) as u64 * 1000,
-            average_memory_usage_mb: (self.memory_usage.get_sample_sum() / 
-                self.memory_usage.get_sample_count()) as u64,
+            average_execution_time_ms: {
+                let n = self.verification_duration.get_sample_count() as f64;
+                if n > 0.0 {
+                    (self.verification_duration.get_sample_sum() / n * 1000.0) as u64
+                } else {
+                    0
+                }
+            },
+            average_memory_usage_mb: {
+                let n = self.memory_usage.get_sample_count() as f64;
+                if n > 0.0 {
+                    (self.memory_usage.get_sample_sum() / n) as u64
+                } else {
+                    0
+                }
+            },
             solver_stats: HashMap::new(), // This would be populated from individual solver stats
         }
     }

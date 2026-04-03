@@ -1,7 +1,4 @@
-//! Policy Engine for CertifyEdge
-//! 
-//! This service provides OPA (Open Policy Agent) integration for
-//! authorization, compliance, and policy enforcement across the platform.
+//! Policy evaluation service: configuration, rules, and integration with an external policy engine.
 
 pub mod api;
 pub mod config;

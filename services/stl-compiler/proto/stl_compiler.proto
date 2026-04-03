@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package certifyedge.stl_compiler.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option java_multiple_files = true;
+option java_package = "com.certifyedge.stl_compiler.v1";
+
+// CompileJob describes a request to compile an STL specification (API contract).
+message CompileJob {
+  string job_id = 1;
+  string spec_text = 2;
+  bool emit_lean4 = 3;
+  bool emit_smt2 = 4;
+  google.protobuf.Timestamp requested_at = 5;
+}
+
+message CompileArtifactRef {
+  string job_id = 1;
+  string lean_uri = 2;
+  string smt2_uri = 3;
+}

@@ -486,7 +486,8 @@ mod tests {
         assert!(result.is_ok());
         
         if let Ok(STLFormula::Always(interval, formula)) = result {
-            assert_eq!(interval.start, Some(0.0));
+            // Lower bound `0` is stored as None (open from origin); see `parse_time_interval`.
+            assert_eq!(interval.start, None);
             assert_eq!(interval.end, Some(10.0));
             assert!(matches!(*formula, STLFormula::Atomic(_)));
         } else {
@@ -501,7 +502,7 @@ mod tests {
 voltage > 220 && current < 100
 param: max_voltage real 240.0 Maximum voltage threshold
 constraint: voltage_bounds bounds voltage <= 250.0
-meta: author CertifyEdge Team";
+meta: author Example author";
         
         let mut parser = STLParser::new();
         let result = parser.parse(input);

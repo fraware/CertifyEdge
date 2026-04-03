@@ -71,13 +71,28 @@ impl Compiler {
         Self { config }
     }
 
+    /// Active compiler configuration.
+    pub fn config(&self) -> &CompilerConfig {
+        &self.config
+    }
+
+    /// Parse an STL specification string into an AST.
+    pub fn parse_specification(&self, spec_text: &str) -> CompilerResult<STLSpecification> {
+        self.parse_spec_internal(spec_text)
+    }
+
+    /// JSON round-trip validation for a parsed specification.
+    pub fn validate_roundtrip(&self, spec: &STLSpecification) -> bool {
+        self.validate_roundtrip_internal(spec)
+    }
+
     /// Compile STL specification to Lean 4 and SMT-LIB
     pub async fn compile(&self, spec_text: &str) -> CompilerResult<CompilationResult> {
         let start_time = Instant::now();
         
         // Parse specification
         let parse_start = Instant::now();
-        let specification = self.parse_specification(spec_text)?;
+        let specification = self.parse_spec_internal(spec_text)?;
         let parse_time = parse_start.elapsed().as_millis() as u64;
         
         // Translate to Lean 4
@@ -117,8 +132,7 @@ impl Compiler {
         })
     }
 
-    /// Parse STL specification
-    fn parse_specification(&self, spec_text: &str) -> CompilerResult<STLSpecification> {
+    fn parse_spec_internal(&self, spec_text: &str) -> CompilerResult<STLSpecification> {
         let mut parser = STLParser::new();
         parser.parse(spec_text).map_err(CompilerError::ParseError)
     }
@@ -145,7 +159,7 @@ impl Compiler {
         let mut errors = Vec::new();
         
         // Validate round-trip
-        let roundtrip_valid = self.validate_roundtrip(spec);
+        let roundtrip_valid = self.validate_roundtrip_internal(spec);
         if !roundtrip_valid {
             errors.push("Round-trip validation failed".to_string());
         }
@@ -173,8 +187,7 @@ impl Compiler {
         })
     }
 
-    /// Validate round-trip through JSON serialization
-    fn validate_roundtrip(&self, spec: &STLSpecification) -> bool {
+    fn validate_roundtrip_internal(&self, spec: &STLSpecification) -> bool {
         match serde_json::to_string(spec) {
             Ok(json) => {
                 match serde_json::from_str::<STLSpecification>(&json) {
