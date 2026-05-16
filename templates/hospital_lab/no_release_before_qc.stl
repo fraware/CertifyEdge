@@ -1,0 +1,4 @@
+no_release_before_qc
+// For every sample_id, release_sample cannot occur before perform_qc with successful outcome.
+property: hospital_lab.no_release_before_qc
+allowed_release_roles: release_manager

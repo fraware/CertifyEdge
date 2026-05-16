@@ -23,6 +23,47 @@ CertifyEdge is a **Rust** workspace for **signal temporal logic (STL)** specific
 
 ---
 
+## PCS v0.1 (LabTrust QC-release)
+
+CertifyEdge v0.1 is the **temporal trace certification engine** for [Proof-Carrying Science](https://github.com/SentinelOps-CI/pcs-core) v0.1. It consumes LabTrust-Gym `trace.json`, checks hospital-lab temporal properties, and emits **TraceCertificate.v0** artifacts for Provability Fabric.
+
+```bash
+# Build the CLI
+cargo build -p certifyedge
+
+# Check a trace against the composite QC-release property
+cargo run -p certifyedge -- check-trace \
+  --spec templates/hospital_lab/qc_release.stl \
+  --trace tests/labtrust/valid_trace.json
+
+# Emit a PCS certificate
+cargo run -p certifyedge -- emit-pcs-certificate \
+  --spec templates/hospital_lab/qc_release.stl \
+  --trace tests/labtrust/valid_trace.json \
+  --out trace_certificate.json
+
+# Verify certificate schema and digest
+cargo run -p certifyedge -- verify-certificate trace_certificate.json \
+  --trace tests/labtrust/valid_trace.json
+
+# Explain a counterexample
+cargo run -p certifyedge -- explain-counterexample counterexample.json
+```
+
+| Crate / path | Role |
+|--------------|------|
+| `services/labtrust-adapter/` | Parse LabTrust traces, hash chain, temporal checks |
+| `services/pcs-certificate/` | `TraceCertificate.v0` export and digest |
+| `cli/` | `certifyedge` command-line tool |
+| `templates/hospital_lab/` | STL property specs (`qc_release`, etc.) |
+| `tests/labtrust/` | Golden traces and expected outputs |
+
+End-to-end flow with LabTrust-Gym and Provability Fabric is documented in [docs/pcs-trace-certificates.md](docs/pcs-trace-certificates.md) and [docs/labtrust-adapter.md](docs/labtrust-adapter.md).
+
+**Simulation disclaimer:** v0.1 certificates attest to LabTrust-Gym simulation traces only. They are not clinical or production laboratory guarantees.
+
+---
+
 ## What you can do here
 
 | | |

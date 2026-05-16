@@ -33,8 +33,37 @@ jobs:
       - name: cargo check
         run: cargo check --workspace --all-targets
 
+      - name: cargo clippy (PCS v0.1)
+        run: cargo clippy -p labtrust-adapter -p pcs-certificate -p certifyedge -- -D warnings
+
+      - name: cargo test (PCS v0.1)
+        run: cargo test -p certifyedge-integration -- --nocapture
+
       - name: cargo test
         run: cargo test --workspace -- --nocapture
+
+      - name: Checkout pcs-core
+        uses: actions/checkout@v4
+        with:
+          repository: SentinelOps-CI/pcs-core
+          path: pcs-core
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pcs-core CLI
+        run: pip install -e pcs-core/python
+
+      - name: Emit TraceCertificate and pcs validate
+        run: |
+          cargo run -p certifyedge -- emit-pcs-certificate \
+            --spec templates/hospital_lab/qc_release.stl \
+            --trace tests/labtrust/valid_trace.json \
+            --out target/trace_certificate.json
+          pcs validate target/trace_certificate.json
+          pcs validate tests/labtrust/expected_valid_certificate.json
 
   bazel:
     name: Bazel integration test

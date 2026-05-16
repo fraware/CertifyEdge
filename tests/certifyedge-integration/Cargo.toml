@@ -1,0 +1,10 @@
+[package]
+name = "certifyedge-integration"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dev-dependencies]
+labtrust-adapter = { path = "../../services/labtrust-adapter" }
+pcs-certificate = { path = "../../services/pcs-certificate" }
+serde_json = "1"
