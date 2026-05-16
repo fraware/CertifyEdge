@@ -4,7 +4,11 @@ members = [
     "services/stl-compiler",
     "services/smt-verifier",
     "services/certificate",
+    "services/labtrust-adapter",
+    "services/pcs-certificate",
+    "cli",
     "tests/pipeline_integration",
+    "tests/certifyedge-integration",
 ]
 
 [workspace.package]

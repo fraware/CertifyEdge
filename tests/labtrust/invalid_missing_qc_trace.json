@@ -1,0 +1,59 @@
+{
+  "version": "0",
+  "artifact_kind": "Trace",
+  "run_id": "qc-release-invalid-missing-qc",
+  "sample_id": "PCS-SAMPLE-002",
+  "events": [
+    {
+      "event_id": "qc-release-invalid-missing-qc-evt-000",
+      "run_id": "qc-release-invalid-missing-qc",
+      "sample_id": "PCS-SAMPLE-002",
+      "timestamp": "2026-01-15T08:00:00+00:00",
+      "actor_id": "acc-tech-01",
+      "actor_role": "accession_tech",
+      "action": "accession_sample",
+      "pre_state": {
+        "qc_complete": false,
+        "lifecycle": "registered",
+        "released": false,
+        "analysis_complete": false
+      },
+      "post_state": {
+        "qc_complete": false,
+        "released": false,
+        "lifecycle": "accessioned",
+        "analysis_complete": false
+      },
+      "policy_decision": "allow",
+      "reason_code": "ok",
+      "event_hash": "291dada8f61b6e22ecc3c2fbbbb8144d4386c584bf2d79cf9094df1498e1efb1",
+      "previous_event_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "event_id": "qc-release-invalid-missing-qc-evt-001",
+      "run_id": "qc-release-invalid-missing-qc",
+      "sample_id": "PCS-SAMPLE-002",
+      "timestamp": "2026-01-15T10:00:00+00:00",
+      "actor_id": "rel-mgr-01",
+      "actor_role": "release_manager",
+      "action": "release_sample",
+      "pre_state": {
+        "lifecycle": "accessioned",
+        "qc_complete": false,
+        "released": false,
+        "analysis_complete": false
+      },
+      "post_state": {
+        "analysis_complete": false,
+        "lifecycle": "accessioned",
+        "qc_complete": false,
+        "released": false
+      },
+      "policy_decision": "deny",
+      "reason_code": "missing_qc",
+      "event_hash": "1f83fc5c8fcc873aabcf9886c0ab6c061703ab673d5c67ddead9bc18bec67742",
+      "previous_event_hash": "291dada8f61b6e22ecc3c2fbbbb8144d4386c584bf2d79cf9094df1498e1efb1"
+    }
+  ],
+  "trace_hash": "sha256:56a3d9ac5b70cdd58053ce9ba5174cdd0339ba4ba239246555a8fdd5baa3ebfe"
+}

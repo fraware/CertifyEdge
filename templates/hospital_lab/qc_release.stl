@@ -1,0 +1,4 @@
+qc_release
+// Composite: accession -> perform_qc -> record_analysis -> release_sample; release authorized.
+property: hospital_lab.qc_release
+allowed_release_roles: release_manager

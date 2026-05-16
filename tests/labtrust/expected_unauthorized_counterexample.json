@@ -1,0 +1,60 @@
+{
+  "counterexample_id": "cx-44649669-1970-4794-9ded-f6d55286d51e",
+  "property_id": "hospital_lab.qc_release",
+  "sample_id": "PCS-SAMPLE-003",
+  "violating_event_id": "qc-release-invalid-unauthorized-evt-003",
+  "reason": "unauthorized_release",
+  "expected_precondition": "release_sample requires actor_role in {\"release_manager\"}",
+  "actual_trace_fragment": [
+    {
+      "action": "record_analysis",
+      "actor_id": "analyst-01",
+      "actor_role": "analyst",
+      "event_hash": "159efb07866eb8706f0ed19d544e20da35b07dc5c28b163e2fa62f763a37f6a9",
+      "event_id": "qc-release-invalid-unauthorized-evt-002",
+      "policy_decision": "allow",
+      "post_state": {
+        "analysis_complete": true,
+        "lifecycle": "analyzed",
+        "qc_complete": true,
+        "released": false
+      },
+      "pre_state": {
+        "analysis_complete": false,
+        "lifecycle": "qc_complete",
+        "qc_complete": true,
+        "released": false
+      },
+      "previous_event_hash": "f9469ea901f06d6790917542da602a1e0915a8a08d875db9c3c204f22f7c5cac",
+      "reason_code": "ok",
+      "run_id": "qc-release-invalid-unauthorized",
+      "sample_id": "PCS-SAMPLE-003",
+      "timestamp": "2026-01-15T10:00:00+00:00"
+    },
+    {
+      "action": "release_sample",
+      "actor_id": "intern-01",
+      "actor_role": "unauthorized_user",
+      "event_hash": "19d7f30677ab4fd0b97c94dad9a2597ffc7d7d1a0cc8edc28e825bfd40cdf40a",
+      "event_id": "qc-release-invalid-unauthorized-evt-003",
+      "policy_decision": "deny",
+      "post_state": {
+        "analysis_complete": true,
+        "lifecycle": "analyzed",
+        "qc_complete": true,
+        "released": false
+      },
+      "pre_state": {
+        "analysis_complete": true,
+        "lifecycle": "analyzed",
+        "qc_complete": true,
+        "released": false
+      },
+      "previous_event_hash": "159efb07866eb8706f0ed19d544e20da35b07dc5c28b163e2fa62f763a37f6a9",
+      "reason_code": "unauthorized_release",
+      "run_id": "qc-release-invalid-unauthorized",
+      "sample_id": "PCS-SAMPLE-003",
+      "timestamp": "2026-01-15T11:00:00+00:00"
+    }
+  ]
+}

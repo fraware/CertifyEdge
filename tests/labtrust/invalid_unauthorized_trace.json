@@ -1,0 +1,109 @@
+{
+  "version": "0",
+  "artifact_kind": "Trace",
+  "run_id": "qc-release-invalid-unauthorized",
+  "sample_id": "PCS-SAMPLE-003",
+  "events": [
+    {
+      "event_id": "qc-release-invalid-unauthorized-evt-000",
+      "run_id": "qc-release-invalid-unauthorized",
+      "sample_id": "PCS-SAMPLE-003",
+      "timestamp": "2026-01-15T08:00:00+00:00",
+      "actor_id": "acc-tech-01",
+      "actor_role": "accession_tech",
+      "action": "accession_sample",
+      "pre_state": {
+        "released": false,
+        "analysis_complete": false,
+        "qc_complete": false,
+        "lifecycle": "registered"
+      },
+      "post_state": {
+        "released": false,
+        "qc_complete": false,
+        "lifecycle": "accessioned",
+        "analysis_complete": false
+      },
+      "policy_decision": "allow",
+      "reason_code": "ok",
+      "event_hash": "b0fa6a2950d3b6476c21df600ef8113ad4a9e5b18c6f04e97efec2db734c22a4",
+      "previous_event_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "event_id": "qc-release-invalid-unauthorized-evt-001",
+      "run_id": "qc-release-invalid-unauthorized",
+      "sample_id": "PCS-SAMPLE-003",
+      "timestamp": "2026-01-15T09:00:00+00:00",
+      "actor_id": "qc-tech-01",
+      "actor_role": "qc_tech",
+      "action": "perform_qc",
+      "pre_state": {
+        "qc_complete": false,
+        "analysis_complete": false,
+        "lifecycle": "accessioned",
+        "released": false
+      },
+      "post_state": {
+        "lifecycle": "qc_complete",
+        "released": false,
+        "qc_complete": true,
+        "analysis_complete": false
+      },
+      "policy_decision": "allow",
+      "reason_code": "ok",
+      "event_hash": "f9469ea901f06d6790917542da602a1e0915a8a08d875db9c3c204f22f7c5cac",
+      "previous_event_hash": "b0fa6a2950d3b6476c21df600ef8113ad4a9e5b18c6f04e97efec2db734c22a4"
+    },
+    {
+      "event_id": "qc-release-invalid-unauthorized-evt-002",
+      "run_id": "qc-release-invalid-unauthorized",
+      "sample_id": "PCS-SAMPLE-003",
+      "timestamp": "2026-01-15T10:00:00+00:00",
+      "actor_id": "analyst-01",
+      "actor_role": "analyst",
+      "action": "record_analysis",
+      "pre_state": {
+        "released": false,
+        "analysis_complete": false,
+        "lifecycle": "qc_complete",
+        "qc_complete": true
+      },
+      "post_state": {
+        "analysis_complete": true,
+        "lifecycle": "analyzed",
+        "released": false,
+        "qc_complete": true
+      },
+      "policy_decision": "allow",
+      "reason_code": "ok",
+      "event_hash": "159efb07866eb8706f0ed19d544e20da35b07dc5c28b163e2fa62f763a37f6a9",
+      "previous_event_hash": "f9469ea901f06d6790917542da602a1e0915a8a08d875db9c3c204f22f7c5cac"
+    },
+    {
+      "event_id": "qc-release-invalid-unauthorized-evt-003",
+      "run_id": "qc-release-invalid-unauthorized",
+      "sample_id": "PCS-SAMPLE-003",
+      "timestamp": "2026-01-15T11:00:00+00:00",
+      "actor_id": "intern-01",
+      "actor_role": "unauthorized_user",
+      "action": "release_sample",
+      "pre_state": {
+        "released": false,
+        "lifecycle": "analyzed",
+        "qc_complete": true,
+        "analysis_complete": true
+      },
+      "post_state": {
+        "qc_complete": true,
+        "released": false,
+        "analysis_complete": true,
+        "lifecycle": "analyzed"
+      },
+      "policy_decision": "deny",
+      "reason_code": "unauthorized_release",
+      "event_hash": "19d7f30677ab4fd0b97c94dad9a2597ffc7d7d1a0cc8edc28e825bfd40cdf40a",
+      "previous_event_hash": "159efb07866eb8706f0ed19d544e20da35b07dc5c28b163e2fa62f763a37f6a9"
+    }
+  ],
+  "trace_hash": "sha256:e77f09622be9a352e3bbe0e6c555fcc5b918307b779f3bb2d4800ecd388e3db3"
+}
