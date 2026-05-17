@@ -70,6 +70,15 @@ fi
 
 if [[ "${PCS_RUNBOOK_RELEASE:-}" == "1" ]]; then
   echo "==> release-mode emit"
+  if [[ -z "${CERTIFYEDGE_SOURCE_COMMIT:-}" || "${CERTIFYEDGE_SOURCE_COMMIT}" =~ ^0+$ ]]; then
+    if commit="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null)"; then
+      export CERTIFYEDGE_SOURCE_COMMIT="$commit"
+      echo "    using CERTIFYEDGE_SOURCE_COMMIT=${commit:0:12}..."
+    else
+      echo "Set CERTIFYEDGE_SOURCE_COMMIT to a non-zero git SHA for release-mode emit." >&2
+      exit 1
+    fi
+  fi
   REL_CERT="$OUT_DIR/trace_certificate_release.json"
   "$BIN" --release-mode emit-pcs-certificate \
     --spec "$SPEC_QC" --trace "$TRACE_OK" --out "$REL_CERT"

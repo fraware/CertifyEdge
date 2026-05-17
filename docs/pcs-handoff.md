@@ -80,6 +80,14 @@ certifyedge emit-pcs-certificate --spec templates/hospital_lab/qc_release.stl --
 certifyedge verify-certificate trace_certificate.json
 certifyedge explain-counterexample counterexample.json
 certifyedge --release-mode emit-pcs-certificate ...   # CI / release artifacts
+
+Full local runbook including release emit (requires `pcs` on PATH):
+
+```bash
+PCS_RUNBOOK_RELEASE=1 ./scripts/pcs-runbook.sh
+```
+
+Uses `git rev-parse HEAD` when `CERTIFYEDGE_SOURCE_COMMIT` is unset.
 ```
 
 Snake_case aliases (`check_trace`, `emit_pcs_certificate`, …) are accepted.
