@@ -11,6 +11,14 @@
 - **Rust:** From the repository root, `cargo check --workspace` and `cargo test --workspace`. The end-to-end integration test lives in the `integration_tests` package: `cargo test -p integration_tests`.
 - **Bazel:** Install [Bazelisk](https://github.com/bazelbuild/bazelisk). From the repository root run `bazel test --config=ci //tests/pipeline_integration:pipeline_integration`. Example library targets: `//services/stl-compiler:stl_compiler_lib`, `//services/smt-verifier:smt_verifier`, `//services/certificate:certificate`.
 
+## Git hooks (optional)
+
+To block Cursor IDE `Co-authored-by: Cursor <cursoragent@cursor.com>` trailers from commit messages:
+
+```bash
+git config core.hooksPath .githooks
+```
+
 ## Pull requests
 
 1. Fork and branch from `main`.

@@ -1,0 +1,11 @@
+#!/bin/sh
+# Strip Cursor IDE-injected co-author trailers (not project policy).
+TRAILER='Co-authored-by: Cursor <cursoragent@cursor.com>'
+case "$(uname -s 2>/dev/null)" in
+MINGW*|MSYS*|CYGWIN*)
+  sed -i "/^${TRAILER}\$/d" "$1" 2>/dev/null || true
+  ;;
+*)
+  sed -i.bak "/^${TRAILER}\$/d" "$1" && rm -f "$1.bak" 2>/dev/null || true
+  ;;
+esac
