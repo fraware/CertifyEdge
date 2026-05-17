@@ -31,7 +31,7 @@ make test          # integration tests + clippy (PCS crates)
 make runbook       # full handoff script (scripts/pcs-runbook.sh)
 ```
 
-LabTrust traces live under `tests/labtrust/`. The v0.1 release certificate fixture is `tests/fixtures/labtrust/trace_certificate.valid.json` (CLI-generated). Regenerate traces and the release certificate with:
+LabTrust traces live under `tests/labtrust/`. Deterministic release handoff fixtures are under `tests/fixtures/labtrust-release/` (CLI-generated certificate and counterexamples). Regenerate with:
 
 `cargo test -p certifyedge-integration write_fixtures -- --ignored --nocapture`
 

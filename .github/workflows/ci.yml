@@ -38,7 +38,7 @@ jobs:
         run: cargo clippy -p labtrust-adapter -p pcs-certificate -p certifyedge -- -D warnings
 
       - name: cargo test (PCS v0.1)
-        run: cargo test -p certifyedge-integration -- --nocapture
+        run: cargo test -p certifyedge-integration -- --test-threads=4 --nocapture
 
       - name: PCS runbook smoke (shell)
         run: |
@@ -62,6 +62,9 @@ jobs:
 
       - name: Install pcs-core CLI
         run: pip install -e pcs-core/python
+
+      - name: Validate labtrust-release fixtures (pcs-core)
+        run: pcs validate tests/fixtures/labtrust-release/trace_certificate.json
 
       - name: Checkout LabTrust-Gym
         uses: actions/checkout@v4

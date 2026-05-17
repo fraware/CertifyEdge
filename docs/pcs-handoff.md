@@ -110,7 +110,7 @@ python examples/pcs_qc_release/scripts/verify_pcs_v01_chain.py --work . --stage 
 | `trace_certificate.json` | `emit-pcs-certificate` on any trace |
 | `counterexample.json` | Rejected traces (default beside certificate, or `--counterexample-out`) |
 
-Committed release fixture: `tests/fixtures/labtrust/trace_certificate.valid.json` (CLI-generated; see [pcs-trace-certificates.md](pcs-trace-certificates.md)).
+Committed release fixtures: `tests/fixtures/labtrust-release/` (`trace.json`, CLI-generated `trace_certificate.json`, invalid traces and counterexamples; see [pcs-trace-certificates.md](pcs-trace-certificates.md)).
 
 ## TraceCertificate.v0 contract
 

@@ -65,7 +65,7 @@ _pcs_python() {
 
 echo "==> CertifyEdge: invalid trace checks (LabTrust-aligned fixtures)"
 "$CERTIFYEDGE_BIN" check-trace --spec "$SPEC" \
-  --trace "$ROOT/tests/labtrust/valid_trace.json" >/dev/null
+  --trace "$ROOT/tests/fixtures/labtrust-release/trace.json" >/dev/null
 
 for pair in "missing_qc:release_before_qc:invalid_missing_qc_trace.json" \
               "unauthorized:unauthorized_release:invalid_unauthorized_trace.json"; do
@@ -73,7 +73,7 @@ for pair in "missing_qc:release_before_qc:invalid_missing_qc_trace.json" \
   cx="$CX_DIR/counterexample_${label}.json"
   set +e
   "$CERTIFYEDGE_BIN" check-trace --spec "$SPEC" \
-    --trace "$ROOT/tests/labtrust/$file" --counterexample-out "$cx"
+    --trace "$ROOT/tests/fixtures/labtrust-release/$file" --counterexample-out "$cx"
   rc=$?
   set -e
   if [[ "$rc" -eq 0 ]]; then

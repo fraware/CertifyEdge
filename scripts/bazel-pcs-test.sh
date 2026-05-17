@@ -21,6 +21,7 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
   Linux* | Darwin*)
     PCS_BAZEL_TESTS+=(
       "//tests/certifyedge-integration:cli"
+      "//tests/certifyedge-integration:labtrust_release"
       "//tests/certifyedge-integration:runbook"
     )
     ;;

@@ -40,16 +40,76 @@ pub fn labtrust_fixture(name: &str) -> PathBuf {
     repo_root().join("tests/labtrust").join(name)
 }
 
-/// PCS v0.1 LabTrust release certificate (`certifyedge emit-pcs-certificate` output).
-pub fn labtrust_release_certificate_fixture() -> PathBuf {
-    repo_root()
-        .join("tests/fixtures/labtrust")
-        .join("trace_certificate.valid.json")
+/// LabTrust deterministic release fixtures (`tests/fixtures/labtrust-release/`).
+pub fn labtrust_release_dir() -> PathBuf {
+    repo_root().join("tests/fixtures/labtrust-release")
 }
 
-/// Pinned provenance for regenerating `trace_certificate.valid.json` (see `write_fixtures`).
-pub const RELEASE_FIXTURE_SOURCE_COMMIT: &str =
-    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+pub fn labtrust_release_fixture(name: &str) -> PathBuf {
+    labtrust_release_dir().join(name)
+}
+
+/// CLI-generated release certificate committed at `trace_certificate.json`.
+pub fn labtrust_release_certificate_fixture() -> PathBuf {
+    labtrust_release_fixture("trace_certificate.json")
+}
+
+/// Runbook-relative spec path from repository root.
+pub fn runbook_spec_qc_release() -> PathBuf {
+    repo_root().join("templates/hospital_lab/qc_release.stl")
+}
+
+/// Runbook-relative trace path from repository root.
+pub fn runbook_labtrust_release_trace() -> PathBuf {
+    labtrust_release_fixture("trace.json")
+}
+
+/// Pinned provenance for regenerating `tests/fixtures/labtrust-release/trace_certificate.json`.
+pub const RELEASE_FIXTURE_SOURCE_COMMIT: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+/// Run `f` with `CERTIFYEDGE_SOURCE_COMMIT` set to `commit`, restoring the prior value afterward.
+pub fn with_source_commit<R>(commit: &str, f: impl FnOnce() -> R) -> R {
+    let _guard = env_lock();
+    let previous = std::env::var("CERTIFYEDGE_SOURCE_COMMIT").ok();
+    std::env::set_var("CERTIFYEDGE_SOURCE_COMMIT", commit);
+    let result = f();
+    if let Some(value) = previous {
+        std::env::set_var("CERTIFYEDGE_SOURCE_COMMIT", value);
+    } else {
+        std::env::remove_var("CERTIFYEDGE_SOURCE_COMMIT");
+    }
+    result
+}
+
+/// All committed JSON artifacts under `tests/fixtures/labtrust-release/`.
+pub const LABTRUST_RELEASE_FIXTURES: &[&str] = &[
+    "trace.json",
+    "trace_certificate.json",
+    "invalid_missing_qc_trace.json",
+    "invalid_missing_qc_counterexample.json",
+    "invalid_unauthorized_trace.json",
+    "invalid_unauthorized_counterexample.json",
+];
+
+pub fn validate_labtrust_release_fixture_tree() {
+    for name in LABTRUST_RELEASE_FIXTURES {
+        let path = labtrust_release_fixture(name);
+        assert!(path.is_file(), "missing fixture {}", path.display());
+    }
+    validate_certificate_against_pcs_core(&labtrust_release_certificate_fixture());
+    let cert: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(labtrust_release_certificate_fixture()).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(cert["status"], "CertificateChecked");
+    assert_eq!(cert["schema_version"], "v0");
+
+    let trace: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(labtrust_release_fixture("trace.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(cert["trace_hash"], trace["trace_hash"]);
+}
 
 /// Compare certificate fields that must be stable for a given trace, spec, and pinned `source_commit`.
 pub fn assert_certificate_semantics_equal(

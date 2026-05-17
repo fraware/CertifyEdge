@@ -7,13 +7,13 @@ use predicates::prelude::*;
 mod support;
 
 use support::{
-    assert_certificate_semantics_equal, certifyedge_cmd, labtrust_fixture,
-    labtrust_release_certificate_fixture, repo_root, spec_path,
-    validate_certificate_against_pcs_core, RELEASE_FIXTURE_SOURCE_COMMIT,
+    assert_certificate_semantics_equal, certifyedge_cmd, labtrust_release_certificate_fixture,
+    repo_root, runbook_labtrust_release_trace, runbook_spec_qc_release,
+    validate_certificate_against_pcs_core, with_source_commit, RELEASE_FIXTURE_SOURCE_COMMIT,
 };
 
 fn spec_qc_release() -> std::path::PathBuf {
-    spec_path("qc_release.stl")
+    runbook_spec_qc_release()
 }
 
 fn certifyedge() -> Command {
@@ -54,24 +54,23 @@ fn test_pcs_v01_clean_checkout_certifyedge_segment() {
     let work = repo_root().join("target/clean_checkout_segment");
     std::fs::create_dir_all(&work).unwrap();
     let cert_path = work.join("trace_certificate.json");
-    let trace = labtrust_fixture("valid_trace.json");
+    let trace = runbook_labtrust_release_trace();
 
-    let previous = std::env::var("CERTIFYEDGE_SOURCE_COMMIT").ok();
-    std::env::set_var("CERTIFYEDGE_SOURCE_COMMIT", RELEASE_FIXTURE_SOURCE_COMMIT);
-
-    certifyedge()
-        .args([
-            "emit-pcs-certificate",
-            "--spec",
-            spec_qc_release().to_str().unwrap(),
-            "--trace",
-            trace.to_str().unwrap(),
-            "--out",
-            cert_path.to_str().unwrap(),
-        ])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("CertificateChecked"));
+    with_source_commit(RELEASE_FIXTURE_SOURCE_COMMIT, || {
+        certifyedge()
+            .args([
+                "emit-pcs-certificate",
+                "--spec",
+                spec_qc_release().to_str().unwrap(),
+                "--trace",
+                trace.to_str().unwrap(),
+                "--out",
+                cert_path.to_str().unwrap(),
+            ])
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("CertificateChecked"));
+    });
 
     certifyedge()
         .args([
@@ -92,10 +91,4 @@ fn test_pcs_v01_clean_checkout_certifyedge_segment() {
     let emitted: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&cert_path).unwrap()).unwrap();
     assert_certificate_semantics_equal(&emitted, &fixture_value);
-
-    if let Some(value) = previous {
-        std::env::set_var("CERTIFYEDGE_SOURCE_COMMIT", value);
-    } else {
-        std::env::remove_var("CERTIFYEDGE_SOURCE_COMMIT");
-    }
 }

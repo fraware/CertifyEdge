@@ -111,12 +111,13 @@ fn test_labtrust_release_certificate_fixture_in_repo() {
     let path = labtrust_release_certificate_fixture();
     assert!(path.is_file(), "missing {}", path.display());
     validate_certificate_against_pcs_core(&path);
+    let trace = support::runbook_labtrust_release_trace();
     certifyedge()
         .args([
             "verify-certificate",
             path.to_str().unwrap(),
             "--trace",
-            labtrust_fixture("valid_trace.json").to_str().unwrap(),
+            trace.to_str().unwrap(),
         ])
         .assert()
         .success();

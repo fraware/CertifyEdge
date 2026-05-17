@@ -27,13 +27,13 @@ After emission, validate with pcs-core:
 pcs validate trace_certificate.json
 ```
 
-Integration tests in `tests/certifyedge-integration/tests/cli.rs` and `clean_checkout.rs` exercise these commands. The PCS v0.1 **clean-checkout chain** (LabTrust-Gym → CertifyEdge → Provability Fabric → Scientific Memory) is run via `make clean-checkout` or `./scripts/pcs-v01-clean-checkout.sh` — see [pcs-handoff.md](pcs-handoff.md).
+Integration tests in `tests/certifyedge-integration/tests/labtrust_release.rs` (release fixtures + runbook smoke), `cli.rs`, and `clean_checkout.rs` exercise these commands. Regenerate fixtures with `make fixtures`. The PCS v0.1 **clean-checkout chain** is run via `make clean-checkout` — see [pcs-handoff.md](pcs-handoff.md).
 
 ## v0.1 release certificate (LabTrust handoff)
 
 The canonical **v0.1 release certificate** for the hospital-lab demo is checked into the repository at:
 
-`tests/fixtures/labtrust/trace_certificate.valid.json`
+`tests/fixtures/labtrust-release/trace_certificate.json`
 
 It is produced by the CertifyEdge CLI (not maintained by hand):
 
@@ -41,8 +41,8 @@ It is produced by the CertifyEdge CLI (not maintained by hand):
 cargo build -p certifyedge
 CERTIFYEDGE_SOURCE_COMMIT=<pinned-commit> certifyedge emit-pcs-certificate \
   --spec templates/hospital_lab/qc_release.stl \
-  --trace tests/labtrust/valid_trace.json \
-  --out tests/fixtures/labtrust/trace_certificate.valid.json
+  --trace tests/fixtures/labtrust-release/trace.json \
+  --out tests/fixtures/labtrust-release/trace_certificate.json
 ```
 
 Regenerate traces and this fixture together:

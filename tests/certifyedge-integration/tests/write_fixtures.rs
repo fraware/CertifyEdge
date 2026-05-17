@@ -1,4 +1,4 @@
-//! Regenerate LabTrust traces and the release certificate fixture.
+//! Regenerate `tests/labtrust/` and `tests/fixtures/labtrust-release/`.
 //!
 //! ```bash
 //! cargo build -p certifyedge
@@ -20,8 +20,7 @@ fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-const RELEASE_FIXTURE_SOURCE_COMMIT: &str =
-    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+const RELEASE_FIXTURE_SOURCE_COMMIT: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 
 fn certifyedge_bin() -> PathBuf {
     if let Ok(path) = std::env::var("CARGO_BIN_EXE_certifyedge") {
@@ -37,32 +36,96 @@ fn certifyedge_bin() -> PathBuf {
     panic!("certifyedge binary not found; run `cargo build -p certifyedge` first");
 }
 
-fn emit_release_certificate_fixture() {
-    let out_dir = repo_root().join("tests/fixtures/labtrust");
-    std::fs::create_dir_all(&out_dir).unwrap();
-    let out = out_dir.join("trace_certificate.valid.json");
-    let spec = repo_root().join("templates/hospital_lab/qc_release.stl");
-    let trace = repo_root().join("tests/labtrust/valid_trace.json");
+fn run_certifyedge(args: &[&str]) {
+    let status = Command::new(certifyedge_bin())
+        .args(args)
+        .status()
+        .expect("spawn certifyedge");
+    assert!(status.success(), "certifyedge {:?} failed", args);
+}
+
+fn run_certifyedge_expect_fail(args: &[&str]) {
+    let status = Command::new(certifyedge_bin())
+        .args(args)
+        .status()
+        .expect("spawn certifyedge");
+    assert!(!status.success(), "certifyedge {:?} should fail", args);
+}
+
+fn write_labtrust_release_fixtures(
+    valid: &labtrust_adapter::LabTrustTrace,
+    missing_qc: &labtrust_adapter::LabTrustTrace,
+    unauthorized: &labtrust_adapter::LabTrustTrace,
+) {
+    let release_dir = repo_root().join("tests/fixtures/labtrust-release");
+    std::fs::create_dir_all(&release_dir).unwrap();
+
+    let spec = repo_root()
+        .join("templates/hospital_lab/qc_release.stl")
+        .to_string_lossy()
+        .into_owned();
+
+    let trace_path = release_dir.join("trace.json");
+    let missing_trace_path = release_dir.join("invalid_missing_qc_trace.json");
+    let unauthorized_trace_path = release_dir.join("invalid_unauthorized_trace.json");
+    let cert_path = release_dir.join("trace_certificate.json");
+    let missing_cx_path = release_dir.join("invalid_missing_qc_counterexample.json");
+    let unauthorized_cx_path = release_dir.join("invalid_unauthorized_counterexample.json");
+
+    std::fs::write(
+        &trace_path,
+        format!("{}\n", to_string_pretty(valid).unwrap()),
+    )
+    .unwrap();
+    std::fs::write(
+        &missing_trace_path,
+        format!("{}\n", to_string_pretty(missing_qc).unwrap()),
+    )
+    .unwrap();
+    std::fs::write(
+        &unauthorized_trace_path,
+        format!("{}\n", to_string_pretty(unauthorized).unwrap()),
+    )
+    .unwrap();
 
     std::env::set_var("CERTIFYEDGE_SOURCE_COMMIT", RELEASE_FIXTURE_SOURCE_COMMIT);
-    let status = Command::new(certifyedge_bin())
-        .args([
-            "emit-pcs-certificate",
-            "--spec",
-            spec.to_str().unwrap(),
-            "--trace",
-            trace.to_str().unwrap(),
-            "--out",
-            out.to_str().unwrap(),
-        ])
-        .status()
-        .expect("spawn certifyedge emit-pcs-certificate");
+
+    run_certifyedge(&[
+        "emit-pcs-certificate",
+        "--spec",
+        &spec,
+        "--trace",
+        trace_path.to_str().unwrap(),
+        "--out",
+        cert_path.to_str().unwrap(),
+    ]);
+
+    run_certifyedge_expect_fail(&[
+        "check-trace",
+        "--spec",
+        &spec,
+        "--trace",
+        missing_trace_path.to_str().unwrap(),
+        "--counterexample-out",
+        missing_cx_path.to_str().unwrap(),
+    ]);
+
+    run_certifyedge_expect_fail(&[
+        "check-trace",
+        "--spec",
+        &spec,
+        "--trace",
+        unauthorized_trace_path.to_str().unwrap(),
+        "--counterexample-out",
+        unauthorized_cx_path.to_str().unwrap(),
+    ]);
+
     std::env::remove_var("CERTIFYEDGE_SOURCE_COMMIT");
-    assert!(
-        status.success(),
-        "certifyedge emit-pcs-certificate failed for release fixture"
+
+    println!(
+        "wrote labtrust-release fixtures under {}",
+        release_dir.display()
     );
-    println!("wrote release certificate {}", out.display());
 }
 
 fn step(action: &str, actor_id: &str, role: &str, ts: &str) -> WorkflowStep {
@@ -171,7 +234,7 @@ fn write_fixtures() {
     let spec =
         PropertySpec::load(&repo_root().join("templates/hospital_lab/qc_release.stl")).unwrap();
     let mut meta = CertifyEdgeMetadata::dev_default();
-    meta.source_commit = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into();
+    meta.source_commit = RELEASE_FIXTURE_SOURCE_COMMIT.into();
 
     let valid_check = check_property(&TraceView::from(valid.clone()), &spec);
     let valid_cert = build_certificate(&valid.trace_hash, &spec, &valid_check, &meta, None);
@@ -184,7 +247,7 @@ fn write_fixtures() {
     let missing_spec =
         PropertySpec::load(&repo_root().join("templates/hospital_lab/no_release_before_qc.stl"))
             .unwrap();
-    let missing_check = check_property(&TraceView::from(missing_qc), &missing_spec);
+    let missing_check = check_property(&TraceView::from(missing_qc.clone()), &missing_spec);
     let missing_cx = missing_check.counterexample.unwrap();
     std::fs::write(
         out_dir.join("expected_missing_qc_counterexample.json"),
@@ -195,7 +258,7 @@ fn write_fixtures() {
     let auth_spec =
         PropertySpec::load(&repo_root().join("templates/hospital_lab/authorized_release_only.stl"))
             .unwrap();
-    let unauthorized_check = check_property(&TraceView::from(unauthorized), &auth_spec);
+    let unauthorized_check = check_property(&TraceView::from(unauthorized.clone()), &auth_spec);
     let unauthorized_cx = unauthorized_check.counterexample.unwrap();
     std::fs::write(
         out_dir.join("expected_unauthorized_counterexample.json"),
@@ -203,7 +266,7 @@ fn write_fixtures() {
     )
     .unwrap();
 
-    emit_release_certificate_fixture();
+    write_labtrust_release_fixtures(&valid, &missing_qc, &unauthorized);
 
     println!("wrote fixtures to {}", out_dir.display());
 }
