@@ -27,6 +27,8 @@ CertifyEdge is a **Rust** workspace for **signal temporal logic (STL)** specific
 
 CertifyEdge v0.1 is the **temporal trace certification engine** for [Proof-Carrying Science](https://github.com/SentinelOps-CI/pcs-core) v0.1. It consumes LabTrust-Gym `trace.json`, checks hospital-lab temporal properties, and emits **TraceCertificate.v0** artifacts for Provability Fabric.
 
+Runbook commands are implemented in the **`certifyedge`** binary (`cli/`). Search the repo for `emit-pcs-certificate`, `check-trace`, or constants like `CMD_EMIT_PCS_CERTIFICATE` in `cli/src/lib.rs`.
+
 ```bash
 # Build the CLI
 cargo build -p certifyedge

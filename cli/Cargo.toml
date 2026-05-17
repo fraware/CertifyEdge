@@ -6,12 +6,16 @@ license = "Apache-2.0"
 description = "CertifyEdge CLI — temporal trace certification for PCS v0.1"
 repository = "https://github.com/fraware/CertifyEdge"
 
+[lib]
+name = "certifyedge"
+path = "src/lib.rs"
+
 [[bin]]
 name = "certifyedge"
 path = "src/main.rs"
 
 [dependencies]
-clap = { version = "4", features = ["derive"] }
+clap = { version = "4", features = ["derive", "env"] }
 labtrust-adapter = { path = "../services/labtrust-adapter" }
 pcs-certificate = { path = "../services/pcs-certificate" }
 serde_json = "1"

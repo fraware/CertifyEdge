@@ -126,7 +126,7 @@ fn certificate_digest_verifies() {
         &trace.trace_hash,
         &spec,
         &check,
-        &CertifyEdgeMetadata::default(),
+        &CertifyEdgeMetadata::dev_default(),
         None,
     );
     let json = serde_json::to_string_pretty(&outcome.certificate).unwrap();
@@ -160,6 +160,23 @@ fn labtrust_trace_hash_matches_gym_export() {
         rust.trace_hash, gym.trace_hash,
         "trace_hash must match LabTrust-Gym export"
     );
+}
+
+#[test]
+fn test_certificate_trace_hash_matches_labtrust_trace_hash() {
+    let trace_path = repo_root().join("tests/labtrust/valid_trace.json");
+    let text = std::fs::read_to_string(&trace_path).unwrap();
+    let trace = parse_and_validate_json(&text).unwrap();
+    let spec = PropertySpec::load(&spec_path("qc_release.stl")).unwrap();
+    let check = check_property(&TraceView::from(trace.clone()), &spec);
+    let outcome = build_certificate(
+        &trace.trace_hash,
+        &spec,
+        &check,
+        &CertifyEdgeMetadata::dev_default(),
+        None,
+    );
+    assert_eq!(outcome.certificate.trace_hash, trace.trace_hash);
 }
 
 #[test]
