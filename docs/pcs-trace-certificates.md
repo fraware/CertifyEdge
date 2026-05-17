@@ -29,6 +29,10 @@ pcs validate trace_certificate.json
 
 Integration tests in `tests/certifyedge-integration/tests/labtrust_release.rs` (release fixtures + runbook smoke), `cli.rs`, `pcs_core_rc.rs`, and `clean_checkout.rs` exercise these commands. Regenerate negative fixtures with `make fixtures`. The PCS v0.1 **clean-checkout chain** is run via `make clean-checkout` — see [pcs-handoff.md](pcs-handoff.md).
 
+## PCS certificate profile
+
+See [pcs-certificate-profile.md](pcs-certificate-profile.md) and `pcs_registry/TraceCertificate.v0.registry.json` (pcs-core `ArtifactRegistry.v0` contribution).
+
 ## Phase 2 handoff manifests
 
 CertifyEdge accepts PCS `HandoffManifest.v0` for `runtime_to_certificate` and emits `certificate_to_bundle` outbound handoffs. See [pcs-certificate-profile.md](pcs-certificate-profile.md) and `pcs_registry/TraceCertificate.v0.registry.json`.

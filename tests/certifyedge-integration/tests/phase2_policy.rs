@@ -5,10 +5,10 @@ use pcs_certificate::{
     validate_certificate_status_transition, STATUS_CERTIFICATE_CHECKED, STATUS_CERTIFICATE_PENDING,
     STATUS_REJECTED,
 };
-use serde_json::Value;
+use serde_json::{json, Value};
 
 #[test]
-fn test_certifyedge_hash_matches_pcs_core_trace_certificate_vector() {
+fn test_trace_certificate_hash_matches_pcs_core_vector() {
     let input: Value = serde_json::from_str(include_str!(
         "../../../tests/fixtures/pcs-hash-vectors/TraceCertificate.v0/input.json"
     ))
@@ -17,6 +17,36 @@ fn test_certifyedge_hash_matches_pcs_core_trace_certificate_vector() {
         include_str!("../../../tests/fixtures/pcs-hash-vectors/TraceCertificate.v0/digest.txt")
             .trim();
     assert_eq!(pcs_digest(&input), expected);
+}
+
+#[test]
+fn test_handoff_manifest_hash_matches_pcs_core_vector() {
+    let input: Value = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/pcs-hash-vectors/HandoffManifest.v0/input.json"
+    ))
+    .unwrap();
+    let expected =
+        include_str!("../../../tests/fixtures/pcs-hash-vectors/HandoffManifest.v0/digest.txt")
+            .trim();
+    assert_eq!(pcs_digest(&input), expected);
+}
+
+#[test]
+fn test_hash_ignores_signature_or_digest() {
+    let with_placeholder = json!({
+        "schema_version": "v0",
+        "handoff_id": "handoff-test",
+        "handoff_kind": "runtime_to_certificate",
+        "status": "Validated",
+        "signature_or_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    });
+    let without = json!({
+        "schema_version": "v0",
+        "handoff_id": "handoff-test",
+        "handoff_kind": "runtime_to_certificate",
+        "status": "Validated",
+    });
+    assert_eq!(pcs_digest(&with_placeholder), pcs_digest(&without));
 }
 
 #[test]

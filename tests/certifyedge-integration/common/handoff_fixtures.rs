@@ -10,10 +10,22 @@ use pcs_certificate::{
 use crate::support::{labtrust_release_fixture, pcs_core_rc_constants, repo_root};
 
 pub fn write_runtime_handoff(dir: &Path, mutate: impl FnOnce(&mut HandoffManifestV0)) -> PathBuf {
-    let trace_src = labtrust_release_fixture("trace.json");
+    write_runtime_handoff_with_trace(dir, labtrust_release_fixture("trace.json"), mutate)
+}
+
+pub fn write_runtime_handoff_with_trace(
+    dir: &Path,
+    trace_src: PathBuf,
+    mutate: impl FnOnce(&mut HandoffManifestV0),
+) -> PathBuf {
     let trace_bytes = std::fs::read(&trace_src).unwrap();
+    let trace_file_digest = file_digest(&trace_bytes);
     let trace_path = dir.join("trace.json");
     std::fs::write(&trace_path, &trace_bytes).unwrap();
+    let trace: labtrust_adapter::LabTrustTrace =
+        labtrust_adapter::parse_and_validate_json(&String::from_utf8(trace_bytes).unwrap())
+            .expect("trace fixture parses");
+    let trace_hash = trace.trace_hash.clone();
     let rc = pcs_core_rc_constants();
 
     let mut handoff = HandoffManifestV0 {
@@ -29,7 +41,7 @@ pub fn write_runtime_handoff(dir: &Path, mutate: impl FnOnce(&mut HandoffManifes
             "trace.json".to_string(),
             HandoffArtifactRef {
                 artifact_type: "Trace".to_string(),
-                sha256: Some(file_digest(&trace_bytes)),
+                sha256: Some(trace_file_digest),
             },
         )]),
         expected_outputs: BTreeMap::from([(
@@ -40,7 +52,7 @@ pub fn write_runtime_handoff(dir: &Path, mutate: impl FnOnce(&mut HandoffManifes
             },
         )]),
         invariants: BTreeMap::from([
-            ("trace_hash".to_string(), rc.trace_hash.to_string()),
+            ("trace_hash".to_string(), trace_hash),
             (
                 "property_id".to_string(),
                 "hospital_lab.qc_release".to_string(),

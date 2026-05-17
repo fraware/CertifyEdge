@@ -94,6 +94,9 @@ jobs:
           cargo run -p certifyedge -- verify-certificate \
             target/handoff-ci/trace_certificate.json \
             --trace target/handoff-ci/trace.json
+          pcs registry check-artifact target/handoff-ci/trace_certificate.json
+          pcs validate target/handoff-ci/trace_certificate.json
+          pcs validate target/handoff-ci/certifyedge_to_labtrust_handoff.json
 
       - name: Checkout LabTrust-Gym
         uses: actions/checkout@v4

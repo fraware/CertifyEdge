@@ -12,6 +12,7 @@ use uuid::Uuid;
 
 use crate::pcs_schema::validate_handoff_manifest_schema;
 use crate::source_commit::is_placeholder_source_commit;
+use crate::status_policy::STATUS_REJECTED;
 use crate::trace_certificate::TraceCertificateV0;
 
 pub const HANDOFF_KIND_RUNTIME_TO_CERTIFICATE: &str = "runtime_to_certificate";
@@ -250,6 +251,29 @@ pub fn build_certificate_to_bundle_handoff(
         .and_then(|n| n.to_str())
         .unwrap_or(TRACE_CERTIFICATE_ARTIFACT_NAME);
 
+    let rejected = cert.status == STATUS_REJECTED;
+    let expected_outputs = if rejected {
+        let mut out = BTreeMap::new();
+        if cert.counterexample_ref.is_some() {
+            out.insert(
+                "counterexample.json".to_string(),
+                HandoffArtifactRef {
+                    artifact_type: "LabTrust.Counterexample.v0".to_string(),
+                    sha256: None,
+                },
+            );
+        }
+        out
+    } else {
+        BTreeMap::from([(
+            "science_claim_bundle.certified.json".to_string(),
+            HandoffArtifactRef {
+                artifact_type: "ScienceClaimBundle.v0".to_string(),
+                sha256: None,
+            },
+        )])
+    };
+
     Ok(HandoffManifestV0 {
         schema_version: "v0".to_string(),
         handoff_id: format!("handoff-certifyedge-{}", Uuid::new_v4()),
@@ -266,13 +290,7 @@ pub fn build_certificate_to_bundle_handoff(
                 sha256: Some(cert_digest),
             },
         )]),
-        expected_outputs: BTreeMap::from([(
-            "science_claim_bundle.certified.json".to_string(),
-            HandoffArtifactRef {
-                artifact_type: "ScienceClaimBundle.v0".to_string(),
-                sha256: None,
-            },
-        )]),
+        expected_outputs,
         invariants: BTreeMap::from([
             ("certificate_id".to_string(), cert.certificate_id.clone()),
             ("trace_hash".to_string(), cert.trace_hash.clone()),
@@ -345,5 +363,39 @@ mod tests {
         assert_eq!(handoff.handoff_kind, HANDOFF_KIND_CERTIFICATE_TO_BUNDLE);
         assert_eq!(handoff.invariants["certificate_id"], cert.certificate_id);
         assert_eq!(handoff.invariants["status"], "CertificateChecked");
+    }
+
+    #[test]
+    fn rejected_handoff_does_not_promise_certified_bundle() {
+        let cert = TraceCertificateV0 {
+            certificate_id: "cert-trace-rejected".into(),
+            schema_version: "v0".into(),
+            trace_hash: "sha256:c3e8a3dc4ad86d533de1dfa4ae7fe2a338c2cff3c945404c96a75216524d58cd"
+                .into(),
+            spec_hash: "sha256:7c66dfcf640d382653d8ce7c2c700371d72ff0d6fb59156d411cf2aa9a7dfe5e"
+                .into(),
+            property_id: "hospital_lab.qc_release".into(),
+            checker: "CertifyEdge".into(),
+            checker_version: "0.1.0".into(),
+            status: STATUS_REJECTED.into(),
+            counterexample_ref: Some("counterexample.json".into()),
+            created_at: "2026-05-17T15:37:01Z".into(),
+            producer: "CertifyEdge".into(),
+            producer_version: "0.1.0".into(),
+            source_repo: crate::trace_certificate::SOURCE_REPO.to_string(),
+            source_commit: "cb6848001e2e60a484e04eba5ad6be3fe2e4eccc".into(),
+            signature_or_digest:
+                "sha256:34dec7d507119b599c2e2611bff0f984359a64d12cee2600901cc73537fd6f2b".into(),
+        };
+        let dir = std::env::temp_dir().join(format!("ce-handoff-reject-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let cert_path = dir.join("trace_certificate.json");
+        std::fs::write(&cert_path, r#"{"certificate_id":"cert-trace-rejected"}"#).unwrap();
+        let handoff = build_certificate_to_bundle_handoff(&cert, &cert_path).unwrap();
+        assert_eq!(handoff.invariants["status"], STATUS_REJECTED);
+        assert!(!handoff
+            .expected_outputs
+            .contains_key("science_claim_bundle.certified.json"));
+        assert!(handoff.expected_outputs.contains_key("counterexample.json"));
     }
 }

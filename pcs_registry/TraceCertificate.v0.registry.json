@@ -1,34 +1,24 @@
 {
-  "schema_version": "v0",
-  "registry_id": "certifyedge-trace-certificate-v0",
-  "producer": "CertifyEdge",
   "artifact_type": "TraceCertificate.v0",
-  "schema_ref": "TraceCertificate.v0.schema.json",
-  "property_profiles": [
-    {
-      "property_id": "hospital_lab.qc_release",
-      "spec_template": "templates/hospital_lab/qc_release.stl",
-      "input_trace_schema": "LabTrust.Trace.v0",
-      "handoff_kind_in": "runtime_to_certificate",
-      "handoff_kind_out": "certificate_to_bundle"
-    }
+  "schema": "schemas/TraceCertificate.v0.schema.json",
+  "producer": "CertifyEdge",
+  "allowed_statuses": ["CertificateChecked", "Rejected", "Stale"],
+  "required_release_fields": [
+    "schema_version",
+    "certificate_id",
+    "trace_hash",
+    "spec_hash",
+    "property_id",
+    "checker",
+    "checker_version",
+    "status",
+    "source_repo",
+    "source_commit",
+    "signature_or_digest"
   ],
-  "status_policy": {
-    "valid_release_status": "CertificateChecked",
-    "invalid_status": "Rejected",
-    "terminal_in_release_mode": ["Rejected"],
-    "allowed_transitions": [
-      ["CertificatePending", "CertificateChecked"],
-      ["CertificatePending", "Rejected"]
-    ]
-  },
-  "counterexample": {
-    "format": "LabTrust.Counterexample.v0",
-    "on_reject": "emit_counterexample_json",
-    "cli_explain": "explain-counterexample"
-  },
-  "canonical_hash": {
-    "algorithm": "pcs-core-canonical-json-sha256",
-    "digest_field": "signature_or_digest"
-  }
+  "semantic_checks": [
+    "trace_hash_matches_runtime_receipt",
+    "status_is_certificate_checked_for_release",
+    "source_commit_matches_release_manifest"
+  ]
 }

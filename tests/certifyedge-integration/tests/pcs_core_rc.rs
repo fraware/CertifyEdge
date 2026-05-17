@@ -8,8 +8,8 @@ use predicates::prelude::*;
 use pcs_certificate::ZERO_SOURCE_COMMIT;
 
 use support::{
-    certifyedge_cmd, labtrust_release_fixture, pcs_core_rc_constants, repo_root,
-    validate_certificate_against_pcs_core,
+    certifyedge_cmd, labtrust_release_fixture, pcs_cli_available, pcs_core_rc_constants,
+    pcs_registry_check_artifact, repo_root, validate_certificate_against_pcs_core,
 };
 
 const WRONG_SOURCE_REPO: &str = "https://github.com/example/wrong-repo";
@@ -229,4 +229,13 @@ fn test_verify_certificate_rejects_modified_signature_or_digest() {
         ])
         .assert()
         .failure();
+}
+
+#[test]
+fn test_rc_certificate_passes_pcs_registry_check_when_cli_available() {
+    if !pcs_cli_available() {
+        eprintln!("skip: pcs CLI not on PATH");
+        return;
+    }
+    pcs_registry_check_artifact(&labtrust_release_fixture("trace_certificate.json"));
 }

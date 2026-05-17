@@ -102,6 +102,10 @@ pub fn runbook_spec_qc_release() -> PathBuf {
     repo_root().join("templates/hospital_lab/qc_release.stl")
 }
 
+pub fn runbook_spec_authorized_release_only() -> PathBuf {
+    repo_root().join("templates/hospital_lab/authorized_release_only.stl")
+}
+
 /// Runbook-relative trace path (canonical PCS RC under `tests/fixtures/labtrust-release/`).
 pub fn runbook_labtrust_release_trace() -> PathBuf {
     pcs_core_rc_fixture("trace.json")
@@ -235,6 +239,17 @@ pub fn validate_certificate_against_pcs_core(path: &Path) {
     if pcs_cli_available() {
         Command::new("pcs")
             .arg("validate")
+            .arg(path)
+            .assert()
+            .success();
+    }
+}
+
+/// `pcs registry check-artifact` when pcs-core CLI is on PATH (optional local gate).
+pub fn pcs_registry_check_artifact(path: &Path) {
+    if pcs_cli_available() {
+        Command::new("pcs")
+            .args(["registry", "check-artifact"])
             .arg(path)
             .assert()
             .success();

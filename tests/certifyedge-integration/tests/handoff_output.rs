@@ -40,7 +40,18 @@ fn run_handoff_emit(work: &std::path::Path) -> std::path::PathBuf {
 }
 
 #[test]
-fn test_certificate_handoff_validates_against_pcs_core() {
+fn test_emit_certificate_writes_handoff_out() {
+    let work = handoff_workdir("handoff_out_writes");
+    let handoff_out = run_handoff_emit(&work);
+    assert!(
+        handoff_out.is_file(),
+        "handoff-out file must exist: {}",
+        handoff_out.display()
+    );
+}
+
+#[test]
+fn test_handoff_out_validates_against_pcs_core() {
     let work = handoff_workdir("handoff_out_validate");
     let handoff_out = run_handoff_emit(&work);
     let value: Value =
@@ -50,7 +61,7 @@ fn test_certificate_handoff_validates_against_pcs_core() {
 }
 
 #[test]
-fn test_certificate_handoff_certificate_id_matches_certificate() {
+fn test_handoff_out_certificate_id_matches_certificate() {
     let work = handoff_workdir("handoff_out_cert_id");
     run_handoff_emit(&work);
     let cert: Value = serde_json::from_str(
@@ -66,7 +77,7 @@ fn test_certificate_handoff_certificate_id_matches_certificate() {
 }
 
 #[test]
-fn test_certificate_handoff_trace_hash_matches_certificate() {
+fn test_handoff_out_trace_hash_matches_certificate() {
     let work = handoff_workdir("handoff_out_trace_hash");
     run_handoff_emit(&work);
     let cert: Value = serde_json::from_str(
@@ -82,7 +93,7 @@ fn test_certificate_handoff_trace_hash_matches_certificate() {
 }
 
 #[test]
-fn test_certificate_handoff_status_certificate_checked() {
+fn test_handoff_out_status_certificate_checked() {
     let work = handoff_workdir("handoff_out_status");
     run_handoff_emit(&work);
     let handoff =
