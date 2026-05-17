@@ -36,13 +36,36 @@ def main() -> int:
     claim_ref = certified["claim_artifact"]["certificate_refs"][0]
     evidence_ref = certified["evidence_bundle"]["certificate_refs"][0]
 
-    if not (cert_id == bundle_cert_id == claim_ref == evidence_ref):
+    signed_path = run / "signed_science_claim_bundle.json"
+    if not signed_path.is_file():
+        print("missing signed_science_claim_bundle.json", file=sys.stderr)
+        return 1
+
+    signed = load_json(signed_path)
+    signed_bundle = signed["science_claim_bundle"]
+    signed_cert = signed_bundle["certificates"][0]["certificate_id"]
+
+    if not (cert_id == bundle_cert_id == claim_ref == evidence_ref == signed_cert):
         print(
-            "certificate_id mismatch in trace_certificate vs certified bundle:",
+            "certificate_id mismatch in release chain:",
             cert_id,
             bundle_cert_id,
             claim_ref,
             evidence_ref,
+            signed_cert,
+            file=sys.stderr,
+        )
+        return 1
+
+    trace_hash = trace_cert["trace_hash"]
+    certified_receipt_hash = certified["runtime_receipts"][0]["trace_hash"]
+    signed_receipt_hash = signed_bundle["runtime_receipts"][0]["trace_hash"]
+    if trace_hash != certified_receipt_hash or trace_hash != signed_receipt_hash:
+        print(
+            "trace_hash mismatch in release chain:",
+            trace_hash,
+            certified_receipt_hash,
+            signed_receipt_hash,
             file=sys.stderr,
         )
         return 1
@@ -69,15 +92,12 @@ def main() -> int:
             return 1
 
     vr_path = run / "verification_result.json"
-    signed_path = run / "signed_science_claim_bundle.json"
-    if vr_path.is_file() and signed_path.is_file():
+    if vr_path.is_file():
         vr = load_json(vr_path)
-        signed = load_json(signed_path)
         vr_cert = check_certificate_refs(vr)
-        signed_cert = signed["science_claim_bundle"]["certificates"][0]["certificate_id"]
-        if cert_id != vr_cert or cert_id != signed_cert:
+        if cert_id != vr_cert:
             print(
-                f"PF chain certificate_id mismatch: trace={cert_id!r} vr={vr_cert!r} signed={signed_cert!r}",
+                f"verification_result certificate_id mismatch: trace={cert_id!r} vr={vr_cert!r}",
                 file=sys.stderr,
             )
             return 1

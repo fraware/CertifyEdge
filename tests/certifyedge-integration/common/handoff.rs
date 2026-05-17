@@ -59,27 +59,75 @@ pub fn assert_certificate_id_handoff_trace_to_certified_bundle(run: &Path) {
 
 /// Assert PF verification/signing preserves the same certificate identity when artifacts exist.
 pub fn assert_certificate_id_handoff_through_pf_chain(run: &Path) {
-    let trace_cert = load_json_path(&run.join("trace_certificate.json"));
-    let cert_id = trace_cert["certificate_id"]
-        .as_str()
-        .expect("trace_certificate.certificate_id");
-
     let vr_path = run.join("verification_result.json");
     let signed_path = run.join("signed_science_claim_bundle.json");
     if !vr_path.is_file() || !signed_path.is_file() {
         return;
     }
 
+    let trace_cert = load_json_path(&run.join("trace_certificate.json"));
+    let cert_id = trace_cert["certificate_id"]
+        .as_str()
+        .expect("trace_certificate.certificate_id");
+
     let vr = load_json_path(&vr_path);
-    let signed = load_json_path(&signed_path);
     let vr_cert = verification_result_certificate_ref(&vr)
         .expect("verification_result evidence_refs_complete.certificate_refs[0]");
+    assert_eq!(vr_cert, cert_id);
+
+    let signed = load_json_path(&signed_path);
     let signed_cert = signed["science_claim_bundle"]["certificates"][0]["certificate_id"]
         .as_str()
         .expect("signed bundle certificate_id");
-
-    assert_eq!(vr_cert, cert_id);
     assert_eq!(signed_cert, cert_id);
+}
+
+/// Full release-chain propagation: certificate identity and trace hash through the signed bundle.
+pub fn assert_release_chain_certificate_and_trace_hash_propagation(run: &Path) {
+    let trace_cert = load_json_path(&run.join("trace_certificate.json"));
+    let certified = load_json_path(&run.join("science_claim_bundle.certified.json"));
+    let signed = load_json_path(&run.join("signed_science_claim_bundle.json"));
+    let signed_bundle = &signed["science_claim_bundle"];
+
+    let cert_id = trace_cert["certificate_id"]
+        .as_str()
+        .expect("trace_certificate.certificate_id");
+    let certified_cert_id = certified["certificates"][0]["certificate_id"]
+        .as_str()
+        .expect("certified.certificates[0].certificate_id");
+    let claim_ref = certified["claim_artifact"]["certificate_refs"][0]
+        .as_str()
+        .expect("certified.claim_artifact.certificate_refs[0]");
+    let evidence_ref = certified["evidence_bundle"]["certificate_refs"][0]
+        .as_str()
+        .expect("certified.evidence_bundle.certificate_refs[0]");
+    let signed_cert_id = signed_bundle["certificates"][0]["certificate_id"]
+        .as_str()
+        .expect("signed.science_claim_bundle.certificates[0].certificate_id");
+
+    assert_eq!(certified_cert_id, cert_id, "certified.certificates[0].certificate_id");
+    assert_eq!(claim_ref, cert_id, "certified.claim_artifact.certificate_refs[0]");
+    assert_eq!(evidence_ref, cert_id, "certified.evidence_bundle.certificate_refs[0]");
+    assert_eq!(signed_cert_id, cert_id, "signed.science_claim_bundle.certificates[0].certificate_id");
+
+    let trace_hash = trace_cert["trace_hash"]
+        .as_str()
+        .expect("trace_certificate.trace_hash");
+    let certified_receipt_hash = certified["runtime_receipts"][0]["trace_hash"]
+        .as_str()
+        .expect("certified.runtime_receipts[0].trace_hash");
+    let signed_receipt_hash = signed_bundle["runtime_receipts"][0]["trace_hash"]
+        .as_str()
+        .expect("signed.runtime_receipts[0].trace_hash");
+
+    assert_eq!(
+        certified_receipt_hash, trace_hash,
+        "certified.runtime_receipts[0].trace_hash"
+    );
+    assert_eq!(
+        signed_receipt_hash, trace_hash,
+        "signed.runtime_receipts[0].trace_hash"
+    );
 }
 
 pub fn assert_release_run_manifest_provenance(run: &Path) {
@@ -129,6 +177,8 @@ pub fn validate_release_run_fixture_tree() {
         "trace_certificate.json",
         "science_claim_bundle.pending.json",
         "science_claim_bundle.certified.json",
+        "verification_result.json",
+        "signed_science_claim_bundle.json",
         "certificate_summary.json",
     ];
 
@@ -147,5 +197,6 @@ pub fn validate_release_run_fixture_tree() {
     let run_path = release_run_dir();
     assert_certificate_id_handoff_trace_to_certified_bundle(&run_path);
     assert_certificate_id_handoff_through_pf_chain(&run_path);
+    assert_release_chain_certificate_and_trace_hash_propagation(&run_path);
     assert_release_run_manifest_provenance(&run_path);
 }

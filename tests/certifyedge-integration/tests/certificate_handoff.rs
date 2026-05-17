@@ -8,6 +8,7 @@ mod support;
 use support::{
     assert_certificate_id_handoff_through_pf_chain,
     assert_certificate_id_handoff_trace_to_certified_bundle,
+    assert_release_chain_certificate_and_trace_hash_propagation,
     assert_release_run_manifest_provenance, certifyedge_cmd, release_manifest_certifyedge_commit,
     release_run_dir, release_run_fixture, repo_root, runbook_labtrust_release_trace,
     runbook_spec_qc_release, validate_release_run_fixture_tree, with_source_commit,
@@ -62,6 +63,11 @@ fn test_certificate_id_survives_pf_verification_and_signing() {
 fn test_release_run_fixture_tree_and_manifest_provenance() {
     validate_release_run_fixture_tree();
     assert_release_run_manifest_provenance(&release_run_dir());
+}
+
+#[test]
+fn test_release_chain_certificate_and_trace_hash_propagation() {
+    assert_release_chain_certificate_and_trace_hash_propagation(&release_run_dir());
 }
 
 #[test]
