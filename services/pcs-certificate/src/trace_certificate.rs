@@ -103,10 +103,7 @@ pub fn counterexample_from_json(text: &str) -> Result<Counterexample, serde_json
 }
 
 pub fn explain_counterexample(cx: &Counterexample) -> String {
-    let sample = cx
-        .sample_id
-        .as_deref()
-        .unwrap_or("(unknown sample)");
+    let sample = cx.sample_id.as_deref().unwrap_or("(unknown sample)");
     format!(
         "Property {} violated for sample {} at event {}.\nReason: {}\nExpected: {}\nFragment: {} event(s) attached.",
         cx.property_id,

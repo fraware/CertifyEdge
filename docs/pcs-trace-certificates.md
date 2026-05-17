@@ -31,6 +31,9 @@ cargo run -p certifyedge -- emit-pcs-certificate \
   --trace tests/labtrust/valid_trace.json \
   --out trace_certificate.json
 
+cargo run -p certifyedge -- verify-certificate trace_certificate.json
+
+# Optional: also assert trace_hash matches a trace file
 cargo run -p certifyedge -- verify-certificate trace_certificate.json \
   --trace tests/labtrust/valid_trace.json
 

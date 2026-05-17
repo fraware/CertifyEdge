@@ -71,11 +71,7 @@ pub fn verify_event_hash_chain(events: &[Value]) -> Vec<String> {
             }
         }
 
-        if obj
-            .get("previous_event_hash")
-            .and_then(|v| v.as_str())
-            != Some(prev.as_str())
-        {
+        if obj.get("previous_event_hash").and_then(|v| v.as_str()) != Some(prev.as_str()) {
             errors.push(format!("event[{i}]: previous_event_hash mismatch"));
         }
 
@@ -101,8 +97,8 @@ pub fn verify_event_hash_chain(events: &[Value]) -> Vec<String> {
 }
 
 pub fn parse_and_validate_json(text: &str) -> Result<LabTrustTrace, TraceValidationError> {
-    let value: Value = serde_json::from_str(text)
-        .map_err(|e| TraceValidationError::Malformed(e.to_string()))?;
+    let value: Value =
+        serde_json::from_str(text).map_err(|e| TraceValidationError::Malformed(e.to_string()))?;
     let trace = LabTrustTrace::from_json_value(&value)
         .map_err(|e| TraceValidationError::Malformed(e.to_string()))?;
     validate_trace(&trace)?;

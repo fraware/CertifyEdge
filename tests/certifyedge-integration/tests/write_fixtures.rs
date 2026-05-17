@@ -1,7 +1,9 @@
 //! Regenerate `tests/labtrust/*.json` fixtures. Run: cargo test -p certifyedge-integration write_fixtures -- --ignored --nocapture
 
 use labtrust_adapter::{
-    check_property, PropertySpec, TraceView, workflow_sim::{run_workflow, WorkflowStep},
+    check_property,
+    workflow_sim::{run_workflow, WorkflowStep},
+    PropertySpec, TraceView,
 };
 use pcs_certificate::{build_certificate, counterexample_to_json, CertifyEdgeMetadata};
 use serde_json::to_string_pretty;
@@ -30,28 +32,78 @@ fn write_fixtures() {
         "qc-release",
         "PCS-SAMPLE-001",
         &[
-            step("accession_sample", "acc-tech-01", "accession_tech", "2026-01-15T08:00:00+00:00"),
-            step("perform_qc", "qc-tech-01", "qc_tech", "2026-01-15T09:00:00+00:00"),
-            step("record_analysis", "analyst-01", "analyst", "2026-01-15T10:00:00+00:00"),
-            step("release_sample", "rel-mgr-01", "release_manager", "2026-01-15T11:00:00+00:00"),
+            step(
+                "accession_sample",
+                "acc-tech-01",
+                "accession_tech",
+                "2026-01-15T08:00:00+00:00",
+            ),
+            step(
+                "perform_qc",
+                "qc-tech-01",
+                "qc_tech",
+                "2026-01-15T09:00:00+00:00",
+            ),
+            step(
+                "record_analysis",
+                "analyst-01",
+                "analyst",
+                "2026-01-15T10:00:00+00:00",
+            ),
+            step(
+                "release_sample",
+                "rel-mgr-01",
+                "release_manager",
+                "2026-01-15T11:00:00+00:00",
+            ),
         ],
     );
     let missing_qc = run_workflow(
         "qc-release-invalid-missing-qc",
         "PCS-SAMPLE-002",
         &[
-            step("accession_sample", "acc-tech-01", "accession_tech", "2026-01-15T08:00:00+00:00"),
-            step("release_sample", "rel-mgr-01", "release_manager", "2026-01-15T10:00:00+00:00"),
+            step(
+                "accession_sample",
+                "acc-tech-01",
+                "accession_tech",
+                "2026-01-15T08:00:00+00:00",
+            ),
+            step(
+                "release_sample",
+                "rel-mgr-01",
+                "release_manager",
+                "2026-01-15T10:00:00+00:00",
+            ),
         ],
     );
     let unauthorized = run_workflow(
         "qc-release-invalid-unauthorized",
         "PCS-SAMPLE-003",
         &[
-            step("accession_sample", "acc-tech-01", "accession_tech", "2026-01-15T08:00:00+00:00"),
-            step("perform_qc", "qc-tech-01", "qc_tech", "2026-01-15T09:00:00+00:00"),
-            step("record_analysis", "analyst-01", "analyst", "2026-01-15T10:00:00+00:00"),
-            step("release_sample", "intern-01", "unauthorized_user", "2026-01-15T11:00:00+00:00"),
+            step(
+                "accession_sample",
+                "acc-tech-01",
+                "accession_tech",
+                "2026-01-15T08:00:00+00:00",
+            ),
+            step(
+                "perform_qc",
+                "qc-tech-01",
+                "qc_tech",
+                "2026-01-15T09:00:00+00:00",
+            ),
+            step(
+                "record_analysis",
+                "analyst-01",
+                "analyst",
+                "2026-01-15T10:00:00+00:00",
+            ),
+            step(
+                "release_sample",
+                "intern-01",
+                "unauthorized_user",
+                "2026-01-15T11:00:00+00:00",
+            ),
         ],
     );
 
@@ -64,7 +116,8 @@ fn write_fixtures() {
         std::fs::write(out_dir.join(name), format!("{json}\n")).unwrap();
     }
 
-    let spec = PropertySpec::load(&repo_root().join("templates/hospital_lab/qc_release.stl")).unwrap();
+    let spec =
+        PropertySpec::load(&repo_root().join("templates/hospital_lab/qc_release.stl")).unwrap();
     let mut meta = CertifyEdgeMetadata::dev_default();
     meta.source_commit = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into();
 
@@ -72,10 +125,7 @@ fn write_fixtures() {
     let valid_cert = build_certificate(&valid.trace_hash, &spec, &valid_check, &meta, None);
     std::fs::write(
         out_dir.join("expected_valid_certificate.json"),
-        format!(
-            "{}\n",
-            to_string_pretty(&valid_cert.certificate).unwrap()
-        ),
+        format!("{}\n", to_string_pretty(&valid_cert.certificate).unwrap()),
     )
     .unwrap();
 
@@ -90,10 +140,9 @@ fn write_fixtures() {
     )
     .unwrap();
 
-    let auth_spec = PropertySpec::load(
-        &repo_root().join("templates/hospital_lab/authorized_release_only.stl"),
-    )
-    .unwrap();
+    let auth_spec =
+        PropertySpec::load(&repo_root().join("templates/hospital_lab/authorized_release_only.stl"))
+            .unwrap();
     let unauthorized_check = check_property(&TraceView::from(unauthorized), &auth_spec);
     let unauthorized_cx = unauthorized_check.counterexample.unwrap();
     std::fs::write(

@@ -1,10 +1,14 @@
 //! CLI runbook tests — `certifyedge check-trace`, `emit-pcs-certificate`, etc.
 
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 use assert_cmd::Command;
-use predicates::prelude::*;
 use pcs_certificate::{is_zero_source_commit, CertifyEdgeMetadata, ZERO_SOURCE_COMMIT};
+use predicates::prelude::*;
+
+/// `CERTIFYEDGE_SOURCE_COMMIT` is process-global; serialize env-mutating tests.
+static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -12,6 +16,10 @@ fn repo_root() -> PathBuf {
 
 fn spec_qc_release() -> PathBuf {
     repo_root().join("templates/hospital_lab/qc_release.stl")
+}
+
+fn spec_authorized_release_only() -> PathBuf {
+    repo_root().join("templates/hospital_lab/authorized_release_only.stl")
 }
 
 fn valid_trace() -> PathBuf {
@@ -46,6 +54,18 @@ fn test_cli_check_trace_malformed_trace_fails() {
         ])
         .assert()
         .failure();
+}
+
+#[test]
+fn test_authorized_release_only_template_exists() {
+    let path = spec_authorized_release_only();
+    assert!(path.is_file(), "missing {}", path.display());
+    let spec = labtrust_adapter::PropertySpec::load(&path).unwrap();
+    assert_eq!(
+        spec.property_id.as_str(),
+        "hospital_lab.authorized_release_only"
+    );
+    assert!(spec.allowed_release_roles.contains("release_manager"));
 }
 
 #[test]
@@ -149,7 +169,7 @@ fn test_emit_pcs_certificate_rejected_with_counterexample() {
 }
 
 #[test]
-fn test_certificate_trace_hash_matches_labtrust_trace_hash() {
+fn test_trace_hash_matches_labtrust_trace_hash() {
     let out = repo_root().join("target/test_cert_hash.json");
     certifyedge()
         .args([
@@ -166,8 +186,61 @@ fn test_certificate_trace_hash_matches_labtrust_trace_hash() {
 
     let trace: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(valid_trace()).unwrap()).unwrap();
-    let cert: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&out).unwrap()).unwrap();
+    let cert: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&out).unwrap()).unwrap();
     assert_eq!(cert["trace_hash"], trace["trace_hash"]);
+}
+
+#[test]
+fn test_cli_verify_certificate_valid_passes() {
+    let out = repo_root().join("target/test_cert_verify_runbook.json");
+    certifyedge()
+        .args([
+            "emit-pcs-certificate",
+            "--spec",
+            spec_qc_release().to_str().unwrap(),
+            "--trace",
+            valid_trace().to_str().unwrap(),
+            "--out",
+            out.to_str().unwrap(),
+        ])
+        .assert()
+        .success();
+
+    certifyedge()
+        .arg("verify-certificate")
+        .arg(&out)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("valid TraceCertificate.v0"))
+        .stdout(predicate::str::contains("CertificateChecked"));
+}
+
+#[test]
+fn test_cli_explain_counterexample() {
+    let out_dir = repo_root().join("target/cli_explain_cx");
+    std::fs::create_dir_all(&out_dir).unwrap();
+    let cx_path = out_dir.join("counterexample.json");
+
+    certifyedge()
+        .args([
+            "check-trace",
+            "--spec",
+            spec_qc_release().to_str().unwrap(),
+            "--trace",
+            missing_qc_trace().to_str().unwrap(),
+            "--counterexample-out",
+            cx_path.to_str().unwrap(),
+        ])
+        .assert()
+        .failure();
+
+    certifyedge()
+        .arg("explain-counterexample")
+        .arg(&cx_path)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("release_before_qc"));
 }
 
 #[test]
@@ -188,7 +261,9 @@ fn test_verify_certificate_rejects_modified_digest() {
 
     let mut cert: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&out).unwrap()).unwrap();
-    cert["signature_or_digest"] = serde_json::json!("sha256:0000000000000000000000000000000000000000000000000000000000000000");
+    cert["signature_or_digest"] = serde_json::json!(
+        "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    );
     std::fs::write(&out, serde_json::to_string_pretty(&cert).unwrap()).unwrap();
 
     certifyedge()
@@ -200,8 +275,10 @@ fn test_verify_certificate_rejects_modified_digest() {
 
 #[test]
 fn test_release_mode_never_emits_zero_source_commit() {
+    let _guard = ENV_LOCK.lock().unwrap();
     let out = repo_root().join("target/test_cert_release.json");
     let commit = "abcdef0123456789abcdef0123456789abcdef01";
+    std::env::set_var("CERTIFYEDGE_SOURCE_COMMIT", commit);
     certifyedge()
         .args([
             "--release-mode",
@@ -213,9 +290,9 @@ fn test_release_mode_never_emits_zero_source_commit() {
             "--out",
             out.to_str().unwrap(),
         ])
-        .env("CERTIFYEDGE_SOURCE_COMMIT", commit)
         .assert()
         .success();
+    std::env::remove_var("CERTIFYEDGE_SOURCE_COMMIT");
 
     let cert: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&out).unwrap()).unwrap();
@@ -227,39 +304,11 @@ fn test_release_mode_never_emits_zero_source_commit() {
 
 #[test]
 fn test_release_mode_rejects_zero_source_commit() {
+    let _guard = ENV_LOCK.lock().unwrap();
     std::env::set_var("CERTIFYEDGE_SOURCE_COMMIT", ZERO_SOURCE_COMMIT);
-    let result = CertifyEdgeMetadata::resolve(true);
-    std::env::remove_var("CERTIFYEDGE_SOURCE_COMMIT");
-    // With a real git checkout, resolve(true) may use HEAD instead of the zero env var.
-    if result.is_ok() {
-        assert!(!is_zero_source_commit(&result.unwrap().source_commit));
-    } else {
-        assert!(result.unwrap_err().contains("source_commit"));
-    }
-}
+    assert!(CertifyEdgeMetadata::resolve(true).is_err());
 
-#[test]
-fn test_release_mode_uses_nonzero_commit() {
-    let commit = "abcdef0123456789abcdef0123456789abcdef01";
-    std::env::set_var("CERTIFYEDGE_SOURCE_COMMIT", commit);
-    let meta = CertifyEdgeMetadata::resolve(true).unwrap();
-    assert_eq!(meta.source_commit, commit);
-    assert!(!is_zero_source_commit(&meta.source_commit));
-    std::env::remove_var("CERTIFYEDGE_SOURCE_COMMIT");
-}
-
-#[test]
-fn test_certificate_validates_against_pcs_core() {
-    if std::process::Command::new("pcs")
-        .arg("--help")
-        .output()
-        .is_err()
-    {
-        eprintln!("skipping test_certificate_validates_against_pcs_core: pcs CLI not installed");
-        return;
-    }
-
-    let out = repo_root().join("target/test_cert_pcs.json");
+    let out = repo_root().join("target/test_cert_release_zero.json");
     certifyedge()
         .args([
             "--release-mode",
@@ -271,16 +320,75 @@ fn test_certificate_validates_against_pcs_core() {
             "--out",
             out.to_str().unwrap(),
         ])
-        .env(
-            "CERTIFYEDGE_SOURCE_COMMIT",
-            "abcdef0123456789abcdef0123456789abcdef01",
-        )
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("non-zero"));
+
+    std::env::remove_var("CERTIFYEDGE_SOURCE_COMMIT");
+}
+
+#[test]
+fn test_release_mode_uses_nonzero_commit() {
+    let _guard = ENV_LOCK.lock().unwrap();
+    let commit = "abcdef0123456789abcdef0123456789abcdef01";
+    std::env::set_var("CERTIFYEDGE_SOURCE_COMMIT", commit);
+    let meta = CertifyEdgeMetadata::resolve(true).unwrap();
+    assert_eq!(meta.source_commit, commit);
+    assert!(!is_zero_source_commit(&meta.source_commit));
+    std::env::remove_var("CERTIFYEDGE_SOURCE_COMMIT");
+}
+
+#[test]
+fn test_emit_pcs_certificate_validates_against_pcs_core() {
+    let out = repo_root().join("target/test_cert_pcs_schema.json");
+    certifyedge()
+        .args([
+            "emit-pcs-certificate",
+            "--spec",
+            spec_qc_release().to_str().unwrap(),
+            "--trace",
+            valid_trace().to_str().unwrap(),
+            "--out",
+            out.to_str().unwrap(),
+        ])
         .assert()
         .success();
 
-    Command::new("pcs")
-        .arg("validate")
-        .arg(&out)
+    let text = std::fs::read_to_string(&out).unwrap();
+    let value: serde_json::Value = serde_json::from_str(&text).unwrap();
+    pcs_certificate::validate_trace_certificate_schema(&value).unwrap();
+
+    if std::process::Command::new("pcs")
+        .arg("--help")
+        .output()
+        .is_ok()
+    {
+        Command::new("pcs")
+            .arg("validate")
+            .arg(&out)
+            .assert()
+            .success();
+    }
+}
+
+#[test]
+fn test_certificate_schema_version_is_v0() {
+    let out = repo_root().join("target/test_cert_schema_v0.json");
+    certifyedge()
+        .args([
+            "emit-pcs-certificate",
+            "--spec",
+            spec_qc_release().to_str().unwrap(),
+            "--trace",
+            valid_trace().to_str().unwrap(),
+            "--out",
+            out.to_str().unwrap(),
+        ])
         .assert()
         .success();
+
+    let cert: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&out).unwrap()).unwrap();
+    assert_eq!(cert["schema_version"], "v0");
+    assert_eq!(cert["checker"], "CertifyEdge");
 }

@@ -111,9 +111,7 @@ fn check_sample(
 ) -> Option<Counterexample> {
     match spec.property_id {
         PropertyId::NoReleaseBeforeQc => check_no_release_before_qc(events, spec, sample_id),
-        PropertyId::AuthorizedReleaseOnly => {
-            check_authorized_release_only(events, spec, sample_id)
-        }
+        PropertyId::AuthorizedReleaseOnly => check_authorized_release_only(events, spec, sample_id),
         PropertyId::QcRelease => check_qc_release(events, spec, sample_id),
     }
 }
@@ -123,9 +121,7 @@ fn successful_qc_indices(events: &[&TraceEvent]) -> Vec<usize> {
         .iter()
         .enumerate()
         .filter(|(_, e)| {
-            e.action == "perform_qc"
-                && e.policy_decision == "allow"
-                && e.reason_code == "ok"
+            e.action == "perform_qc" && e.policy_decision == "allow" && e.reason_code == "ok"
         })
         .map(|(i, _)| i)
         .collect()
@@ -225,10 +221,7 @@ fn check_event_order(
                     sample_id,
                     event,
                     "invalid_event_order",
-                    format!(
-                        "{last_action} must precede {}",
-                        event.action
-                    ),
+                    format!("{last_action} must precede {}", event.action),
                     fragment_around(events, idx),
                 ));
             }

@@ -5,7 +5,12 @@ use thiserror::Error;
 use crate::pcs_schema::validate_trace_certificate_schema;
 use crate::signing::verify_digest;
 
-const TRACE_CERT_STATUSES: &[&str] = &["CertificatePending", "CertificateChecked", "Rejected", "Stale"];
+const TRACE_CERT_STATUSES: &[&str] = &[
+    "CertificatePending",
+    "CertificateChecked",
+    "Rejected",
+    "Stale",
+];
 
 #[derive(Debug, Error)]
 pub enum CertificateValidationError {
@@ -23,8 +28,8 @@ pub fn verify_certificate_document(
     cert_text: &str,
     expected_trace_hash: Option<&str>,
 ) -> Result<TraceCertificateV0, CertificateValidationError> {
-    let value: Value =
-        serde_json::from_str(cert_text).map_err(|e| CertificateValidationError::Json(e.to_string()))?;
+    let value: Value = serde_json::from_str(cert_text)
+        .map_err(|e| CertificateValidationError::Json(e.to_string()))?;
 
     if !value.is_object() || value.get("certificate_id").is_none() {
         return Err(CertificateValidationError::Pcs(
@@ -33,10 +38,10 @@ pub fn verify_certificate_document(
     }
 
     validate_trace_certificate_shape(&value)?;
-    validate_trace_certificate_schema(&value).map_err(|e| CertificateValidationError::Pcs(e))?;
+    validate_trace_certificate_schema(&value).map_err(CertificateValidationError::Pcs)?;
 
-    let cert: TraceCertificateV0 =
-        serde_json::from_value(value).map_err(|e| CertificateValidationError::Json(e.to_string()))?;
+    let cert: TraceCertificateV0 = serde_json::from_value(value)
+        .map_err(|e| CertificateValidationError::Json(e.to_string()))?;
 
     if !verify_digest(&cert) {
         return Err(CertificateValidationError::DigestMismatch);
@@ -79,7 +84,9 @@ fn validate_trace_certificate_shape(value: &Value) -> Result<(), CertificateVali
 
     for key in required {
         if !obj.contains_key(key) {
-            return Err(CertificateValidationError::Pcs(format!("missing field {key}")));
+            return Err(CertificateValidationError::Pcs(format!(
+                "missing field {key}"
+            )));
         }
     }
 
@@ -104,7 +111,9 @@ fn validate_trace_certificate_shape(value: &Value) -> Result<(), CertificateVali
         let digest = obj
             .get(digest_field)
             .and_then(|v| v.as_str())
-            .ok_or_else(|| CertificateValidationError::Pcs(format!("{digest_field} must be string")))?;
+            .ok_or_else(|| {
+                CertificateValidationError::Pcs(format!("{digest_field} must be string"))
+            })?;
         if !digest.starts_with("sha256:") || digest.len() != 71 {
             return Err(CertificateValidationError::Pcs(format!(
                 "{digest_field} must match sha256:<64 hex>"

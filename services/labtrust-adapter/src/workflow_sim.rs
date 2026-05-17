@@ -48,7 +48,11 @@ pub fn evaluate_action(
             ("allow".into(), "ok".into(), post)
         }
         "release_sample" => {
-            if !state.get("qc_complete").and_then(|v| v.as_bool()).unwrap_or(false) {
+            if !state
+                .get("qc_complete")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+            {
                 return ("deny".into(), "missing_qc".into(), post);
             }
             if state.get("lifecycle").and_then(|v| v.as_str()) != Some("analyzed") {
@@ -140,10 +144,30 @@ mod tests {
     #[test]
     fn valid_workflow_produces_four_events() {
         let steps = vec![
-            step("accession_sample", "acc-tech-01", "accession_tech", "2026-01-15T08:00:00+00:00"),
-            step("perform_qc", "qc-tech-01", "qc_tech", "2026-01-15T09:00:00+00:00"),
-            step("record_analysis", "analyst-01", "analyst", "2026-01-15T10:00:00+00:00"),
-            step("release_sample", "rel-mgr-01", "release_manager", "2026-01-15T11:00:00+00:00"),
+            step(
+                "accession_sample",
+                "acc-tech-01",
+                "accession_tech",
+                "2026-01-15T08:00:00+00:00",
+            ),
+            step(
+                "perform_qc",
+                "qc-tech-01",
+                "qc_tech",
+                "2026-01-15T09:00:00+00:00",
+            ),
+            step(
+                "record_analysis",
+                "analyst-01",
+                "analyst",
+                "2026-01-15T10:00:00+00:00",
+            ),
+            step(
+                "release_sample",
+                "rel-mgr-01",
+                "release_manager",
+                "2026-01-15T11:00:00+00:00",
+            ),
         ];
         let trace = run_workflow("qc-release", "PCS-SAMPLE-001", &steps);
         assert_eq!(trace.events.len(), 4);

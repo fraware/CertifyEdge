@@ -5,6 +5,9 @@ Start here for how the repository is organized, how to build and test it, and wh
 | Document | Purpose |
 |----------|---------|
 | [Quick start](quick-start.md) | Install tools, run Cargo and Bazel, repository layout |
+| [PCS trace certificates](pcs-trace-certificates.md) | LabTrust v0.1 CLI runbook, `TraceCertificate.v0`, release mode |
+| [LabTrust adapter](labtrust-adapter.md) | Trace parsing, hashing, temporal properties |
+| [PCS handoff](pcs-handoff.md) | LabTrust-Gym → CertifyEdge → Provability Fabric contract |
 | [Contributing](../CONTRIBUTING.md) | Pull requests, formatting, commands to run before submitting |
 | [Architecture decisions (ADRs)](adr/) | Short records of build system, CI, protos, and security outline |
 | [Root README](../README.md) | Project overview and goals |
@@ -19,6 +22,18 @@ Directory listing: [docs/adr/README.md](adr/README.md).
 | [002 — CI and end-to-end integration test](adr/002-ci-integration-test.md) | GitHub Actions and `integration_tests` / Bazel `pipeline_integration` |
 | [003 — Protocol buffers and gRPC](adr/003-proto-and-grpc.md) | `.proto` schema today; gRPC when needed |
 | [004 — Threat model outline](adr/004-threat-model-outline.md) | Placeholder for security documentation |
+| [005 — PCS v0.1 LabTrust certification](adr/005-pcs-v01-labtrust-certification.md) | Trace certificates, runbook CLI, pcs-core validation |
+
+## PCS v0.1 (LabTrust)
+
+```bash
+make test          # integration tests + clippy (PCS crates)
+make runbook       # full handoff script (scripts/pcs-runbook.sh)
+```
+
+Golden fixtures live under `tests/labtrust/`. Regenerate with:
+
+`cargo test -p certifyedge-integration write_fixtures -- --ignored --nocapture`
 
 ## Service-specific notes
 

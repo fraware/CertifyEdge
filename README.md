@@ -49,8 +49,7 @@ cargo run -p certifyedge -- emit-pcs-certificate \
   --out trace_certificate.json
 
 # Verify certificate schema and digest
-cargo run -p certifyedge -- verify-certificate trace_certificate.json \
-  --trace tests/labtrust/valid_trace.json
+cargo run -p certifyedge -- verify-certificate trace_certificate.json
 
 # Explain a counterexample
 cargo run -p certifyedge -- explain-counterexample counterexample.json
@@ -66,7 +65,7 @@ cargo run -p certifyedge -- explain-counterexample counterexample.json
 
 End-to-end flow with LabTrust-Gym and Provability Fabric is documented in [docs/pcs-trace-certificates.md](docs/pcs-trace-certificates.md), [docs/labtrust-adapter.md](docs/labtrust-adapter.md), and [docs/pcs-handoff.md](docs/pcs-handoff.md).
 
-Quick runbook via Make: `make check-trace`, `make emit-certificate`, `make verify-certificate`, `make test`.
+Quick runbook via Make: `make check-trace`, `make emit-certificate`, `make verify-certificate`, `make test`, `make runbook`.
 
 **Simulation disclaimer:** v0.1 certificates attest to LabTrust-Gym simulation traces only. They are not clinical or production laboratory guarantees.
 

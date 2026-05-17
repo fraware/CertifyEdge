@@ -1,13 +1,13 @@
 use labtrust_adapter::{
-    check_property, parse_and_validate_json, validate_trace, PropertyId, PropertySpec, TraceView,
+    check_property, parse_and_validate_json, validate_trace,
     workflow_sim::{run_workflow, WorkflowStep},
+    PropertyId, PropertySpec, TraceView,
 };
 use pcs_certificate::{build_certificate, verify_certificate_document, CertifyEdgeMetadata};
 use std::path::PathBuf;
 
 fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
 fn spec_path(name: &str) -> PathBuf {
@@ -28,10 +28,30 @@ fn valid_trace() -> labtrust_adapter::LabTrustTrace {
         "qc-release",
         "PCS-SAMPLE-001",
         &[
-            step("accession_sample", "acc-tech-01", "accession_tech", "2026-01-15T08:00:00+00:00"),
-            step("perform_qc", "qc-tech-01", "qc_tech", "2026-01-15T09:00:00+00:00"),
-            step("record_analysis", "analyst-01", "analyst", "2026-01-15T10:00:00+00:00"),
-            step("release_sample", "rel-mgr-01", "release_manager", "2026-01-15T11:00:00+00:00"),
+            step(
+                "accession_sample",
+                "acc-tech-01",
+                "accession_tech",
+                "2026-01-15T08:00:00+00:00",
+            ),
+            step(
+                "perform_qc",
+                "qc-tech-01",
+                "qc_tech",
+                "2026-01-15T09:00:00+00:00",
+            ),
+            step(
+                "record_analysis",
+                "analyst-01",
+                "analyst",
+                "2026-01-15T10:00:00+00:00",
+            ),
+            step(
+                "release_sample",
+                "rel-mgr-01",
+                "release_manager",
+                "2026-01-15T11:00:00+00:00",
+            ),
         ],
     )
 }
@@ -41,8 +61,18 @@ fn missing_qc_trace() -> labtrust_adapter::LabTrustTrace {
         "qc-release-invalid-missing-qc",
         "PCS-SAMPLE-002",
         &[
-            step("accession_sample", "acc-tech-01", "accession_tech", "2026-01-15T08:00:00+00:00"),
-            step("release_sample", "rel-mgr-01", "release_manager", "2026-01-15T10:00:00+00:00"),
+            step(
+                "accession_sample",
+                "acc-tech-01",
+                "accession_tech",
+                "2026-01-15T08:00:00+00:00",
+            ),
+            step(
+                "release_sample",
+                "rel-mgr-01",
+                "release_manager",
+                "2026-01-15T10:00:00+00:00",
+            ),
         ],
     )
 }
@@ -52,10 +82,30 @@ fn unauthorized_trace() -> labtrust_adapter::LabTrustTrace {
         "qc-release-invalid-unauthorized",
         "PCS-SAMPLE-003",
         &[
-            step("accession_sample", "acc-tech-01", "accession_tech", "2026-01-15T08:00:00+00:00"),
-            step("perform_qc", "qc-tech-01", "qc_tech", "2026-01-15T09:00:00+00:00"),
-            step("record_analysis", "analyst-01", "analyst", "2026-01-15T10:00:00+00:00"),
-            step("release_sample", "intern-01", "unauthorized_user", "2026-01-15T11:00:00+00:00"),
+            step(
+                "accession_sample",
+                "acc-tech-01",
+                "accession_tech",
+                "2026-01-15T08:00:00+00:00",
+            ),
+            step(
+                "perform_qc",
+                "qc-tech-01",
+                "qc_tech",
+                "2026-01-15T09:00:00+00:00",
+            ),
+            step(
+                "record_analysis",
+                "analyst-01",
+                "analyst",
+                "2026-01-15T10:00:00+00:00",
+            ),
+            step(
+                "release_sample",
+                "intern-01",
+                "unauthorized_user",
+                "2026-01-15T11:00:00+00:00",
+            ),
         ],
     )
 }
@@ -98,7 +148,8 @@ fn unauthorized_release_trace_rejected() {
 #[test]
 fn malformed_trace_rejected() {
     let mut trace = valid_trace();
-    trace.trace_hash = "sha256:0000000000000000000000000000000000000000000000000000000000000000".into();
+    trace.trace_hash =
+        "sha256:0000000000000000000000000000000000000000000000000000000000000000".into();
     assert!(validate_trace(&trace).is_err());
 }
 
@@ -171,7 +222,7 @@ fn labtrust_trace_hash_matches_gym_export() {
 }
 
 #[test]
-fn test_certificate_trace_hash_matches_labtrust_trace_hash() {
+fn test_trace_hash_matches_labtrust_trace_hash() {
     let trace_path = repo_root().join("tests/labtrust/valid_trace.json");
     let text = std::fs::read_to_string(&trace_path).unwrap();
     let trace = parse_and_validate_json(&text).unwrap();
@@ -185,6 +236,22 @@ fn test_certificate_trace_hash_matches_labtrust_trace_hash() {
         None,
     );
     assert_eq!(outcome.certificate.trace_hash, trace.trace_hash);
+}
+
+#[test]
+fn valid_trace_passes_each_hospital_lab_property() {
+    let trace_path = repo_root().join("tests/labtrust/valid_trace.json");
+    let trace = parse_and_validate_json(&std::fs::read_to_string(&trace_path).unwrap()).unwrap();
+    let view = TraceView::from(trace);
+    for stl in [
+        "qc_release.stl",
+        "no_release_before_qc.stl",
+        "authorized_release_only.stl",
+    ] {
+        let spec = PropertySpec::load(&spec_path(stl)).unwrap();
+        let result = check_property(&view, &spec);
+        assert!(result.passed, "{} failed: {:?}", stl, result.counterexample);
+    }
 }
 
 #[test]

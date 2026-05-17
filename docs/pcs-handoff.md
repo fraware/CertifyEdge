@@ -68,7 +68,21 @@ These are a **LabTrust temporal-property profile**, not full STL.
 1. In-process: vendored pcs-core JSON Schema (`schemas/pcs/`).
 2. External (CI / release): `pcs validate trace_certificate.json` from pcs-core.
 
-Use `--release-mode` for CI and handoff builds.
+Use `--release-mode` for CI and handoff builds. In release mode, `CERTIFYEDGE_SOURCE_COMMIT` must be a non-zero git SHA (or omit it and run inside a git checkout).
+
+## Runbook commands
+
+Build once (`cargo build -p certifyedge`) or use `./scripts/certifyedge.sh` / `make install-cli`.
+
+```bash
+certifyedge check-trace --spec templates/hospital_lab/qc_release.stl --trace trace.json
+certifyedge emit-pcs-certificate --spec templates/hospital_lab/qc_release.stl --trace trace.json --out trace_certificate.json
+certifyedge verify-certificate trace_certificate.json
+certifyedge explain-counterexample counterexample.json
+certifyedge --release-mode emit-pcs-certificate ...   # CI / release artifacts
+```
+
+Snake_case aliases (`check_trace`, `emit_pcs_certificate`, …) are accepted.
 
 ## Simulation disclaimer
 

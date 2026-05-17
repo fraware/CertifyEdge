@@ -5,7 +5,7 @@ SPEC ?= templates/hospital_lab/qc_release.stl
 TRACE ?= tests/labtrust/valid_trace.json
 CERT ?= trace_certificate.json
 
-.PHONY: build test pcs-test check-trace emit-certificate verify-certificate install-cli
+.PHONY: build test pcs-test runbook check-trace emit-certificate verify-certificate install-cli
 
 build:
 	$(CARGO) build -p certifyedge
@@ -19,6 +19,9 @@ test:
 
 pcs-test: build test
 
+runbook: build
+	./scripts/pcs-runbook.sh
+
 check-trace: build
 	$(CARGO) run -p certifyedge -- check-trace --spec $(SPEC) --trace $(TRACE)
 
@@ -29,4 +32,8 @@ emit-certificate-release: build
 	$(CARGO) run -p certifyedge -- --release-mode emit-pcs-certificate --spec $(SPEC) --trace $(TRACE) --out $(CERT)
 
 verify-certificate: build
-	$(CARGO) run -p certifyedge -- verify-certificate $(CERT) --trace $(TRACE)
+	$(CARGO) run -p certifyedge -- verify-certificate $(CERT)
+
+.PHONY: explain-counterexample
+explain-counterexample: build
+	$(CARGO) run -p certifyedge -- explain-counterexample target/cli_reject/counterexample.json

@@ -40,6 +40,12 @@ jobs:
       - name: cargo test (PCS v0.1)
         run: cargo test -p certifyedge-integration -- --nocapture
 
+      - name: PCS runbook smoke (shell)
+        run: |
+          cargo build -p certifyedge
+          chmod +x scripts/pcs-runbook.sh
+          ./scripts/pcs-runbook.sh
+
       - name: cargo test
         run: cargo test --workspace -- --nocapture
 
@@ -58,6 +64,8 @@ jobs:
         run: pip install -e pcs-core/python
 
       - name: Emit TraceCertificate (release mode) and pcs validate
+        env:
+          PCS_RUNBOOK_RELEASE: "1"
         run: |
           cargo run -p certifyedge -- --release-mode emit-pcs-certificate \
             --spec templates/hospital_lab/qc_release.stl \
@@ -65,6 +73,8 @@ jobs:
             --out target/trace_certificate.json
           pcs validate target/trace_certificate.json
           pcs validate tests/labtrust/expected_valid_certificate.json
+          chmod +x scripts/pcs-runbook.sh
+          ./scripts/pcs-runbook.sh
 
   bazel:
     name: Bazel integration test

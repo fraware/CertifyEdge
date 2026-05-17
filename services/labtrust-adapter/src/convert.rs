@@ -28,22 +28,19 @@ impl TraceView {
     }
 
     pub fn sample_ids(&self) -> Vec<String> {
-        let mut ids: Vec<String> = self
-            .events
-            .iter()
-            .map(|e| e.sample_id.clone())
-            .collect();
+        let mut ids: Vec<String> = self.events.iter().map(|e| e.sample_id.clone()).collect();
         ids.sort();
         ids.dedup();
         ids
     }
 
-    pub fn index_by_action<'a>(&self, events: &'a [TraceEvent]) -> HashMap<&'a str, Vec<&'a TraceEvent>> {
+    pub fn index_by_action<'a>(
+        &self,
+        events: &'a [TraceEvent],
+    ) -> HashMap<&'a str, Vec<&'a TraceEvent>> {
         let mut map: HashMap<&str, Vec<&TraceEvent>> = HashMap::new();
         for event in events {
-            map.entry(event.action.as_str())
-                .or_default()
-                .push(event);
+            map.entry(event.action.as_str()).or_default().push(event);
         }
         map
     }

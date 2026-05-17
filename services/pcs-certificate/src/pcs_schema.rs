@@ -7,9 +7,8 @@ static TRACE_CERTIFICATE_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 
 /// Merged TraceCertificate.v0 + common defs for self-contained JSON Schema validation.
 fn merged_trace_certificate_schema() -> Value {
-    let common: Value =
-        serde_json::from_str(include_str!("../../../schemas/pcs/common.defs.json"))
-            .expect("common.defs.json");
+    let common: Value = serde_json::from_str(include_str!("../../../schemas/pcs/common.defs.json"))
+        .expect("common.defs.json");
     let mut cert: Value = serde_json::from_str(include_str!(
         "../../../schemas/pcs/TraceCertificate.v0.schema.json"
     ))

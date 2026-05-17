@@ -3,7 +3,8 @@ use sha2::{Digest, Sha256};
 
 const SIGNATURE_FIELD: &str = "signature_or_digest";
 
-pub const GENESIS_EVENT_HASH: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+pub const GENESIS_EVENT_HASH: &str =
+    "0000000000000000000000000000000000000000000000000000000000000000";
 
 /// Canonical JSON matching LabTrust `canonical_json` (sorted keys, compact separators).
 pub fn canonical_json(value: &Value) -> String {

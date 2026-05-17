@@ -32,15 +32,19 @@ impl CertifyEdgeMetadata {
 
 pub fn is_zero_source_commit(commit: &str) -> bool {
     let trimmed = commit.trim();
-    trimmed.is_empty()
-        || trimmed == ZERO_SOURCE_COMMIT
-        || trimmed.chars().all(|c| c == '0')
+    trimmed.is_empty() || trimmed == ZERO_SOURCE_COMMIT || trimmed.chars().all(|c| c == '0')
 }
 
 fn resolve_source_commit(release_mode: bool) -> Result<String, String> {
     if let Ok(value) = std::env::var("CERTIFYEDGE_SOURCE_COMMIT") {
         let commit = value.trim().to_string();
-        if !is_zero_source_commit(&commit) {
+        if is_zero_source_commit(&commit) {
+            if release_mode {
+                return Err(
+                    "release mode: CERTIFYEDGE_SOURCE_COMMIT must be a non-zero git commit".into(),
+                );
+            }
+        } else {
             if commit.len() < 7 {
                 return Err(format!(
                     "CERTIFYEDGE_SOURCE_COMMIT too short ({commit}); need at least 7 characters"
@@ -93,10 +97,10 @@ mod tests {
     }
 
     #[test]
-    fn release_mode_never_returns_placeholder_commit() {
+    fn release_mode_rejects_explicit_zero_env() {
         std::env::set_var("CERTIFYEDGE_SOURCE_COMMIT", ZERO_SOURCE_COMMIT);
-        let meta = CertifyEdgeMetadata::resolve(true).unwrap();
-        assert!(!is_zero_source_commit(&meta.source_commit));
+        let err = CertifyEdgeMetadata::resolve(true).unwrap_err();
+        assert!(err.contains("non-zero"));
         std::env::remove_var("CERTIFYEDGE_SOURCE_COMMIT");
     }
 }
