@@ -79,6 +79,22 @@ jobs:
             tests/fixtures/labtrust-release/trace_certificate.json \
             --trace tests/fixtures/labtrust-release/trace.json
 
+      - name: Phase 2 handoff emit gate
+        env:
+          CERTIFYEDGE_SOURCE_COMMIT: cb6848001e2e60a484e04eba5ad6be3fe2e4eccc
+        run: |
+          test -f tests/fixtures/handoff/labtrust_to_certifyedge_handoff.json
+          mkdir -p target/handoff-ci
+          cp tests/fixtures/labtrust-release/trace.json target/handoff-ci/trace.json
+          cp tests/fixtures/handoff/labtrust_to_certifyedge_handoff.json target/handoff-ci/labtrust_to_certifyedge_handoff.json
+          cargo run -p certifyedge -- --release-mode emit-pcs-certificate \
+            --handoff target/handoff-ci/labtrust_to_certifyedge_handoff.json \
+            --out target/handoff-ci/trace_certificate.json \
+            --handoff-out target/handoff-ci/certifyedge_to_labtrust_handoff.json
+          cargo run -p certifyedge -- verify-certificate \
+            target/handoff-ci/trace_certificate.json \
+            --trace target/handoff-ci/trace.json
+
       - name: Checkout LabTrust-Gym
         uses: actions/checkout@v4
         with:

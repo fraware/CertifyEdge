@@ -176,7 +176,8 @@ fn certificate_digest_verifies() {
         &check,
         &CertifyEdgeMetadata::dev_default(),
         None,
-    );
+    )
+    .unwrap();
     let json = serde_json::to_string_pretty(&outcome.certificate).unwrap();
     verify_certificate_document(&json, Some(&trace.trace_hash), false).unwrap();
 }
@@ -231,7 +232,8 @@ fn test_certificate_trace_hash_matches_labtrust_trace_hash() {
         &check,
         &CertifyEdgeMetadata::dev_default(),
         None,
-    );
+    )
+    .unwrap();
     assert_eq!(outcome.certificate.trace_hash, trace.trace_hash);
 }
 
@@ -277,7 +279,8 @@ fn trace_certificate_validates_against_vendored_pcs_schema() {
         &check,
         &CertifyEdgeMetadata::dev_default(),
         None,
-    );
+    )
+    .unwrap();
     let value = serde_json::to_value(&outcome.certificate).unwrap();
     pcs_certificate::validate_trace_certificate_schema(&value).unwrap();
 }

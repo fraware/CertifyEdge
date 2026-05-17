@@ -17,8 +17,8 @@ mod support;
 use support::{
     assert_certificate_semantics_equal, certifyedge_cmd, env_lock, git_head_commit,
     labtrust_fixture, labtrust_release_certificate_fixture, labtrust_release_fixture,
-    pcs_core_rc_manifest_certifyedge_commit, repo_root,
-    runbook_labtrust_release_trace, runbook_spec_qc_release, validate_certificate_against_pcs_core,
+    pcs_core_rc_manifest_certifyedge_commit, repo_root, runbook_labtrust_release_trace,
+    runbook_spec_qc_release, validate_certificate_against_pcs_core,
     validate_labtrust_release_fixture_tree, with_source_commit,
 };
 
@@ -91,11 +91,10 @@ fn test_labtrust_release_fixture_tree_validates() {
 
 #[test]
 fn test_labtrust_release_trace_matches_labtrust_gym_export() {
-    let release: serde_json::Value =
-        serde_json::from_str(
-            &std::fs::read_to_string(labtrust_release_fixture("trace.json")).unwrap(),
-        )
-            .unwrap();
+    let release: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(labtrust_release_fixture("trace.json")).unwrap(),
+    )
+    .unwrap();
     let gym: serde_json::Value = serde_json::from_str(
         &std::fs::read_to_string(labtrust_fixture("valid_trace.json")).unwrap(),
     )

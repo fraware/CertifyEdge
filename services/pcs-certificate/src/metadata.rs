@@ -6,6 +6,7 @@ pub struct CertifyEdgeMetadata {
     pub producer_version: String,
     pub source_commit: String,
     pub source_commit_resolution: SourceCommitResolution,
+    pub release_mode: bool,
 }
 
 impl CertifyEdgeMetadata {
@@ -18,6 +19,7 @@ impl CertifyEdgeMetadata {
             producer_version: env!("CARGO_PKG_VERSION").to_string(),
             source_commit: resolved.commit,
             source_commit_resolution: resolved.resolution,
+            release_mode,
         })
     }
 
@@ -27,6 +29,7 @@ impl CertifyEdgeMetadata {
             producer_version: env!("CARGO_PKG_VERSION").to_string(),
             source_commit: ZERO_SOURCE_COMMIT.to_string(),
             source_commit_resolution: SourceCommitResolution::LocalDev,
+            release_mode: false,
         })
     }
 }

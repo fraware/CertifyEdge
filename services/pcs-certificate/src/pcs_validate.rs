@@ -10,8 +10,11 @@ pub fn validate_certificate_json(value: &Value) -> Result<(), String> {
     validate_trace_certificate_schema(value)
 }
 
-/// Run `pcs validate <path>` when the pcs-core CLI is installed.
+/// Run `pcs validate <path>` when `required` is true (release-mode gates).
 pub fn validate_with_pcs_cli(path: &Path, required: bool) -> Result<(), String> {
+    if !required {
+        return Ok(());
+    }
     let output = match Command::new("pcs").arg("validate").arg(path).output() {
         Ok(o) => o,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {

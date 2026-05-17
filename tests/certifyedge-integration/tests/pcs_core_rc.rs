@@ -118,11 +118,7 @@ fn test_local_fixtures_match_pcs_core_rc_source() {
         );
         let expected = std::fs::read(&upstream).unwrap();
         let local = std::fs::read(labtrust_release_fixture(name)).unwrap();
-        assert_eq!(
-            expected, local,
-            "{name} drifted from {}",
-            src.display()
-        );
+        assert_eq!(expected, local, "{name} drifted from {}", src.display());
     }
 }
 

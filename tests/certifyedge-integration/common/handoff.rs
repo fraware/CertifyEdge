@@ -105,10 +105,22 @@ pub fn assert_release_chain_certificate_and_trace_hash_propagation(run: &Path) {
         .as_str()
         .expect("signed.science_claim_bundle.certificates[0].certificate_id");
 
-    assert_eq!(certified_cert_id, cert_id, "certified.certificates[0].certificate_id");
-    assert_eq!(claim_ref, cert_id, "certified.claim_artifact.certificate_refs[0]");
-    assert_eq!(evidence_ref, cert_id, "certified.evidence_bundle.certificate_refs[0]");
-    assert_eq!(signed_cert_id, cert_id, "signed.science_claim_bundle.certificates[0].certificate_id");
+    assert_eq!(
+        certified_cert_id, cert_id,
+        "certified.certificates[0].certificate_id"
+    );
+    assert_eq!(
+        claim_ref, cert_id,
+        "certified.claim_artifact.certificate_refs[0]"
+    );
+    assert_eq!(
+        evidence_ref, cert_id,
+        "certified.evidence_bundle.certificate_refs[0]"
+    );
+    assert_eq!(
+        signed_cert_id, cert_id,
+        "signed.science_claim_bundle.certificates[0].certificate_id"
+    );
 
     let trace_hash = trace_cert["trace_hash"]
         .as_str()

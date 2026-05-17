@@ -90,12 +90,23 @@ for required in trace.json runtime_receipt.json science_claim_bundle.pending.jso
 done
 
 SUMMARY="$STAGING/certificate_summary.json"
+HANDOFF_IN="$STAGING/labtrust_to_certifyedge_handoff.json"
+HANDOFF_OUT="$STAGING/certifyedge_to_labtrust_handoff.json"
 echo "==> CertifyEdge: release-mode emit + summary"
-"$CERTIFYEDGE_BIN" --release-mode emit-pcs-certificate \
-  --spec "$CERTIFYEDGE_SPEC" \
-  --trace "$STAGING/trace.json" \
-  --out "$STAGING/trace_certificate.json" \
-  --summary-out "$SUMMARY" >/dev/null
+if [[ -f "$HANDOFF_IN" ]]; then
+  echo "    using HandoffManifest.v0 input: $HANDOFF_IN"
+  "$CERTIFYEDGE_BIN" --release-mode emit-pcs-certificate \
+    --handoff "$HANDOFF_IN" \
+    --out "$STAGING/trace_certificate.json" \
+    --handoff-out "$HANDOFF_OUT" \
+    --summary-out "$SUMMARY" >/dev/null
+else
+  "$CERTIFYEDGE_BIN" --release-mode emit-pcs-certificate \
+    --spec "$CERTIFYEDGE_SPEC" \
+    --trace "$STAGING/trace.json" \
+    --out "$STAGING/trace_certificate.json" \
+    --summary-out "$SUMMARY" >/dev/null
+fi
 pcs validate "$STAGING/trace_certificate.json"
 "$CERTIFYEDGE_BIN" verify-certificate "$STAGING/trace_certificate.json" \
   --trace "$STAGING/trace.json" >/dev/null

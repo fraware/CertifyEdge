@@ -29,6 +29,10 @@ pub const SCHEMA_VERSION: &str = "v0";
 pub const SOURCE_REPO: &str = "https://github.com/fraware/CertifyEdge";
 
 pub use crate::metadata::CertifyEdgeMetadata;
+use crate::status_policy::{
+    validate_certificate_status_transition, STATUS_CERTIFICATE_CHECKED, STATUS_CERTIFICATE_PENDING,
+    STATUS_REJECTED,
+};
 
 #[derive(Debug, Clone)]
 pub struct CertificateOutcome {
@@ -42,15 +46,15 @@ pub fn build_certificate(
     check: &TemporalCheckResult,
     meta: &CertifyEdgeMetadata,
     counterexample_path: Option<String>,
-) -> CertificateOutcome {
+) -> Result<CertificateOutcome, String> {
     let spec_hash = crate::hash::spec_hash(&spec.raw_text, spec.property_id.as_str());
     let property_id = spec.property_id.as_str().to_string();
 
     let (status, counterexample_ref) = if check.passed {
-        ("CertificateChecked".to_string(), None)
+        (STATUS_CERTIFICATE_CHECKED.to_string(), None)
     } else {
         (
-            "Rejected".to_string(),
+            STATUS_REJECTED.to_string(),
             counterexample_path.or_else(|| {
                 check
                     .counterexample
@@ -59,6 +63,8 @@ pub fn build_certificate(
             }),
         )
     };
+
+    validate_certificate_status_transition(STATUS_CERTIFICATE_PENDING, &status, meta.release_mode)?;
 
     let mut certificate = TraceCertificateV0 {
         certificate_id: format!("cert-trace-{}", Uuid::new_v4()),
@@ -80,10 +86,10 @@ pub fn build_certificate(
 
     certificate.signature_or_digest = crate::signing::digest_certificate(&certificate);
 
-    CertificateOutcome {
+    Ok(CertificateOutcome {
         certificate,
         counterexample: check.counterexample.clone(),
-    }
+    })
 }
 
 pub fn certificate_to_json(cert: &TraceCertificateV0) -> Result<String, serde_json::Error> {

@@ -45,6 +45,8 @@ pcs validate science_claim_bundle.pending.json
 
 **CertifyEdge** (from `CERTIFYEDGE_ROOT` or set `CERTIFYEDGE_SPEC` to an absolute path)
 
+Legacy (explicit spec + trace):
+
 ```bash
 certifyedge emit-pcs-certificate \
   --spec templates/hospital_lab/qc_release.stl \
@@ -53,6 +55,28 @@ certifyedge emit-pcs-certificate \
 pcs validate trace_certificate.json
 certifyedge verify-certificate trace_certificate.json --trace trace.json
 ```
+
+### Phase 2: `HandoffManifest.v0` (preferred)
+
+Canonical committed input fixture: `tests/fixtures/handoff/labtrust_to_certifyedge_handoff.json` (synced from RC trace via `make write-handoff-fixture`).
+
+```bash
+certifyedge --release-mode emit-pcs-certificate \
+  --handoff labtrust_to_certifyedge_handoff.json \
+  --out trace_certificate.json \
+  --handoff-out certifyedge_to_labtrust_handoff.json
+certifyedge verify-certificate trace_certificate.json --trace trace.json
+```
+
+CertifyEdge validates:
+
+- `handoff_kind = runtime_to_certificate`, `to_component = CertifyEdge`
+- input `trace.json` file hash and `invariants.trace_hash`
+- `invariants.property_id` matches the hospital-lab spec template
+- release-mode rejects placeholder handoff `source_commit`
+- outbound `certificate_to_bundle` handoff with `certificate_id`, `trace_hash`, `status = CertificateChecked`
+
+See [pcs-certificate-profile.md](pcs-certificate-profile.md) and `pcs_registry/TraceCertificate.v0.registry.json`.
 
 **LabTrust-Gym (attach)**
 

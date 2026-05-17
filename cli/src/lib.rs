@@ -14,9 +14,11 @@ use labtrust_adapter::{
     check_property, parse_and_validate_json, Counterexample, PropertySpec, TraceView,
 };
 use pcs_certificate::{
-    build_certificate, certificate_to_json, counterexample_from_json, counterexample_to_json,
-    explain_counterexample, summary_to_json, validate_certificate_artifact,
-    verify_certificate_document, CertificateEmitSummary, CertifyEdgeMetadata,
+    build_certificate, build_certificate_to_bundle_handoff, certificate_to_json,
+    counterexample_from_json, counterexample_to_json, explain_counterexample,
+    finalize_handoff_digest, load_handoff_manifest, plan_emit_from_handoff, summary_to_json,
+    validate_certificate_artifact, validate_handoff_artifact, verify_certificate_document,
+    write_handoff_manifest, CertificateEmitSummary, CertifyEdgeMetadata,
 };
 
 /// Runbook: `certifyedge check-trace`
@@ -59,16 +61,22 @@ pub enum Commands {
     #[command(name = CMD_EMIT_PCS_CERTIFICATE, visible_alias = "emit_pcs_certificate")]
     EmitPcsCertificate {
         #[arg(long)]
-        spec: PathBuf,
+        spec: Option<PathBuf>,
         #[arg(long)]
-        trace: PathBuf,
+        trace: Option<PathBuf>,
         #[arg(long)]
-        out: PathBuf,
+        out: Option<PathBuf>,
+        /// PCS `HandoffManifest.v0` input (`runtime_to_certificate` from LabTrust-Gym).
+        #[arg(long)]
+        handoff: Option<PathBuf>,
         #[arg(long)]
         counterexample_out: Option<PathBuf>,
         /// Write certificate identity summary JSON for PCS release-run handoff.
         #[arg(long)]
         summary_out: Option<PathBuf>,
+        /// Write outbound `HandoffManifest.v0` after certificate emission.
+        #[arg(long)]
+        handoff_out: Option<PathBuf>,
     },
     /// Runbook: `certifyedge verify-certificate <trace_certificate.json>`
     #[command(name = CMD_VERIFY_CERTIFICATE, visible_alias = "verify_certificate")]
@@ -93,16 +101,20 @@ pub fn run(cli: Cli) -> Result<(), String> {
             spec,
             trace,
             out,
+            handoff,
             counterexample_out,
             summary_out,
-        } => cmd_emit_certificate(
-            cli.release_mode,
-            &spec,
-            &trace,
-            &out,
-            counterexample_out.as_deref(),
-            summary_out.as_deref(),
-        ),
+            handoff_out,
+        } => cmd_emit_certificate(EmitCertificateOptions {
+            release_mode: cli.release_mode,
+            handoff_path: handoff.as_deref(),
+            spec_path: spec.as_deref(),
+            trace_path: trace.as_deref(),
+            out_path: out.as_deref(),
+            counterexample_out: counterexample_out.as_deref(),
+            summary_out: summary_out.as_deref(),
+            handoff_out: handoff_out.as_deref(),
+        }),
         Commands::VerifyCertificate { certificate, trace } => {
             cmd_verify_certificate(cli.release_mode, &certificate, trace.as_deref())
         }
@@ -154,22 +166,62 @@ pub fn cmd_check_trace(
     Err("temporal property check failed".into())
 }
 
-pub fn cmd_emit_certificate(
-    release_mode: bool,
-    spec_path: &Path,
-    trace_path: &Path,
-    out_path: &Path,
-    counterexample_out: Option<&Path>,
-    summary_out: Option<&Path>,
-) -> Result<(), String> {
-    let spec = load_spec(spec_path)?;
-    let trace = load_trace(trace_path)?;
+fn certifyedge_root() -> PathBuf {
+    std::env::var("CERTIFYEDGE_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+}
+
+pub struct EmitCertificateOptions<'a> {
+    pub release_mode: bool,
+    pub handoff_path: Option<&'a Path>,
+    pub spec_path: Option<&'a Path>,
+    pub trace_path: Option<&'a Path>,
+    pub out_path: Option<&'a Path>,
+    pub counterexample_out: Option<&'a Path>,
+    pub summary_out: Option<&'a Path>,
+    pub handoff_out: Option<&'a Path>,
+}
+
+pub fn cmd_emit_certificate(opts: EmitCertificateOptions<'_>) -> Result<(), String> {
+    let root = certifyedge_root();
+    let (spec_path, trace_path, out_path) = if let Some(handoff_path) = opts.handoff_path {
+        if opts.release_mode {
+            validate_handoff_artifact(handoff_path, true)?;
+        }
+        let handoff = load_handoff_manifest(handoff_path)?;
+        let plan = plan_emit_from_handoff(
+            handoff_path,
+            &handoff,
+            &root,
+            opts.spec_path,
+            opts.trace_path,
+            opts.out_path,
+            opts.release_mode,
+        )?;
+        (plan.spec_path, plan.trace_path, plan.out_path)
+    } else {
+        let spec = opts.spec_path.ok_or_else(|| {
+            "emit-pcs-certificate requires --spec and --trace, or --handoff".to_string()
+        })?;
+        let trace = opts.trace_path.ok_or_else(|| {
+            "emit-pcs-certificate requires --spec and --trace, or --handoff".to_string()
+        })?;
+        let out = opts.out_path.ok_or_else(|| {
+            "emit-pcs-certificate requires --out (or --handoff with expected_outputs)".to_string()
+        })?;
+        (spec.to_path_buf(), trace.to_path_buf(), out.to_path_buf())
+    };
+
+    let spec = load_spec(&spec_path)?;
+    let trace = load_trace(&trace_path)?;
     let trace_hash = trace.trace_hash.clone();
     let view = TraceView::from(trace);
     let check = check_property(&view, &spec);
 
     let cx_path = if !check.passed {
-        let path = counterexample_out
+        let path = opts
+            .counterexample_out
             .map(PathBuf::from)
             .unwrap_or_else(|| out_path.with_file_name("counterexample.json"));
         if let Some(cx) = &check.counterexample {
@@ -180,13 +232,13 @@ pub fn cmd_emit_certificate(
         None
     };
 
-    let meta = CertifyEdgeMetadata::resolve(release_mode)?;
+    let meta = CertifyEdgeMetadata::resolve(opts.release_mode)?;
     println!(
         "source_commit_resolution={}",
         meta.source_commit_resolution.as_str()
     );
     let cx_ref = cx_path.as_ref().map(|p| p.to_string_lossy().to_string());
-    let outcome = build_certificate(&trace_hash, &spec, &check, &meta, cx_ref);
+    let outcome = build_certificate(&trace_hash, &spec, &check, &meta, cx_ref)?;
 
     if outcome.certificate.trace_hash != trace_hash {
         return Err(format!(
@@ -201,13 +253,13 @@ pub fn cmd_emit_certificate(
             fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }
     }
-    fs::write(out_path, cert_json).map_err(|e| e.to_string())?;
+    fs::write(&out_path, cert_json).map_err(|e| e.to_string())?;
 
-    validate_certificate_artifact(out_path, release_mode)?;
+    validate_certificate_artifact(&out_path, opts.release_mode)?;
 
     let summary = CertificateEmitSummary::from_certificate(&outcome.certificate);
     let summary_json = summary_to_json(&summary).map_err(|e| e.to_string())?;
-    if let Some(path) = summary_out {
+    if let Some(path) = opts.summary_out {
         if let Some(parent) = path.parent() {
             if !parent.as_os_str().is_empty() {
                 fs::create_dir_all(parent).map_err(|e| e.to_string())?;
@@ -216,6 +268,14 @@ pub fn cmd_emit_certificate(
         fs::write(path, format!("{summary_json}\n")).map_err(|e| e.to_string())?;
     }
     println!("{summary_json}");
+
+    if let Some(path) = opts.handoff_out {
+        let mut outbound = build_certificate_to_bundle_handoff(&outcome.certificate, &out_path)?;
+        finalize_handoff_digest(&mut outbound);
+        write_handoff_manifest(path, &outbound)?;
+        validate_handoff_artifact(path, opts.release_mode)?;
+        println!("handoff_out={}", path.display());
+    }
 
     if check.passed {
         println!(
@@ -247,12 +307,9 @@ pub fn cmd_verify_certificate(
         None
     };
 
-    let cert = verify_certificate_document(
-        &cert_text,
-        expected_trace_hash.as_deref(),
-        release_mode,
-    )
-    .map_err(|e| e.to_string())?;
+    let cert =
+        verify_certificate_document(&cert_text, expected_trace_hash.as_deref(), release_mode)
+            .map_err(|e| e.to_string())?;
 
     println!(
         "valid TraceCertificate.v0: {} status={}",

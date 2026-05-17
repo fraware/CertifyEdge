@@ -7,6 +7,8 @@ PCS_FIXTURES = [
     "//tests/labtrust:fixtures",
     "//tests/fixtures/release-run:release_run_fixtures",
     "//tests/fixtures/labtrust-release:release_fixtures",
+    "//tests/fixtures/pcs-hash-vectors:hash_vectors",
+    "//tests/fixtures/handoff:handoff_fixtures",
     "//schemas/pcs:schemas",
 ]
 
@@ -127,6 +129,57 @@ rust_test(
         "@crates//:serde_json",
     ],
     tags = ["pcs", "integration"],
+)
+
+rust_test(
+    name = "handoff_emit",
+    srcs = [
+        "tests/handoff_emit.rs",
+        "common/support.rs",
+        "common/handoff_fixtures.rs",
+    ],
+    edition = "2021",
+    rustc_flags = ["--cfg=bazel"],
+    data = PCS_FIXTURES + ["//cli:certifyedge"],
+    env = PCS_TEST_ENV,
+    deps = [
+        "//services/pcs-certificate:pcs_certificate",
+        "@crates//:assert_cmd",
+        "@crates//:serde_json",
+    ],
+    tags = ["pcs", "integration", "phase2"],
+)
+
+rust_test(
+    name = "phase2_policy",
+    srcs = ["tests/phase2_policy.rs"],
+    edition = "2021",
+    data = ["//tests/fixtures/pcs-hash-vectors:hash_vectors"],
+    deps = [
+        "//services/labtrust-adapter:labtrust_adapter",
+        "//services/pcs-certificate:pcs_certificate",
+        "@crates//:serde_json",
+    ],
+    tags = ["pcs", "phase2"],
+)
+
+rust_test(
+    name = "handoff_output",
+    srcs = [
+        "tests/handoff_output.rs",
+        "common/support.rs",
+        "common/handoff_fixtures.rs",
+    ],
+    edition = "2021",
+    rustc_flags = ["--cfg=bazel"],
+    data = PCS_FIXTURES + ["//cli:certifyedge"],
+    env = PCS_TEST_ENV,
+    deps = [
+        "//services/pcs-certificate:pcs_certificate",
+        "@crates//:assert_cmd",
+        "@crates//:serde_json",
+    ],
+    tags = ["pcs", "integration", "phase2"],
 )
 
 rust_test(

@@ -185,8 +185,7 @@ pub use handoff::{
     assert_certificate_id_handoff_through_pf_chain,
     assert_certificate_id_handoff_trace_to_certified_bundle,
     assert_release_chain_certificate_and_trace_hash_propagation,
-    assert_release_run_manifest_provenance,
-    validate_release_run_fixture_tree,
+    assert_release_run_manifest_provenance, validate_release_run_fixture_tree,
 };
 
 pub fn validate_labtrust_release_fixture_tree() {

@@ -29,6 +29,19 @@ pcs validate trace_certificate.json
 
 Integration tests in `tests/certifyedge-integration/tests/labtrust_release.rs` (release fixtures + runbook smoke), `cli.rs`, `pcs_core_rc.rs`, and `clean_checkout.rs` exercise these commands. Regenerate negative fixtures with `make fixtures`. The PCS v0.1 **clean-checkout chain** is run via `make clean-checkout` — see [pcs-handoff.md](pcs-handoff.md).
 
+## Phase 2 handoff manifests
+
+CertifyEdge accepts PCS `HandoffManifest.v0` for `runtime_to_certificate` and emits `certificate_to_bundle` outbound handoffs. See [pcs-certificate-profile.md](pcs-certificate-profile.md) and `pcs_registry/TraceCertificate.v0.registry.json`.
+
+```bash
+certifyedge --release-mode emit-pcs-certificate \
+  --handoff labtrust_to_certifyedge_handoff.json \
+  --out trace_certificate.json \
+  --handoff-out certifyedge_to_labtrust_handoff.json
+```
+
+Sync Phase 2 schemas from pcs-core: `make sync-pcs-schemas` (includes `HandoffManifest.v0.schema.json`).
+
 ## CertifyEdge v0.1 RC certificate compatibility
 
 For **pcs-v0.1.0-rc1**, the canonical trust loop is defined in [pcs-core](https://github.com/SentinelOps-CI/pcs-core) at `examples/labtrust-release/`. CertifyEdge owns **TraceCertificate.v0** in that chain:
