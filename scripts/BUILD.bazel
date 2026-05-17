@@ -1,0 +1,22 @@
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "pcs-runbook.sh",
+    "bazel-pcs-test.sh",
+    "certifyedge.sh",
+    "install-certifyedge.sh",
+])
+
+sh_test(
+    name = "pcs_runbook",
+    srcs = ["pcs-runbook.sh"],
+    data = [
+        "//cli:certifyedge",
+        "//templates/hospital_lab:specs",
+        "//tests/labtrust:fixtures",
+    ],
+    tags = [
+        "manual",
+        "pcs",
+    ],
+)

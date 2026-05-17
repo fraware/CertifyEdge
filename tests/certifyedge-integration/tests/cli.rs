@@ -7,31 +7,32 @@ use assert_cmd::Command;
 use pcs_certificate::{is_zero_source_commit, CertifyEdgeMetadata, ZERO_SOURCE_COMMIT};
 use predicates::prelude::*;
 
+#[path = "support.rs"]
+mod support;
+
+use support::{labtrust_fixture, repo_root, spec_path};
+
 /// `CERTIFYEDGE_SOURCE_COMMIT` is process-global; serialize env-mutating tests.
 static ENV_LOCK: Mutex<()> = Mutex::new(());
 
-fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
-
 fn spec_qc_release() -> PathBuf {
-    repo_root().join("templates/hospital_lab/qc_release.stl")
+    spec_path("qc_release.stl")
 }
 
 fn spec_authorized_release_only() -> PathBuf {
-    repo_root().join("templates/hospital_lab/authorized_release_only.stl")
+    spec_path("authorized_release_only.stl")
 }
 
 fn valid_trace() -> PathBuf {
-    repo_root().join("tests/labtrust/valid_trace.json")
+    labtrust_fixture("valid_trace.json")
 }
 
 fn missing_qc_trace() -> PathBuf {
-    repo_root().join("tests/labtrust/invalid_missing_qc_trace.json")
+    labtrust_fixture("invalid_missing_qc_trace.json")
 }
 
 fn unauthorized_trace() -> PathBuf {
-    repo_root().join("tests/labtrust/invalid_unauthorized_trace.json")
+    labtrust_fixture("invalid_unauthorized_trace.json")
 }
 
 fn certifyedge() -> Command {
@@ -169,7 +170,7 @@ fn test_emit_pcs_certificate_rejected_with_counterexample() {
 }
 
 #[test]
-fn test_trace_hash_matches_labtrust_trace_hash() {
+fn test_certificate_trace_hash_matches_labtrust_trace_hash() {
     let out = repo_root().join("target/test_cert_hash.json");
     certifyedge()
         .args([
@@ -274,6 +275,35 @@ fn test_verify_certificate_rejects_modified_digest() {
 }
 
 #[test]
+fn test_emit_pcs_certificate_release_mode_flag_on_subcommand() {
+    let _guard = ENV_LOCK.lock().unwrap();
+    let out = repo_root().join("target/test_cert_release_subcmd.json");
+    let commit = "abcdef0123456789abcdef0123456789abcdef01";
+    std::env::set_var("CERTIFYEDGE_SOURCE_COMMIT", commit);
+    certifyedge()
+        .args([
+            "emit-pcs-certificate",
+            "--spec",
+            spec_qc_release().to_str().unwrap(),
+            "--trace",
+            valid_trace().to_str().unwrap(),
+            "--out",
+            out.to_str().unwrap(),
+            "--release-mode",
+        ])
+        .assert()
+        .success();
+    std::env::remove_var("CERTIFYEDGE_SOURCE_COMMIT");
+
+    let cert: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&out).unwrap()).unwrap();
+    assert_eq!(cert["source_commit"], commit);
+    assert!(!is_zero_source_commit(
+        cert["source_commit"].as_str().unwrap()
+    ));
+}
+
+#[test]
 fn test_release_mode_never_emits_zero_source_commit() {
     let _guard = ENV_LOCK.lock().unwrap();
     let out = repo_root().join("target/test_cert_release.json");
@@ -372,7 +402,7 @@ fn test_emit_pcs_certificate_validates_against_pcs_core() {
 }
 
 #[test]
-fn test_certificate_schema_version_is_v0() {
+fn test_trace_certificate_schema_version_is_v0() {
     let out = repo_root().join("target/test_cert_schema_v0.json");
     certifyedge()
         .args([

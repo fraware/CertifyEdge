@@ -1,4 +1,3 @@
 authorized_release_only
-// Every release_sample event must be performed by an allowed release role.
 property: hospital_lab.authorized_release_only
 allowed_release_roles: release_manager

@@ -111,8 +111,8 @@ target/
 Cargo.lock
 *.rs.bk
 
-# Bazel
-bazel-*
+# Bazel (root output symlinks only; do not match scripts/bazel-*.sh)
+/bazel-*
 .bazel/
 
 # Terraform
@@ -296,8 +296,8 @@ target/
 Cargo.lock
 *.rs.bk
 
-# Bazel
-bazel-*
+# Bazel (root output symlinks only; do not match scripts/bazel-*.sh)
+/bazel-*
 .bazel/
 
 # Terraform
@@ -380,3 +380,8 @@ config.local.*
 # PCS v0.1 runbook outputs (local demos)
 /trace_certificate.json
 /counterexample.json
+target/runbook/
+target/runbook_test/
+
+# Local Cargo cache (Bazel / scripts)
+.cargo-home/

@@ -1,21 +1,16 @@
 //! End-to-end PCS v0.1 runbook (mirrors `scripts/pcs-runbook.sh`).
 
-use std::path::PathBuf;
-
 use assert_cmd::Command;
 use pcs_certificate::validate_trace_certificate_schema;
 use predicates::prelude::*;
 
-fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
+#[path = "support.rs"]
+mod support;
+
+use support::{labtrust_fixture, repo_root, spec_path};
 
 fn certifyedge() -> Command {
     Command::cargo_bin("certifyedge").expect("certifyedge binary")
-}
-
-fn spec(name: &str) -> PathBuf {
-    repo_root().join("templates/hospital_lab").join(name)
 }
 
 #[test]
@@ -25,9 +20,9 @@ fn test_pcs_runbook_end_to_end() {
     let cert = out_dir.join("trace_certificate.json");
     let cx = out_dir.join("counterexample.json");
 
-    let valid = repo_root().join("tests/labtrust/valid_trace.json");
-    let missing_qc = repo_root().join("tests/labtrust/invalid_missing_qc_trace.json");
-    let qc_release = spec("qc_release.stl");
+    let valid = labtrust_fixture("valid_trace.json");
+    let missing_qc = labtrust_fixture("invalid_missing_qc_trace.json");
+    let qc_release = spec_path("qc_release.stl");
 
     certifyedge()
         .args([
@@ -95,7 +90,7 @@ fn test_pcs_runbook_end_to_end() {
             .args([
                 "check-trace",
                 "--spec",
-                spec(stl).to_str().unwrap(),
+                spec_path(stl).to_str().unwrap(),
                 "--trace",
                 valid.to_str().unwrap(),
             ])
@@ -106,7 +101,7 @@ fn test_pcs_runbook_end_to_end() {
 
 #[test]
 fn test_golden_expected_certificate_validates() {
-    let path = repo_root().join("tests/labtrust/expected_valid_certificate.json");
+    let path = labtrust_fixture("expected_valid_certificate.json");
     let text = std::fs::read_to_string(&path).unwrap();
     let value: serde_json::Value = serde_json::from_str(&text).unwrap();
     validate_trace_certificate_schema(&value).unwrap();

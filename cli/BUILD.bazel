@@ -1,0 +1,31 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_library(
+    name = "certifyedge_lib",
+    srcs = ["src/lib.rs"],
+    edition = "2021",
+    proc_macro_deps = [
+        "@crates__clap_derive-4.6.1//:clap_derive",
+        "@crates__thiserror-impl-2.0.18//:thiserror_impl",
+    ],
+    deps = [
+        "//services/labtrust-adapter:labtrust_adapter",
+        "//services/pcs-certificate:pcs_certificate",
+        "@crates//:clap",
+        "@crates//:serde_json",
+        "@crates//:thiserror-2.0.18",
+    ],
+)
+
+rust_binary(
+    name = "certifyedge",
+    srcs = ["src/main.rs"],
+    edition = "2021",
+    proc_macro_deps = ["@crates__clap_derive-4.6.1//:clap_derive"],
+    deps = [
+        ":certifyedge_lib",
+        "@crates//:clap",
+    ],
+)

@@ -6,13 +6,10 @@ use labtrust_adapter::{
 use pcs_certificate::{build_certificate, verify_certificate_document, CertifyEdgeMetadata};
 use std::path::PathBuf;
 
-fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
+#[path = "support.rs"]
+mod support;
 
-fn spec_path(name: &str) -> PathBuf {
-    repo_root().join("templates/hospital_lab").join(name)
-}
+use support::{labtrust_fixture, repo_root, spec_path};
 
 fn step(action: &str, actor_id: &str, role: &str, ts: &str) -> WorkflowStep {
     WorkflowStep {
@@ -222,8 +219,8 @@ fn labtrust_trace_hash_matches_gym_export() {
 }
 
 #[test]
-fn test_trace_hash_matches_labtrust_trace_hash() {
-    let trace_path = repo_root().join("tests/labtrust/valid_trace.json");
+fn test_certificate_trace_hash_matches_labtrust_trace_hash() {
+    let trace_path = labtrust_fixture("valid_trace.json");
     let text = std::fs::read_to_string(&trace_path).unwrap();
     let trace = parse_and_validate_json(&text).unwrap();
     let spec = PropertySpec::load(&spec_path("qc_release.stl")).unwrap();
@@ -240,7 +237,7 @@ fn test_trace_hash_matches_labtrust_trace_hash() {
 
 #[test]
 fn valid_trace_passes_each_hospital_lab_property() {
-    let trace_path = repo_root().join("tests/labtrust/valid_trace.json");
+    let trace_path = labtrust_fixture("valid_trace.json");
     let trace = parse_and_validate_json(&std::fs::read_to_string(&trace_path).unwrap()).unwrap();
     let view = TraceView::from(trace);
     for stl in [
@@ -269,7 +266,7 @@ fn hospital_lab_property_templates_load() {
 
 #[test]
 fn trace_certificate_validates_against_vendored_pcs_schema() {
-    let trace_path = repo_root().join("tests/labtrust/valid_trace.json");
+    let trace_path = labtrust_fixture("valid_trace.json");
     let text = std::fs::read_to_string(&trace_path).unwrap();
     let trace = parse_and_validate_json(&text).unwrap();
     let spec = PropertySpec::load(&spec_path("qc_release.stl")).unwrap();

@@ -1,0 +1,69 @@
+load("@rules_rust//rust:defs.bzl", "rust_test")
+
+package(default_visibility = ["//visibility:public"])
+
+PCS_FIXTURES = [
+    "//templates/hospital_lab:specs",
+    "//tests/labtrust:fixtures",
+    "//schemas/pcs:schemas",
+]
+
+PCS_RUSTC_ENV = {
+    "CARGO_BIN_EXE_certifyedge": "$(location //cli:certifyedge)",
+}
+
+rust_test(
+    name = "cli",
+    srcs = [
+        "tests/cli.rs",
+        "tests/support.rs",
+    ],
+    edition = "2021",
+    data = PCS_FIXTURES + ["//cli:certifyedge"],
+    rustc_env = PCS_RUSTC_ENV,
+    deps = [
+        "//cli:certifyedge",
+        "//services/labtrust-adapter:labtrust_adapter",
+        "//services/pcs-certificate:pcs_certificate",
+        "@crates//:assert_cmd",
+        "@crates//:predicates",
+        "@crates//:serde_json",
+    ],
+    tags = ["pcs", "integration"],
+)
+
+rust_test(
+    name = "pcs_v01",
+    srcs = [
+        "tests/pcs_v01.rs",
+        "tests/support.rs",
+    ],
+    edition = "2021",
+    data = PCS_FIXTURES,
+    deps = [
+        "//services/labtrust-adapter:labtrust_adapter",
+        "//services/pcs-certificate:pcs_certificate",
+        "@crates//:serde_json",
+    ],
+    tags = ["pcs"],
+)
+
+rust_test(
+    name = "runbook",
+    srcs = [
+        "tests/runbook.rs",
+        "tests/support.rs",
+    ],
+    edition = "2021",
+    data = PCS_FIXTURES + ["//cli:certifyedge"],
+    rustc_env = PCS_RUSTC_ENV,
+    deps = [
+        "//cli:certifyedge",
+        "//services/labtrust-adapter:labtrust_adapter",
+        "//services/pcs-certificate:pcs_certificate",
+        "@crates//:assert_cmd",
+        "@crates//:predicates",
+        "@crates//:serde_json",
+    ],
+    tags = ["pcs", "integration"],
+)

@@ -1,0 +1,22 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_library(
+    name = "pcs_certificate",
+    srcs = glob(["src/**/*.rs"]),
+    edition = "2021",
+    proc_macro_deps = [
+        "@crates__serde_derive-1.0.228//:serde_derive",
+        "@crates__thiserror-impl-2.0.18//:thiserror_impl",
+    ],
+    deps = [
+        "//services/labtrust-adapter:labtrust_adapter",
+        "@crates//:chrono",
+        "@crates//:jsonschema",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:thiserror-2.0.18",
+        "@crates//:uuid",
+    ],
+)

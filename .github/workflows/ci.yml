@@ -94,5 +94,12 @@ jobs:
           restore-keys: |
             bazel-${{ runner.os }}-
 
-      - name: bazel test pipeline integration
-        run: bazel test --config=ci //tests/pipeline_integration:pipeline_integration
+      - name: bazel build PCS graph
+        run: |
+          bazel build --config=ci \
+            //cli:certifyedge \
+            //services/labtrust-adapter:labtrust_adapter \
+            //services/pcs-certificate:pcs_certificate
+
+      - name: bazel test (PCS integration + pipeline)
+        run: ./scripts/bazel-pcs-test.sh
