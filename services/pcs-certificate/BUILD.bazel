@@ -16,6 +16,7 @@ rust_library(
         "@crates//:jsonschema",
         "@crates//:serde",
         "@crates//:serde_json",
+        "@crates//:sha2",
         "@crates//:thiserror-2.0.18",
         "@crates//:uuid",
     ],
