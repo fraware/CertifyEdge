@@ -4,8 +4,14 @@
 mod support;
 
 use support::{
-    certifyedge_cmd, labtrust_release_fixture, pcs_core_rc_constants, validate_certificate_against_pcs_core,
+    certifyedge_cmd, labtrust_release_fixture, pcs_core_rc_constants, repo_root,
+    validate_certificate_against_pcs_core,
 };
+
+const TAMPERED_DIGEST: &str =
+    "sha256:0000000000000000000000000000000000000000000000000000000000000000";
+const TAMPERED_TRACE_HASH: &str =
+    "sha256:1111111111111111111111111111111111111111111111111111111111111111";
 
 #[test]
 fn test_trace_certificate_matches_pcs_core_rc() {
@@ -15,6 +21,7 @@ fn test_trace_certificate_matches_pcs_core_rc() {
     )
     .unwrap();
 
+    assert_eq!(cert["schema_version"].as_str().unwrap(), "v0");
     assert_eq!(cert["certificate_id"].as_str().unwrap(), rc.certificate_id);
     assert_eq!(cert["source_commit"].as_str().unwrap(), rc.source_commit);
     assert_eq!(cert["trace_hash"].as_str().unwrap(), rc.trace_hash);
@@ -59,4 +66,50 @@ fn test_verify_canonical_rc_certificate_against_trace() {
         ])
         .assert()
         .success();
+}
+
+fn tampered_rc_certificate_path(suffix: &str) -> std::path::PathBuf {
+    repo_root().join(format!("target/pcs_core_rc_tamper_{suffix}.json"))
+}
+
+#[test]
+fn test_verify_certificate_rejects_modified_trace_hash() {
+    let out = tampered_rc_certificate_path("trace_hash");
+    let mut cert: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(labtrust_release_fixture("trace_certificate.json")).unwrap(),
+    )
+    .unwrap();
+    cert["trace_hash"] = serde_json::json!(TAMPERED_TRACE_HASH);
+    std::fs::write(&out, serde_json::to_string_pretty(&cert).unwrap()).unwrap();
+
+    certifyedge_cmd()
+        .args([
+            "verify-certificate",
+            out.to_str().unwrap(),
+            "--trace",
+            labtrust_release_fixture("trace.json").to_str().unwrap(),
+        ])
+        .assert()
+        .failure();
+}
+
+#[test]
+fn test_verify_certificate_rejects_modified_signature_or_digest() {
+    let out = tampered_rc_certificate_path("signature_or_digest");
+    let mut cert: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(labtrust_release_fixture("trace_certificate.json")).unwrap(),
+    )
+    .unwrap();
+    cert["signature_or_digest"] = serde_json::json!(TAMPERED_DIGEST);
+    std::fs::write(&out, serde_json::to_string_pretty(&cert).unwrap()).unwrap();
+
+    certifyedge_cmd()
+        .args([
+            "verify-certificate",
+            out.to_str().unwrap(),
+            "--trace",
+            labtrust_release_fixture("trace.json").to_str().unwrap(),
+        ])
+        .assert()
+        .failure();
 }
