@@ -70,7 +70,14 @@ jobs:
         run: pcs validate tests/fixtures/labtrust-release/trace_certificate.json
 
       - name: Assert PCS RC fixtures match pcs-core (no drift)
+        env:
+          PCS_CORE_PATH: ${{ github.workspace }}/pcs-core
         run: bash ./scripts/check-pcs-core-rc-drift.sh
+
+      - name: Assert PCS hash vectors match pcs-core (no drift)
+        env:
+          PCS_CORE_PATH: ${{ github.workspace }}/pcs-core
+        run: bash ./scripts/check-pcs-hash-vectors-drift.sh
 
       - name: Verify canonical PCS RC certificate (CLI gate)
         run: |
@@ -97,6 +104,21 @@ jobs:
           pcs registry check-artifact target/handoff-ci/trace_certificate.json
           pcs validate target/handoff-ci/trace_certificate.json
           pcs validate target/handoff-ci/certifyedge_to_labtrust_handoff.json
+
+      - name: Phase 2 rejected handoff gate
+        run: |
+          cargo test -p certifyedge-integration \
+            test_emit_rejected_certificate_and_handoff_from_invalid_trace \
+            -- --nocapture
+
+      - name: PCS integration tests with pcs-core path (drift + registry)
+        env:
+          PCS_CORE_PATH: ${{ github.workspace }}/pcs-core
+        run: |
+          cargo test -p certifyedge-integration \
+            test_local_fixtures_match_pcs_core_rc_source \
+            test_rc_certificate_passes_pcs_registry_check_when_cli_available \
+            -- --nocapture
 
       - name: Checkout LabTrust-Gym
         uses: actions/checkout@v4

@@ -5,7 +5,7 @@ SPEC ?= templates/hospital_lab/qc_release.stl
 TRACE ?= tests/labtrust/valid_trace.json
 CERT ?= trace_certificate.json
 
-.PHONY: build test pcs-test runbook clean-checkout clean-checkout-certified fixtures release-run sync-pcs-core-rc check-pcs-core-rc sync-pcs-schemas sync-pcs-hash-vectors write-handoff-fixture check-trace emit-certificate verify-certificate install-cli substrate-test bazel-pcs-test
+.PHONY: build test pcs-test runbook clean-checkout clean-checkout-certified fixtures release-run sync-pcs-core-rc check-pcs-core-rc sync-pcs-schemas sync-pcs-hash-vectors check-pcs-hash-vectors write-handoff-fixture check-trace emit-certificate verify-certificate install-cli substrate-test bazel-pcs-test
 
 build:
 	$(CARGO) build -p certifyedge
@@ -48,6 +48,9 @@ sync-pcs-schemas:
 
 sync-pcs-hash-vectors:
 	bash ./scripts/sync-pcs-hash-vectors.sh
+
+check-pcs-hash-vectors:
+	bash ./scripts/check-pcs-hash-vectors-drift.sh
 
 check-pcs-core-rc:
 	bash ./scripts/check-pcs-core-rc-drift.sh

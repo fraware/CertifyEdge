@@ -110,6 +110,12 @@ fi
 pcs validate "$STAGING/trace_certificate.json"
 "$CERTIFYEDGE_BIN" verify-certificate "$STAGING/trace_certificate.json" \
   --trace "$STAGING/trace.json" >/dev/null
+if command -v pcs >/dev/null 2>&1; then
+  pcs registry check-artifact "$STAGING/trace_certificate.json"
+  if [[ -f "$HANDOFF_OUT" ]]; then
+    pcs validate "$HANDOFF_OUT"
+  fi
+fi
 
 echo "==> LabTrust-Gym: attach certificate"
 labtrust attach-certificate \

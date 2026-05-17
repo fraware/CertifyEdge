@@ -6,31 +6,44 @@ PCS_CORE="${PCS_CORE_PATH:-${PCS_CORE_ROOT:-$(dirname "$ROOT")/pcs-core}}"
 VECTORS="$PCS_CORE/test_vectors/hash"
 DEST="$ROOT/tests/fixtures/pcs-hash-vectors"
 
-if [[ ! -d "$VECTORS" ]]; then
+if [ ! -d "$VECTORS" ]; then
   echo "error: pcs-core hash vectors not found: $VECTORS" >&2
   echo "Set PCS_CORE_PATH or PCS_CORE_ROOT." >&2
   exit 1
 fi
 
+extract_digest() {
+  sed -n 's/.*"expected_digest"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$1" | head -n1
+}
+
+extract_input() {
+  sed -n 's/.*"input"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$1" | head -n1
+}
+
+extract_canonical() {
+  sed -n 's/.*"canonical_json"[[:space:]]*:[[:space:]]*"\(.*\)".*/\1/p' "$1" | head -n1 | sed 's/\\"/"/g'
+}
+
 sync_vector() {
   local artifact="$1"
   local vector_file="$2"
-  local input_name
-  input_name="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['input_file'])" "$vector_file")"
-  local out_dir="$DEST/$artifact"
+  local input_rel expected_digest out_dir
+
+  input_rel="$(extract_input "$vector_file")"
+  expected_digest="$(extract_digest "$vector_file")"
+  if [ -z "$input_rel" ] || [ -z "$expected_digest" ]; then
+    echo "error: could not parse $vector_file" >&2
+    return 1
+  fi
+  out_dir="$DEST/$artifact"
   mkdir -p "$out_dir"
-  cp -f "$PCS_CORE/test_vectors/hash/$input_name" "$out_dir/input.json" 2>/dev/null \
-    || cp -f "$PCS_CORE/examples/$input_name" "$out_dir/input.json"
-  python3 -c "
-import json, pathlib, sys
-v = json.load(open(sys.argv[1]))
-pathlib.Path(sys.argv[2]).write_text(v['expected_digest'] + '\n')
-pathlib.Path(sys.argv[3]).write_text(v.get('canonical_json', '') + '\n')
-" "$vector_file" "$out_dir/digest.txt" "$out_dir/canonical.txt"
+  cp -f "$PCS_CORE/$input_rel" "$out_dir/input.json"
+  printf '%s\n' "$expected_digest" >"$out_dir/digest.txt"
+  extract_canonical "$vector_file" >"$out_dir/canonical.txt" || true
   echo "synced $artifact"
 }
 
-sync_vector "TraceCertificate.v0" "$VECTORS/tracecertificate.vector.json"
-sync_vector "HandoffManifest.v0" "$VECTORS/handoffmanifest.vector.json"
+sync_vector "TraceCertificate.v0" "$VECTORS/trace_certificate.vector.json"
+sync_vector "HandoffManifest.v0" "$VECTORS/handoff_manifest.vector.json"
 
 echo "Hash vectors synced -> $DEST"
