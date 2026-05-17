@@ -15,8 +15,8 @@ use labtrust_adapter::{
 };
 use pcs_certificate::{
     build_certificate, certificate_to_json, counterexample_from_json, counterexample_to_json,
-    explain_counterexample, validate_certificate_artifact, verify_certificate_document,
-    CertifyEdgeMetadata,
+    explain_counterexample, summary_to_json, validate_certificate_artifact,
+    verify_certificate_document, CertificateEmitSummary, CertifyEdgeMetadata,
 };
 
 /// Runbook: `certifyedge check-trace`
@@ -66,6 +66,9 @@ pub enum Commands {
         out: PathBuf,
         #[arg(long)]
         counterexample_out: Option<PathBuf>,
+        /// Write certificate identity summary JSON for PCS release-run handoff.
+        #[arg(long)]
+        summary_out: Option<PathBuf>,
     },
     /// Runbook: `certifyedge verify-certificate <trace_certificate.json>`
     #[command(name = CMD_VERIFY_CERTIFICATE, visible_alias = "verify_certificate")]
@@ -91,12 +94,14 @@ pub fn run(cli: Cli) -> Result<(), String> {
             trace,
             out,
             counterexample_out,
+            summary_out,
         } => cmd_emit_certificate(
             cli.release_mode,
             &spec,
             &trace,
             &out,
             counterexample_out.as_deref(),
+            summary_out.as_deref(),
         ),
         Commands::VerifyCertificate { certificate, trace } => {
             cmd_verify_certificate(&certificate, trace.as_deref())
@@ -155,6 +160,7 @@ pub fn cmd_emit_certificate(
     trace_path: &Path,
     out_path: &Path,
     counterexample_out: Option<&Path>,
+    summary_out: Option<&Path>,
 ) -> Result<(), String> {
     let spec = load_spec(spec_path)?;
     let trace = load_trace(trace_path)?;
@@ -198,6 +204,18 @@ pub fn cmd_emit_certificate(
     fs::write(out_path, cert_json).map_err(|e| e.to_string())?;
 
     validate_certificate_artifact(out_path, release_mode)?;
+
+    let summary = CertificateEmitSummary::from_certificate(&outcome.certificate);
+    let summary_json = summary_to_json(&summary).map_err(|e| e.to_string())?;
+    if let Some(path) = summary_out {
+        if let Some(parent) = path.parent() {
+            if !parent.as_os_str().is_empty() {
+                fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            }
+        }
+        fs::write(path, format!("{summary_json}\n")).map_err(|e| e.to_string())?;
+    }
+    println!("{summary_json}");
 
     if check.passed {
         println!(

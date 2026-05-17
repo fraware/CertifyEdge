@@ -5,6 +5,7 @@ package(default_visibility = ["//visibility:public"])
 PCS_FIXTURES = [
     "//templates/hospital_lab:specs",
     "//tests/labtrust:fixtures",
+    "//tests/fixtures/release-run:release_run_fixtures",
     "//tests/fixtures/labtrust-release:release_fixtures",
     "//schemas/pcs:schemas",
 ]
@@ -49,6 +50,26 @@ rust_test(
         "@crates//:serde_json",
     ],
     tags = ["pcs"],
+)
+
+rust_test(
+    name = "certificate_handoff",
+    srcs = [
+        "tests/certificate_handoff.rs",
+        "common/support.rs",
+        "common/handoff.rs",
+    ],
+    edition = "2021",
+    rustc_flags = ["--cfg=bazel"],
+    data = PCS_FIXTURES + ["//cli:certifyedge"],
+    env = PCS_TEST_ENV,
+    deps = [
+        "//services/pcs-certificate:pcs_certificate",
+        "@crates//:assert_cmd",
+        "@crates//:predicates",
+        "@crates//:serde_json",
+    ],
+    tags = ["pcs", "integration"],
 )
 
 rust_test(

@@ -1,4 +1,5 @@
-//! Regenerate `tests/labtrust/` and `tests/fixtures/labtrust-release/`.
+//! Regenerate `tests/labtrust/` and negative fixtures under `tests/fixtures/labtrust-release/`.
+//! Full PCS release-run: `make release-run`.
 //!
 //! ```bash
 //! cargo build -p certifyedge
@@ -12,9 +13,7 @@ use labtrust_adapter::{
     workflow_sim::{run_workflow, WorkflowStep},
     PropertySpec, TraceView,
 };
-use pcs_certificate::{
-    build_certificate, counterexample_to_json, CertifyEdgeMetadata, SOURCE_REPO,
-};
+use pcs_certificate::{build_certificate, counterexample_to_json, CertifyEdgeMetadata};
 use serde_json::to_string_pretty;
 use std::path::PathBuf;
 
@@ -36,15 +35,6 @@ fn certifyedge_bin() -> PathBuf {
     panic!("certifyedge binary not found; run `cargo build -p certifyedge` first");
 }
 
-fn run_certifyedge(args: &[&str]) {
-    let status = Command::new(certifyedge_bin())
-        .current_dir(repo_root())
-        .args(args)
-        .status()
-        .expect("spawn certifyedge");
-    assert!(status.success(), "certifyedge {:?} failed", args);
-}
-
 fn run_certifyedge_expect_fail(args: &[&str]) {
     let status = Command::new(certifyedge_bin())
         .current_dir(repo_root())
@@ -54,17 +44,7 @@ fn run_certifyedge_expect_fail(args: &[&str]) {
     assert!(!status.success(), "certifyedge {:?} should fail", args);
 }
 
-fn git_head_commit(root: &PathBuf) -> String {
-    let output = Command::new("git")
-        .args(["-C", root.to_str().unwrap(), "rev-parse", "HEAD"])
-        .output()
-        .expect("git rev-parse HEAD");
-    assert!(output.status.success(), "git rev-parse HEAD failed");
-    String::from_utf8_lossy(&output.stdout).trim().to_string()
-}
-
-fn write_labtrust_release_fixtures(
-    valid: &labtrust_adapter::LabTrustTrace,
+fn write_labtrust_negative_fixtures(
     missing_qc: &labtrust_adapter::LabTrustTrace,
     unauthorized: &labtrust_adapter::LabTrustTrace,
 ) {
@@ -72,38 +52,16 @@ fn write_labtrust_release_fixtures(
     let release_dir = root.join("tests/fixtures/labtrust-release");
     std::fs::create_dir_all(&release_dir).unwrap();
 
-    let head = git_head_commit(&root);
-    let manifest_path = release_dir.join("release_manifest.json");
-    let manifest = serde_json::json!({
-        "schema_version": "v0",
-        "certifyedge": {
-            "source_repo": SOURCE_REPO,
-            "source_commit": head
-        }
-    });
-    std::fs::write(
-        &manifest_path,
-        format!("{}\n", serde_json::to_string_pretty(&manifest).unwrap()),
-    )
-    .unwrap();
-
     let spec = root
         .join("templates/hospital_lab/qc_release.stl")
         .to_string_lossy()
         .into_owned();
 
-    let trace_path = release_dir.join("trace.json");
     let missing_trace_path = release_dir.join("invalid_missing_qc_trace.json");
     let unauthorized_trace_path = release_dir.join("invalid_unauthorized_trace.json");
-    let cert_path = release_dir.join("trace_certificate.json");
     let missing_cx_path = release_dir.join("invalid_missing_qc_counterexample.json");
     let unauthorized_cx_path = release_dir.join("invalid_unauthorized_counterexample.json");
 
-    std::fs::write(
-        &trace_path,
-        format!("{}\n", to_string_pretty(valid).unwrap()),
-    )
-    .unwrap();
     std::fs::write(
         &missing_trace_path,
         format!("{}\n", to_string_pretty(missing_qc).unwrap()),
@@ -114,24 +72,6 @@ fn write_labtrust_release_fixtures(
         format!("{}\n", to_string_pretty(unauthorized).unwrap()),
     )
     .unwrap();
-
-    std::env::remove_var("CERTIFYEDGE_SOURCE_COMMIT");
-
-    run_certifyedge(&[
-        "--release-mode",
-        "emit-pcs-certificate",
-        "--spec",
-        &spec,
-        "--trace",
-        trace_path.to_str().unwrap(),
-        "--out",
-        cert_path.to_str().unwrap(),
-    ]);
-
-    let cert: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(&cert_path).unwrap()).unwrap();
-    assert_eq!(cert["source_commit"].as_str().unwrap(), head.as_str());
-    assert_eq!(cert["source_repo"].as_str().unwrap(), SOURCE_REPO);
 
     run_certifyedge_expect_fail(&[
         "check-trace",
@@ -154,8 +94,7 @@ fn write_labtrust_release_fixtures(
     ]);
 
     println!(
-        "wrote labtrust-release fixtures (source_commit={}) under {}",
-        &head[..12.min(head.len())],
+        "wrote labtrust negative fixtures under {}",
         release_dir.display()
     );
 }
@@ -297,7 +236,7 @@ fn write_fixtures() {
     )
     .unwrap();
 
-    write_labtrust_release_fixtures(&valid, &missing_qc, &unauthorized);
+    write_labtrust_negative_fixtures(&missing_qc, &unauthorized);
 
     println!("wrote fixtures to {}", out_dir.display());
 }

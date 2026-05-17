@@ -1,0 +1,6 @@
+{
+  "certificate_id": "cert-trace-13a7a22b-7462-4661-aa29-904849bf130e",
+  "trace_hash": "sha256:c3e8a3dc4ad86d533de1dfa4ae7fe2a338c2cff3c945404c96a75216524d58cd",
+  "spec_hash": "sha256:7c66dfcf640d382653d8ce7c2c700371d72ff0d6fb59156d411cf2aa9a7dfe5e",
+  "source_commit": "4fbfe170d7b08e148329e95b38395f02a81729ec"
+}

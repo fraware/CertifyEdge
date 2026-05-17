@@ -33,16 +33,17 @@ Integration tests in `tests/certifyedge-integration/tests/labtrust_release.rs` (
 
 The canonical **v0.1 release certificate** for the hospital-lab demo is checked into the repository at:
 
-`tests/fixtures/labtrust-release/trace_certificate.json`
+`tests/fixtures/release-run/trace_certificate.json`
 
-It is produced by the CertifyEdge CLI in **release mode** (not maintained by hand). Provenance is recorded in `tests/fixtures/labtrust-release/release_manifest.json` (`certifyedge.source_commit` must equal the certificate `source_commit`).
+It is produced by the CertifyEdge CLI in **release mode** (not maintained by hand). The full PCS artifact set lives under `tests/fixtures/release-run/` and is built atomically via `make release-run`. Provenance is recorded in `RELEASE_FIXTURE_MANIFEST.json` (`certifyedge_commit` must equal the certificate `source_commit`).
 
 ```bash
 cargo build -p certifyedge
 certifyedge --release-mode emit-pcs-certificate \
   --spec templates/hospital_lab/qc_release.stl \
-  --trace tests/fixtures/labtrust-release/trace.json \
-  --out tests/fixtures/labtrust-release/trace_certificate.json
+  --trace tests/fixtures/release-run/trace.json \
+  --out tests/fixtures/release-run/trace_certificate.json \
+  --summary-out tests/fixtures/release-run/certificate_summary.json
 ```
 
 The CLI prints `source_commit_resolution=env|git|local_dev` (diagnostics only; not stored in the certificate).

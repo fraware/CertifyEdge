@@ -63,8 +63,8 @@ jobs:
       - name: Install pcs-core CLI
         run: pip install -e pcs-core/python
 
-      - name: Validate labtrust-release fixtures (pcs-core)
-        run: pcs validate tests/fixtures/labtrust-release/trace_certificate.json
+      - name: Validate release-run fixtures (pcs-core)
+        run: pcs validate tests/fixtures/release-run/trace_certificate.json
 
       - name: Checkout LabTrust-Gym
         uses: actions/checkout@v4

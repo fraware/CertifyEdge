@@ -1,0 +1,19 @@
+{
+  "artifacts": {
+    "runtime_receipt.json": "sha256:f7ed1cf540a36ec8191e2f5876ee0bf74401cbd5f5dcaadfa731236fc3d92502",
+    "science_claim_bundle.certified.json": "sha256:136cfbb9c9d034ee11262cd78e3d788a694b4b4dd79e34dca0e1d28d03622ad3",
+    "science_claim_bundle.pending.json": "sha256:a007cf3d93fd3c97e6fdbfb35d9adeed339a2c8b6632987579c2b1222c738a22",
+    "trace.json": "sha256:f99eb0a90cd2b9819816a25ec4e938663d26ae8d40868cd8188665e940f7ad5c",
+    "trace_certificate.json": "sha256:79fb21688cde49b84bb65e50d71ba46b90a471ccf0e0f79eba03787f2bb94d29"
+  },
+  "certificate_id": "cert-trace-13a7a22b-7462-4661-aa29-904849bf130e",
+  "certified_bundle_id": "scb-pcs-qc-release-v0.1",
+  "certifyedge_commit": "4fbfe170d7b08e148329e95b38395f02a81729ec",
+  "generated_at": "2026-05-17T15:18:17Z",
+  "generator": "finalize_release_run.py",
+  "handoff_id": "labtrust-qc-release-v0.1-4c5439ae3587",
+  "labtrust_gym_commit": "4c5439ae358733f9a4c4a58e33fdaed1ab0d29de",
+  "pcs_core_commit": "6e01208e21d705e0c95163ac02709a6d45ac2856",
+  "schema_version": "v0",
+  "trace_hash": "sha256:c3e8a3dc4ad86d533de1dfa4ae7fe2a338c2cff3c945404c96a75216524d58cd"
+}

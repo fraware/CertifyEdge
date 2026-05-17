@@ -40,18 +40,31 @@ pub fn labtrust_fixture(name: &str) -> PathBuf {
     repo_root().join("tests/labtrust").join(name)
 }
 
-/// LabTrust deterministic release fixtures (`tests/fixtures/labtrust-release/`).
+/// Atomic PCS release-run fixtures (`tests/fixtures/release-run/`).
+pub fn release_run_dir() -> PathBuf {
+    repo_root().join("tests/fixtures/release-run")
+}
+
+pub fn release_run_fixture(name: &str) -> PathBuf {
+    release_run_dir().join(name)
+}
+
+pub fn load_json_path(path: &Path) -> serde_json::Value {
+    serde_json::from_str(&std::fs::read_to_string(path).expect("read fixture JSON")).unwrap()
+}
+
+/// CLI-generated release certificate committed at `trace_certificate.json`.
+pub fn labtrust_release_certificate_fixture() -> PathBuf {
+    release_run_fixture("trace_certificate.json")
+}
+
+/// Negative / invalid traces only (`tests/fixtures/labtrust-release/`).
 pub fn labtrust_release_dir() -> PathBuf {
     repo_root().join("tests/fixtures/labtrust-release")
 }
 
 pub fn labtrust_release_fixture(name: &str) -> PathBuf {
     labtrust_release_dir().join(name)
-}
-
-/// CLI-generated release certificate committed at `trace_certificate.json`.
-pub fn labtrust_release_certificate_fixture() -> PathBuf {
-    labtrust_release_fixture("trace_certificate.json")
 }
 
 /// Runbook-relative spec path from repository root.
@@ -61,23 +74,20 @@ pub fn runbook_spec_qc_release() -> PathBuf {
 
 /// Runbook-relative trace path from repository root.
 pub fn runbook_labtrust_release_trace() -> PathBuf {
-    labtrust_release_fixture("trace.json")
+    release_run_fixture("trace.json")
 }
 
-/// Committed release manifest (`tests/fixtures/labtrust-release/release_manifest.json`).
-pub fn labtrust_release_manifest_path() -> PathBuf {
-    labtrust_release_fixture("release_manifest.json")
+/// Committed release manifest (`tests/fixtures/release-run/RELEASE_FIXTURE_MANIFEST.json`).
+pub fn release_fixture_manifest_path() -> PathBuf {
+    release_run_fixture("RELEASE_FIXTURE_MANIFEST.json")
 }
 
 /// CertifyEdge `source_commit` recorded in the release manifest (must match `trace_certificate.json`).
 pub fn release_manifest_certifyedge_commit() -> String {
-    let text =
-        std::fs::read_to_string(labtrust_release_manifest_path()).expect("release_manifest.json");
-    let value: serde_json::Value =
-        serde_json::from_str(&text).expect("parse release_manifest.json");
-    value["certifyedge"]["source_commit"]
+    let value = load_json_path(&release_fixture_manifest_path());
+    value["certifyedge_commit"]
         .as_str()
-        .expect("certifyedge.source_commit")
+        .expect("certifyedge_commit")
         .to_string()
 }
 
@@ -110,50 +120,32 @@ pub fn with_source_commit<R>(commit: &str, f: impl FnOnce() -> R) -> R {
     result
 }
 
-/// All committed JSON artifacts under `tests/fixtures/labtrust-release/`.
-pub const LABTRUST_RELEASE_FIXTURES: &[&str] = &[
-    "release_manifest.json",
-    "trace.json",
-    "trace_certificate.json",
+/// Invalid-trace fixtures under `tests/fixtures/labtrust-release/`.
+pub const LABTRUST_NEGATIVE_FIXTURES: &[&str] = &[
     "invalid_missing_qc_trace.json",
     "invalid_missing_qc_counterexample.json",
     "invalid_unauthorized_trace.json",
     "invalid_unauthorized_counterexample.json",
 ];
 
-pub fn validate_labtrust_release_fixture_tree() {
-    for name in LABTRUST_RELEASE_FIXTURES {
+pub fn validate_labtrust_negative_fixture_tree() {
+    for name in LABTRUST_NEGATIVE_FIXTURES {
         let path = labtrust_release_fixture(name);
         assert!(path.is_file(), "missing fixture {}", path.display());
     }
-    validate_certificate_against_pcs_core(&labtrust_release_certificate_fixture());
-    let cert: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string(labtrust_release_certificate_fixture()).unwrap(),
-    )
-    .unwrap();
-    assert_eq!(cert["status"], "CertificateChecked");
-    assert_eq!(cert["schema_version"], "v0");
+}
 
-    let trace: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string(labtrust_release_fixture("trace.json")).unwrap(),
-    )
-    .unwrap();
-    assert_eq!(cert["trace_hash"], trace["trace_hash"]);
+mod handoff;
 
-    let manifest_commit = release_manifest_certifyedge_commit();
-    assert_eq!(
-        cert["source_commit"].as_str().unwrap(),
-        manifest_commit.as_str(),
-        "trace_certificate source_commit must match release_manifest.json"
-    );
-    assert!(
-        !pcs_certificate::is_placeholder_source_commit(&manifest_commit),
-        "release manifest must not use a placeholder commit"
-    );
-    assert_eq!(
-        cert["source_repo"].as_str().unwrap(),
-        "https://github.com/fraware/CertifyEdge"
-    );
+pub use handoff::{
+    assert_certificate_id_handoff_through_pf_chain,
+    assert_certificate_id_handoff_trace_to_certified_bundle,
+    assert_release_run_manifest_provenance, validate_release_run_fixture_tree,
+};
+
+pub fn validate_labtrust_release_fixture_tree() {
+    validate_release_run_fixture_tree();
+    validate_labtrust_negative_fixture_tree();
 }
 
 /// Compare certificate fields that must be stable for a given trace, spec, and pinned `source_commit`.
