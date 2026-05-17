@@ -153,12 +153,20 @@ fn labtrust_trace_hash_matches_gym_export() {
     if !trace_path.exists() {
         return;
     }
-    let text = std::fs::read_to_string(trace_path).unwrap();
-    let gym: labtrust_adapter::LabTrustTrace =
-        labtrust_adapter::parse_and_validate_json(&text).unwrap();
+    let text = std::fs::read_to_string(&trace_path).unwrap();
+    let gym = match labtrust_adapter::parse_and_validate_json(&text) {
+        Ok(t) => t,
+        Err(e) => {
+            panic!(
+                "LabTrust-Gym trace at {} failed CertifyEdge validation: {e}. \
+                 Re-run `labtrust run-demo qc-release` or regenerate fixtures.",
+                trace_path.display()
+            );
+        }
+    };
     assert_eq!(
         rust.trace_hash, gym.trace_hash,
-        "trace_hash must match LabTrust-Gym export"
+        "trace_hash must match LabTrust-Gym export (recompute via labtrust_gym.pcs.trace.compute_trace_hash)"
     );
 }
 

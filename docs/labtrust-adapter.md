@@ -22,7 +22,7 @@ Each event includes `event_hash` and `previous_event_hash` forming a chain from 
 | Digest | Input |
 |--------|--------|
 | Event hash | SHA-256 of canonical JSON of the event body (excluding `event_hash`) |
-| Trace hash | PCS `sha256:` digest of `{ version, run_id, sample_id, event_hashes[] }` |
+| Trace hash | PCS `sha256:` digest of `{ schema_version, version, run_id, sample_id, event_hashes[] }` (matches LabTrust-Gym `compute_trace_hash`) |
 
 Canonical JSON uses sorted object keys and compact separators, matching `labtrust_gym.pcs.hash` and pcs-core.
 

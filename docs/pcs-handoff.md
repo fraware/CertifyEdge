@@ -35,7 +35,7 @@ Rejected traces use `"status": "Rejected"` and a non-null `counterexample_ref`.
 
 - `certificate.trace_hash` **must equal** `trace.json` → `trace_hash`.
 - That value **must equal** LabTrust `RuntimeReceipt.v0` → `trace_hash`.
-- CertifyEdge uses the same canonical digest rules as `labtrust_gym.pcs.hash` / pcs-core.
+- CertifyEdge uses the same canonical digest rules as `labtrust_gym.pcs.trace.compute_trace_hash` (body includes `schema_version`, `version`, `run_id`, `sample_id`, `event_hashes`).
 
 ## Counterexample shape
 

@@ -19,10 +19,10 @@
         "released": false
       },
       "post_state": {
-        "released": false,
         "qc_complete": false,
         "analysis_complete": false,
-        "lifecycle": "accessioned"
+        "lifecycle": "accessioned",
+        "released": false
       },
       "policy_decision": "allow",
       "reason_code": "ok",
@@ -44,10 +44,10 @@
         "analysis_complete": false
       },
       "post_state": {
-        "analysis_complete": false,
-        "qc_complete": true,
         "released": false,
-        "lifecycle": "qc_complete"
+        "lifecycle": "qc_complete",
+        "qc_complete": true,
+        "analysis_complete": false
       },
       "policy_decision": "allow",
       "reason_code": "ok",
@@ -63,16 +63,16 @@
       "actor_role": "analyst",
       "action": "record_analysis",
       "pre_state": {
-        "analysis_complete": false,
         "lifecycle": "qc_complete",
         "qc_complete": true,
-        "released": false
+        "released": false,
+        "analysis_complete": false
       },
       "post_state": {
         "qc_complete": true,
-        "lifecycle": "analyzed",
         "analysis_complete": true,
-        "released": false
+        "released": false,
+        "lifecycle": "analyzed"
       },
       "policy_decision": "allow",
       "reason_code": "ok",
@@ -88,16 +88,16 @@
       "actor_role": "release_manager",
       "action": "release_sample",
       "pre_state": {
-        "qc_complete": true,
-        "lifecycle": "analyzed",
         "released": false,
+        "lifecycle": "analyzed",
+        "qc_complete": true,
         "analysis_complete": true
       },
       "post_state": {
         "lifecycle": "released",
-        "qc_complete": true,
         "released": true,
-        "analysis_complete": true
+        "analysis_complete": true,
+        "qc_complete": true
       },
       "policy_decision": "allow",
       "reason_code": "ok",
@@ -105,5 +105,5 @@
       "previous_event_hash": "a21ab5faed90a6a640b9c54ac59bb22969b45bbdcc7c4997f2bfe8bf028f7384"
     }
   ],
-  "trace_hash": "sha256:77c4115520b649ec23c7baff8617cd022c68bb7e17148354e2920c5f9c2e9eee"
+  "trace_hash": "sha256:c3e8a3dc4ad86d533de1dfa4ae7fe2a338c2cff3c945404c96a75216524d58cd"
 }

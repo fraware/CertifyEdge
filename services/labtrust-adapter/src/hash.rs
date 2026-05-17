@@ -41,12 +41,14 @@ pub fn compute_event_hash(body: &Map<String, Value>) -> String {
     sha256_hex(&canonical_json(&Value::Object(body.clone())))
 }
 
+/// Trace digest body aligned with `labtrust_gym.pcs.trace.compute_trace_hash`.
 pub fn compute_trace_hash(events: &[Value], run_id: &str, sample_id: &str) -> String {
     let event_hashes: Vec<&str> = events
         .iter()
         .filter_map(|e| e.get("event_hash").and_then(|v| v.as_str()))
         .collect();
     pcs_digest(&json!({
+        "schema_version": "v0",
         "version": "0",
         "run_id": run_id,
         "sample_id": sample_id,
@@ -87,5 +89,25 @@ mod tests {
     fn canonical_json_sorted_keys() {
         let v = json!({"b": 1, "a": 2});
         assert_eq!(canonical_json(&v), r#"{"a":2,"b":1}"#);
+    }
+
+    /// Golden digest for the qc-release demo event-hash chain (LabTrust-Gym compatible).
+    #[test]
+    fn trace_hash_matches_labtrust_qc_release_demo() {
+        let event_hashes = [
+            "9007e73e3342f9a38593a205d4158ccca11740d66d2317ca33316e8946cf5d6b",
+            "52acf0c467abac57591484a992df56f2bcb5e644f4d66d11e6c5986de0daf229",
+            "a21ab5faed90a6a640b9c54ac59bb22969b45bbdcc7c4997f2bfe8bf028f7384",
+            "67889771ef3792fb92aa7feef870ffe32d0c22ba449730213e353046e18941f9",
+        ];
+        let events: Vec<Value> = event_hashes
+            .iter()
+            .map(|h| json!({"event_hash": h}))
+            .collect();
+        let digest = compute_trace_hash(&events, "qc-release", "PCS-SAMPLE-001");
+        assert_eq!(
+            digest,
+            "sha256:c3e8a3dc4ad86d533de1dfa4ae7fe2a338c2cff3c945404c96a75216524d58cd"
+        );
     }
 }

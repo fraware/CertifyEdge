@@ -1,17 +1,17 @@
 {
-  "certificate_id": "cert-trace-748b6abd-86db-4340-bd41-cea9fc89d5c8",
+  "certificate_id": "cert-trace-cbb3f363-fd27-4c38-9f19-4f5a68a062d8",
   "schema_version": "v0",
-  "trace_hash": "sha256:c3e8a3dc4ad86d533de1dfa4ae7fe2a338c2cff3c945404c96a75216524d58cd",
+  "trace_hash": "sha256:77c4115520b649ec23c7baff8617cd022c68bb7e17148354e2920c5f9c2e9eee",
   "spec_hash": "sha256:7c66dfcf640d382653d8ce7c2c700371d72ff0d6fb59156d411cf2aa9a7dfe5e",
   "property_id": "hospital_lab.qc_release",
   "checker": "CertifyEdge",
   "checker_version": "0.1.0",
   "status": "CertificateChecked",
   "counterexample_ref": null,
-  "created_at": "2026-05-17T07:34:00Z",
+  "created_at": "2026-05-17T07:31:06Z",
   "producer": "CertifyEdge",
   "producer_version": "0.1.0",
   "source_repo": "https://github.com/fraware/CertifyEdge",
-  "source_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-  "signature_or_digest": "sha256:1e6c12b5f68ab3ec945a4392e063b16b47b7ce140b9b0a9c14891f73559adfeb"
+  "source_commit": "6975d63464e8a46016dc83fc7fe4161b9dd30bba",
+  "signature_or_digest": "sha256:d2d546d9ca3c8d28993bfad8cb713caa2e334b6d0efabd1b27b28e7e588f7fa0"
 }

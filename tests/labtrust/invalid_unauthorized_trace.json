@@ -13,16 +13,16 @@
       "actor_role": "accession_tech",
       "action": "accession_sample",
       "pre_state": {
-        "analysis_complete": false,
-        "released": false,
+        "lifecycle": "registered",
         "qc_complete": false,
-        "lifecycle": "registered"
+        "released": false,
+        "analysis_complete": false
       },
       "post_state": {
-        "analysis_complete": false,
+        "lifecycle": "accessioned",
         "qc_complete": false,
         "released": false,
-        "lifecycle": "accessioned"
+        "analysis_complete": false
       },
       "policy_decision": "allow",
       "reason_code": "ok",
@@ -38,10 +38,10 @@
       "actor_role": "qc_tech",
       "action": "perform_qc",
       "pre_state": {
-        "analysis_complete": false,
-        "lifecycle": "accessioned",
         "qc_complete": false,
-        "released": false
+        "released": false,
+        "analysis_complete": false,
+        "lifecycle": "accessioned"
       },
       "post_state": {
         "analysis_complete": false,
@@ -63,15 +63,15 @@
       "actor_role": "analyst",
       "action": "record_analysis",
       "pre_state": {
-        "qc_complete": true,
-        "analysis_complete": false,
         "lifecycle": "qc_complete",
-        "released": false
+        "qc_complete": true,
+        "released": false,
+        "analysis_complete": false
       },
       "post_state": {
         "released": false,
-        "analysis_complete": true,
         "lifecycle": "analyzed",
+        "analysis_complete": true,
         "qc_complete": true
       },
       "policy_decision": "allow",
@@ -90,14 +90,14 @@
       "pre_state": {
         "lifecycle": "analyzed",
         "analysis_complete": true,
-        "qc_complete": true,
-        "released": false
+        "released": false,
+        "qc_complete": true
       },
       "post_state": {
-        "lifecycle": "analyzed",
-        "qc_complete": true,
+        "analysis_complete": true,
         "released": false,
-        "analysis_complete": true
+        "qc_complete": true,
+        "lifecycle": "analyzed"
       },
       "policy_decision": "deny",
       "reason_code": "unauthorized_release",
@@ -105,5 +105,5 @@
       "previous_event_hash": "159efb07866eb8706f0ed19d544e20da35b07dc5c28b163e2fa62f763a37f6a9"
     }
   ],
-  "trace_hash": "sha256:e77f09622be9a352e3bbe0e6c555fcc5b918307b779f3bb2d4800ecd388e3db3"
+  "trace_hash": "sha256:eb25cf8b1ebef7c56af577f9cfea290c1fd1e9ae583367aa57662418c5d5f914"
 }
