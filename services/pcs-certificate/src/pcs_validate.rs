@@ -1,7 +1,16 @@
 use std::path::Path;
 use std::process::Command;
 
-/// Run `pcs validate <path>` from pcs-core. When `required` is true, a missing `pcs` binary is an error.
+use serde_json::Value;
+
+use crate::pcs_schema::validate_trace_certificate_schema;
+
+/// Validate JSON against vendored pcs-core TraceCertificate.v0 schema (in-process).
+pub fn validate_certificate_json(value: &Value) -> Result<(), String> {
+    validate_trace_certificate_schema(value)
+}
+
+/// Run `pcs validate <path>` when the pcs-core CLI is installed.
 pub fn validate_with_pcs_cli(path: &Path, required: bool) -> Result<(), String> {
     let output = match Command::new("pcs").arg("validate").arg(path).output() {
         Ok(o) => o,
@@ -12,7 +21,7 @@ pub fn validate_with_pcs_cli(path: &Path, required: bool) -> Result<(), String> 
                 );
             }
             eprintln!(
-                "warning: pcs CLI not found; skipped pcs-core schema validation for {}",
+                "warning: pcs CLI not found; skipped external pcs validate for {}",
                 path.display()
             );
             return Ok(());
@@ -30,4 +39,12 @@ pub fn validate_with_pcs_cli(path: &Path, required: bool) -> Result<(), String> 
         "pcs validate failed for {}:\n{stdout}{stderr}",
         path.display()
     ))
+}
+
+/// Full artifact validation: embedded pcs-core JSON Schema + optional `pcs` CLI cross-check.
+pub fn validate_certificate_artifact(path: &Path, require_pcs_cli: bool) -> Result<(), String> {
+    let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+    let value: Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+    validate_certificate_json(&value)?;
+    validate_with_pcs_cli(path, require_pcs_cli)
 }

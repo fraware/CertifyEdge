@@ -31,6 +31,24 @@ fn certifyedge() -> Command {
 }
 
 #[test]
+fn test_cli_check_trace_malformed_trace_fails() {
+    let dir = repo_root().join("target/cli_malformed");
+    std::fs::create_dir_all(&dir).unwrap();
+    let bad = dir.join("bad_trace.json");
+    std::fs::write(&bad, r#"{"version":"0","trace_hash":"sha256:00"}"#).unwrap();
+    certifyedge()
+        .args([
+            "check-trace",
+            "--spec",
+            spec_qc_release().to_str().unwrap(),
+            "--trace",
+            bad.to_str().unwrap(),
+        ])
+        .assert()
+        .failure();
+}
+
+#[test]
 fn test_cli_check_trace_valid_passes() {
     certifyedge()
         .args([

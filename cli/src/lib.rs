@@ -15,7 +15,8 @@ use labtrust_adapter::{
 };
 use pcs_certificate::{
     build_certificate, certificate_to_json, counterexample_from_json, counterexample_to_json,
-    explain_counterexample, validate_with_pcs_cli, verify_certificate_document, CertifyEdgeMetadata,
+    explain_counterexample, validate_certificate_artifact, verify_certificate_document,
+    CertifyEdgeMetadata,
 };
 
 /// Runbook: `certifyedge check-trace`
@@ -173,10 +174,12 @@ pub fn cmd_emit_certificate(
     let cx_ref = cx_path.as_ref().map(|p| p.to_string_lossy().to_string());
     let outcome = build_certificate(&trace_hash, &spec, &check, &meta, cx_ref);
 
-    assert_eq!(
-        outcome.certificate.trace_hash, trace_hash,
-        "certificate trace_hash must match LabTrust trace.trace_hash"
-    );
+    if outcome.certificate.trace_hash != trace_hash {
+        return Err(format!(
+            "internal error: certificate trace_hash {} != trace {}",
+            outcome.certificate.trace_hash, trace_hash
+        ));
+    }
 
     let cert_json = certificate_to_json(&outcome.certificate).map_err(|e| e.to_string())?;
     if let Some(parent) = out_path.parent() {
@@ -186,7 +189,7 @@ pub fn cmd_emit_certificate(
     }
     fs::write(out_path, cert_json).map_err(|e| e.to_string())?;
 
-    validate_with_pcs_cli(out_path, release_mode)?;
+    validate_certificate_artifact(out_path, release_mode)?;
 
     if check.passed {
         println!(

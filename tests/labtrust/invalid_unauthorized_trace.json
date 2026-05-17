@@ -13,16 +13,16 @@
       "actor_role": "accession_tech",
       "action": "accession_sample",
       "pre_state": {
-        "released": false,
         "analysis_complete": false,
+        "released": false,
         "qc_complete": false,
         "lifecycle": "registered"
       },
       "post_state": {
-        "released": false,
+        "analysis_complete": false,
         "qc_complete": false,
-        "lifecycle": "accessioned",
-        "analysis_complete": false
+        "released": false,
+        "lifecycle": "accessioned"
       },
       "policy_decision": "allow",
       "reason_code": "ok",
@@ -38,16 +38,16 @@
       "actor_role": "qc_tech",
       "action": "perform_qc",
       "pre_state": {
-        "qc_complete": false,
         "analysis_complete": false,
         "lifecycle": "accessioned",
+        "qc_complete": false,
         "released": false
       },
       "post_state": {
-        "lifecycle": "qc_complete",
+        "analysis_complete": false,
         "released": false,
         "qc_complete": true,
-        "analysis_complete": false
+        "lifecycle": "qc_complete"
       },
       "policy_decision": "allow",
       "reason_code": "ok",
@@ -63,15 +63,15 @@
       "actor_role": "analyst",
       "action": "record_analysis",
       "pre_state": {
-        "released": false,
+        "qc_complete": true,
         "analysis_complete": false,
         "lifecycle": "qc_complete",
-        "qc_complete": true
+        "released": false
       },
       "post_state": {
+        "released": false,
         "analysis_complete": true,
         "lifecycle": "analyzed",
-        "released": false,
         "qc_complete": true
       },
       "policy_decision": "allow",
@@ -88,16 +88,16 @@
       "actor_role": "unauthorized_user",
       "action": "release_sample",
       "pre_state": {
-        "released": false,
         "lifecycle": "analyzed",
+        "analysis_complete": true,
         "qc_complete": true,
-        "analysis_complete": true
+        "released": false
       },
       "post_state": {
+        "lifecycle": "analyzed",
         "qc_complete": true,
         "released": false,
-        "analysis_complete": true,
-        "lifecycle": "analyzed"
+        "analysis_complete": true
       },
       "policy_decision": "deny",
       "reason_code": "unauthorized_release",

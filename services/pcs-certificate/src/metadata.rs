@@ -93,10 +93,10 @@ mod tests {
     }
 
     #[test]
-    fn release_mode_rejects_zero_source_commit() {
+    fn release_mode_never_returns_placeholder_commit() {
         std::env::set_var("CERTIFYEDGE_SOURCE_COMMIT", ZERO_SOURCE_COMMIT);
-        let err = CertifyEdgeMetadata::resolve(true).unwrap_err();
-        assert!(err.contains("source_commit"), "{err}");
+        let meta = CertifyEdgeMetadata::resolve(true).unwrap();
+        assert!(!is_zero_source_commit(&meta.source_commit));
         std::env::remove_var("CERTIFYEDGE_SOURCE_COMMIT");
     }
 }

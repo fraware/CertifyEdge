@@ -2,6 +2,7 @@ use crate::trace_certificate::TraceCertificateV0;
 use serde_json::Value;
 use thiserror::Error;
 
+use crate::pcs_schema::validate_trace_certificate_schema;
 use crate::signing::verify_digest;
 
 const TRACE_CERT_STATUSES: &[&str] = &["CertificatePending", "CertificateChecked", "Rejected", "Stale"];
@@ -32,6 +33,7 @@ pub fn verify_certificate_document(
     }
 
     validate_trace_certificate_shape(&value)?;
+    validate_trace_certificate_schema(&value).map_err(|e| CertificateValidationError::Pcs(e))?;
 
     let cert: TraceCertificateV0 =
         serde_json::from_value(value).map_err(|e| CertificateValidationError::Json(e.to_string()))?;

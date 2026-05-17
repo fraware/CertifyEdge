@@ -30,8 +30,12 @@ CertifyEdge v0.1 is the **temporal trace certification engine** for [Proof-Carry
 Runbook commands are implemented in the **`certifyedge`** binary (`cli/`). Search the repo for `emit-pcs-certificate`, `check-trace`, or constants like `CMD_EMIT_PCS_CERTIFICATE` in `cli/src/lib.rs`.
 
 ```bash
-# Build the CLI
+# Build the CLI (binary lands in target/debug/, not on PATH)
 cargo build -p certifyedge
+
+# Use `cargo run -p certifyedge -- <subcommand> ...` or ./target/debug/certifyedge.exe (Git Bash)
+# Put on PATH without crates.io: ./scripts/install-certifyedge.sh
+# See docs/pcs-trace-certificates.md if `cargo install` hits Windows SSL errors.
 
 # Check a trace against the composite QC-release property
 cargo run -p certifyedge -- check-trace \
@@ -60,7 +64,9 @@ cargo run -p certifyedge -- explain-counterexample counterexample.json
 | `templates/hospital_lab/` | STL property specs (`qc_release`, etc.) |
 | `tests/labtrust/` | Golden traces and expected outputs |
 
-End-to-end flow with LabTrust-Gym and Provability Fabric is documented in [docs/pcs-trace-certificates.md](docs/pcs-trace-certificates.md) and [docs/labtrust-adapter.md](docs/labtrust-adapter.md).
+End-to-end flow with LabTrust-Gym and Provability Fabric is documented in [docs/pcs-trace-certificates.md](docs/pcs-trace-certificates.md), [docs/labtrust-adapter.md](docs/labtrust-adapter.md), and [docs/pcs-handoff.md](docs/pcs-handoff.md).
+
+Quick runbook via Make: `make check-trace`, `make emit-certificate`, `make verify-certificate`, `make test`.
 
 **Simulation disclaimer:** v0.1 certificates attest to LabTrust-Gym simulation traces only. They are not clinical or production laboratory guarantees.
 

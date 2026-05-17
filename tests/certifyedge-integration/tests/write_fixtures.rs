@@ -79,7 +79,10 @@ fn write_fixtures() {
     )
     .unwrap();
 
-    let missing_check = check_property(&TraceView::from(missing_qc), &spec);
+    let missing_spec =
+        PropertySpec::load(&repo_root().join("templates/hospital_lab/no_release_before_qc.stl"))
+            .unwrap();
+    let missing_check = check_property(&TraceView::from(missing_qc), &missing_spec);
     let missing_cx = missing_check.counterexample.unwrap();
     std::fs::write(
         out_dir.join("expected_missing_qc_counterexample.json"),
@@ -87,7 +90,11 @@ fn write_fixtures() {
     )
     .unwrap();
 
-    let unauthorized_check = check_property(&TraceView::from(unauthorized), &spec);
+    let auth_spec = PropertySpec::load(
+        &repo_root().join("templates/hospital_lab/authorized_release_only.stl"),
+    )
+    .unwrap();
+    let unauthorized_check = check_property(&TraceView::from(unauthorized), &auth_spec);
     let unauthorized_cx = unauthorized_check.counterexample.unwrap();
     std::fs::write(
         out_dir.join("expected_unauthorized_counterexample.json"),

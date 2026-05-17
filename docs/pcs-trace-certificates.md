@@ -10,30 +10,65 @@ For v0.1, files under `templates/hospital_lab/*.stl` are parsed as a **constrain
 
 The runbook commands are implemented in the `certifyedge` binary (`cli/` crate). Command names are defined as constants in `cli/src/lib.rs` (`CMD_CHECK_TRACE`, `CMD_EMIT_PCS_CERTIFICATE`, etc.) for code search and stable runbooks.
 
-Build and install:
+Build (does **not** put `certifyedge` on your shell `PATH`):
 
 ```bash
 cargo build -p certifyedge
-# binary: target/debug/certifyedge (or target/release/certifyedge)
+# binary: target/debug/certifyedge.exe (Windows) or target/debug/certifyedge (Unix)
 ```
 
-## Commands
+Run commands in one of these ways:
+
+**Option A — `cargo run` (recommended, always works):**
 
 ```bash
-certifyedge check-trace \
+cargo run -p certifyedge -- check-trace \
   --spec templates/hospital_lab/qc_release.stl \
   --trace tests/labtrust/valid_trace.json
 
-certifyedge emit-pcs-certificate \
+cargo run -p certifyedge -- emit-pcs-certificate \
   --spec templates/hospital_lab/qc_release.stl \
   --trace tests/labtrust/valid_trace.json \
   --out trace_certificate.json
 
-certifyedge verify-certificate trace_certificate.json \
+cargo run -p certifyedge -- verify-certificate trace_certificate.json \
   --trace tests/labtrust/valid_trace.json
 
-certifyedge explain-counterexample tests/labtrust/expected_missing_qc_counterexample.json
+cargo run -p certifyedge -- explain-counterexample counterexample.json
 ```
+
+**Option B — built binary (Git Bash / Linux / macOS):**
+
+```bash
+./target/debug/certifyedge.exe check-trace \
+  --spec templates/hospital_lab/qc_release.stl \
+  --trace tests/labtrust/valid_trace.json
+```
+
+**Option C — wrapper script:**
+
+```bash
+./scripts/certifyedge.sh check-trace --spec templates/hospital_lab/qc_release.stl --trace tests/labtrust/valid_trace.json
+```
+
+**Option D — install onto `PATH`:**
+
+```bash
+# Recommended on Windows/Git Bash (reuses workspace build; no crates.io fetch):
+./scripts/install-certifyedge.sh
+
+# Or copy the binary yourself:
+# cp target/debug/certifyedge.exe ~/.cargo/bin/
+```
+
+If `cargo install --path cli --force` fails with `CRYPT_E_NO_REVOCATION_CHECK` / SSL errors on Windows, either use the script above or:
+
+```bash
+export CARGO_HTTP_CHECK_REVOKE=false
+cargo install --path cli --force --offline
+```
+
+(`--offline` only works after `cargo build -p certifyedge` has populated the local cache.)
 
 ## Certificate fields
 

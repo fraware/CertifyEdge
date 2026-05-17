@@ -180,6 +180,37 @@ fn test_certificate_trace_hash_matches_labtrust_trace_hash() {
 }
 
 #[test]
+fn hospital_lab_property_templates_load() {
+    for name in [
+        "qc_release.stl",
+        "no_release_before_qc.stl",
+        "authorized_release_only.stl",
+    ] {
+        let spec = PropertySpec::load(&spec_path(name)).unwrap();
+        assert!(!spec.raw_text.is_empty());
+        assert!(!spec.allowed_release_roles.is_empty());
+    }
+}
+
+#[test]
+fn trace_certificate_validates_against_vendored_pcs_schema() {
+    let trace_path = repo_root().join("tests/labtrust/valid_trace.json");
+    let text = std::fs::read_to_string(&trace_path).unwrap();
+    let trace = parse_and_validate_json(&text).unwrap();
+    let spec = PropertySpec::load(&spec_path("qc_release.stl")).unwrap();
+    let check = check_property(&TraceView::from(trace.clone()), &spec);
+    let outcome = build_certificate(
+        &trace.trace_hash,
+        &spec,
+        &check,
+        &CertifyEdgeMetadata::dev_default(),
+        None,
+    );
+    let value = serde_json::to_value(&outcome.certificate).unwrap();
+    pcs_certificate::validate_trace_certificate_schema(&value).unwrap();
+}
+
+#[test]
 fn fixture_traces_roundtrip_json() {
     let fixtures = repo_root().join("tests/labtrust");
     for name in [
