@@ -48,11 +48,19 @@ certifyedge --release-mode emit-pcs-certificate \
 
 The CLI prints `source_commit_resolution=env|git|local_dev` (diagnostics only; not stored in the certificate).
 
-Regenerate traces and this fixture together:
+**Canonical PCS RC** (`trace.json`, `trace_certificate.json`) must be copied from `pcs-core/examples/labtrust-release/` — do not regenerate independently:
+
+```bash
+make sync-pcs-core-rc
+```
+
+Regenerate negative traces only:
 
 ```bash
 cargo test -p certifyedge-integration write_fixtures -- --ignored --nocapture
 ```
+
+Full local release-run chain (non-canonical ID): `make release-run`.
 
 **Consumers:** [LabTrust-Gym](https://github.com/fraware/LabTrust-Gym), Provability Fabric, and Scientific Memory load this artifact (or an equivalent emit from the same trace and spec) to assert `CertificateChecked`, matching `trace_hash`, and pcs-core `signature_or_digest` rules.
 

@@ -53,14 +53,44 @@ pub fn load_json_path(path: &Path) -> serde_json::Value {
     serde_json::from_str(&std::fs::read_to_string(path).expect("read fixture JSON")).unwrap()
 }
 
-/// CLI-generated release certificate committed at `trace_certificate.json`.
-pub fn labtrust_release_certificate_fixture() -> PathBuf {
-    release_run_fixture("trace_certificate.json")
+/// Canonical PCS RC fixtures synced from `pcs-core/examples/labtrust-release/`.
+pub fn pcs_core_rc_dir() -> PathBuf {
+    repo_root().join("tests/fixtures/labtrust-release")
 }
 
-/// Negative / invalid traces only (`tests/fixtures/labtrust-release/`).
+pub fn pcs_core_rc_fixture(name: &str) -> PathBuf {
+    pcs_core_rc_dir().join(name)
+}
+
+/// Canonical RC constants (must match pcs-core/examples/labtrust-release/).
+pub struct PcsCoreRcConstants {
+    pub certificate_id: &'static str,
+    pub trace_hash: &'static str,
+    pub source_commit: &'static str,
+    pub signature_or_digest: &'static str,
+    pub certified_bundle_hash: &'static str,
+}
+
+pub fn pcs_core_rc_constants() -> PcsCoreRcConstants {
+    PcsCoreRcConstants {
+        certificate_id: "cert-trace-886c95f0-5d63-42d6-aa13-5891c12c5a6a",
+        trace_hash: "sha256:c3e8a3dc4ad86d533de1dfa4ae7fe2a338c2cff3c945404c96a75216524d58cd",
+        source_commit: "cb6848001e2e60a484e04eba5ad6be3fe2e4eccc",
+        signature_or_digest:
+            "sha256:34dec7d507119b599c2e2611bff0f984359a64d12cee2600901cc73537fd6f2b",
+        certified_bundle_hash:
+            "sha256:9b42d792199eb6f358d26f822699f0ed65bb4366eee306d4958d42121c656833",
+    }
+}
+
+/// PCS RC trace certificate (`tests/fixtures/labtrust-release/trace_certificate.json`).
+pub fn labtrust_release_certificate_fixture() -> PathBuf {
+    pcs_core_rc_fixture("trace_certificate.json")
+}
+
+/// Negative / invalid traces and PCS RC handoff copies (`tests/fixtures/labtrust-release/`).
 pub fn labtrust_release_dir() -> PathBuf {
-    repo_root().join("tests/fixtures/labtrust-release")
+    pcs_core_rc_dir()
 }
 
 pub fn labtrust_release_fixture(name: &str) -> PathBuf {
@@ -72,9 +102,23 @@ pub fn runbook_spec_qc_release() -> PathBuf {
     repo_root().join("templates/hospital_lab/qc_release.stl")
 }
 
-/// Runbook-relative trace path from repository root.
+/// Runbook-relative trace path (canonical PCS RC under `tests/fixtures/labtrust-release/`).
 pub fn runbook_labtrust_release_trace() -> PathBuf {
-    release_run_fixture("trace.json")
+    pcs_core_rc_fixture("trace.json")
+}
+
+/// PCS RC manifest synced from pcs-core (`PCS_CORE_RC_MANIFEST.json`).
+pub fn pcs_core_rc_manifest_path() -> PathBuf {
+    pcs_core_rc_fixture("PCS_CORE_RC_MANIFEST.json")
+}
+
+/// CertifyEdge `source_commit` in the PCS RC manifest (must match `trace_certificate.json`).
+pub fn pcs_core_rc_manifest_certifyedge_commit() -> String {
+    let value = load_json_path(&pcs_core_rc_manifest_path());
+    value["certifyedge_commit"]
+        .as_str()
+        .expect("PCS_CORE_RC_MANIFEST.json certifyedge_commit")
+        .to_string()
 }
 
 /// Committed release manifest (`tests/fixtures/release-run/RELEASE_FIXTURE_MANIFEST.json`).
@@ -82,7 +126,7 @@ pub fn release_fixture_manifest_path() -> PathBuf {
     release_run_fixture("RELEASE_FIXTURE_MANIFEST.json")
 }
 
-/// CertifyEdge `source_commit` recorded in the release manifest (must match `trace_certificate.json`).
+/// CertifyEdge `source_commit` in the local release-run manifest.
 pub fn release_manifest_certifyedge_commit() -> String {
     let value = load_json_path(&release_fixture_manifest_path());
     value["certifyedge_commit"]
@@ -146,7 +190,7 @@ pub use handoff::{
 };
 
 pub fn validate_labtrust_release_fixture_tree() {
-    validate_release_run_fixture_tree();
+    validate_certificate_against_pcs_core(&pcs_core_rc_fixture("trace_certificate.json"));
     validate_labtrust_negative_fixture_tree();
 }
 

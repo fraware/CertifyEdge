@@ -23,6 +23,7 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
       "//tests/certifyedge-integration:cli"
       "//tests/certifyedge-integration:labtrust_release"
       "//tests/certifyedge-integration:certificate_handoff"
+      "//tests/certifyedge-integration:pcs_core_rc"
       "//tests/certifyedge-integration:runbook"
     )
     ;;

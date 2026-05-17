@@ -8,7 +8,7 @@ mod support;
 
 use support::{
     assert_certificate_semantics_equal, certifyedge_cmd, labtrust_release_certificate_fixture,
-    release_manifest_certifyedge_commit, repo_root, runbook_labtrust_release_trace,
+    pcs_core_rc_manifest_certifyedge_commit, repo_root, runbook_labtrust_release_trace,
     runbook_spec_qc_release, validate_certificate_against_pcs_core, with_source_commit,
 };
 
@@ -56,7 +56,7 @@ fn test_pcs_v01_clean_checkout_certifyedge_segment() {
     let cert_path = work.join("trace_certificate.json");
     let trace = runbook_labtrust_release_trace();
 
-    with_source_commit(&release_manifest_certifyedge_commit(), || {
+    with_source_commit(&pcs_core_rc_manifest_certifyedge_commit(), || {
         certifyedge()
             .args([
                 "--release-mode",
