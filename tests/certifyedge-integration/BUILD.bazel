@@ -68,7 +68,7 @@ rust_test(
         "@crates//:predicates",
         "@crates//:serde_json",
     ],
-    tags = ["pcs", "integration"],
+    tags = ["pcs", "integration", "rc_gate"],
 )
 
 rust_test(

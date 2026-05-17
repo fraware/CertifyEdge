@@ -5,6 +5,8 @@ mod support;
 
 use predicates::prelude::*;
 
+use pcs_certificate::ZERO_SOURCE_COMMIT;
+
 use support::{
     certifyedge_cmd, labtrust_release_fixture, pcs_core_rc_constants, repo_root,
     validate_certificate_against_pcs_core,
@@ -187,6 +189,29 @@ fn test_verify_certificate_rejects_wrong_source_repo_in_release_mode() {
         .assert()
         .failure()
         .stderr(predicate::str::contains("source_repo"));
+}
+
+#[test]
+fn test_verify_certificate_rejects_placeholder_source_commit_in_release_mode() {
+    let out = tampered_rc_certificate_path("source_commit");
+    let mut cert: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(labtrust_release_fixture("trace_certificate.json")).unwrap(),
+    )
+    .unwrap();
+    cert["source_commit"] = serde_json::json!(ZERO_SOURCE_COMMIT);
+    std::fs::write(&out, serde_json::to_string_pretty(&cert).unwrap()).unwrap();
+
+    certifyedge_cmd()
+        .arg("--release-mode")
+        .args([
+            "verify-certificate",
+            out.to_str().unwrap(),
+            "--trace",
+            labtrust_release_fixture("trace.json").to_str().unwrap(),
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("placeholder"));
 }
 
 #[test]

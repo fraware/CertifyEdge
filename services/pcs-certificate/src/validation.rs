@@ -4,6 +4,7 @@ use thiserror::Error;
 
 use crate::pcs_schema::validate_trace_certificate_schema;
 use crate::signing::verify_digest;
+use crate::source_commit::is_placeholder_source_commit;
 
 const TRACE_CERT_STATUSES: &[&str] = &[
     "CertificatePending",
@@ -24,6 +25,8 @@ pub enum CertificateValidationError {
     TraceHashMismatch { cert: String, trace: String },
     #[error("release mode: source_repo must be {expected}, got {got}")]
     ReleaseSourceRepoMismatch { expected: String, got: String },
+    #[error("release mode: rejected placeholder source_commit ({commit})")]
+    ReleasePlaceholderSourceCommit { commit: String },
 }
 
 pub fn verify_certificate_document(
@@ -52,6 +55,15 @@ pub fn verify_certificate_document(
             return Err(CertificateValidationError::ReleaseSourceRepoMismatch {
                 expected: SOURCE_REPO.to_string(),
                 got: repo.to_string(),
+            });
+        }
+        let commit = value
+            .get("source_commit")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        if is_placeholder_source_commit(commit) {
+            return Err(CertificateValidationError::ReleasePlaceholderSourceCommit {
+                commit: commit.to_string(),
             });
         }
     }
@@ -177,20 +189,7 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn release_mode_accepts_canonical_source_repo() {
-        let json = sample_cert_json(SOURCE_REPO);
-        verify_certificate_document(&json, None, true).expect("canonical RC certificate");
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::trace_certificate::SOURCE_REPO;
-    use serde_json::json;
-
-    fn sample_cert_json(source_repo: &str) -> String {
+    fn sample_cert_json_with_commit(source_repo: &str, source_commit: &str) -> String {
         serde_json::to_string(&json!({
             "certificate_id": "cert-trace-886c95f0-5d63-42d6-aa13-5891c12c5a6a",
             "schema_version": "v0",
@@ -205,25 +204,26 @@ mod tests {
             "producer": "CertifyEdge",
             "producer_version": "0.1.0",
             "source_repo": source_repo,
-            "source_commit": "cb6848001e2e60a484e04eba5ad6be3fe2e4eccc",
+            "source_commit": source_commit,
             "signature_or_digest": "sha256:34dec7d507119b599c2e2611bff0f984359a64d12cee2600901cc73537fd6f2b"
         }))
         .unwrap()
     }
 
     #[test]
-    fn release_mode_rejects_wrong_source_repo_before_digest() {
-        let json = sample_cert_json("https://github.com/example/wrong");
-        let err = verify_certificate_document(&json, None, true).unwrap_err();
-        assert!(matches!(
-            err,
-            CertificateValidationError::ReleaseSourceRepoMismatch { .. }
-        ));
-    }
-
-    #[test]
     fn release_mode_accepts_canonical_source_repo() {
         let json = sample_cert_json(SOURCE_REPO);
         verify_certificate_document(&json, None, true).expect("canonical RC certificate");
+    }
+
+    #[test]
+    fn release_mode_rejects_placeholder_source_commit_before_digest() {
+        use crate::source_commit::ZERO_SOURCE_COMMIT;
+        let json = sample_cert_json_with_commit(SOURCE_REPO, ZERO_SOURCE_COMMIT);
+        let err = verify_certificate_document(&json, None, true).unwrap_err();
+        assert!(matches!(
+            err,
+            CertificateValidationError::ReleasePlaceholderSourceCommit { .. }
+        ));
     }
 }

@@ -72,6 +72,13 @@ jobs:
       - name: Assert PCS RC fixtures match pcs-core (no drift)
         run: bash ./scripts/check-pcs-core-rc-drift.sh
 
+      - name: Verify canonical PCS RC certificate (CLI gate)
+        run: |
+          cargo build -p certifyedge
+          cargo run -p certifyedge -- verify-certificate \
+            tests/fixtures/labtrust-release/trace_certificate.json \
+            --trace tests/fixtures/labtrust-release/trace.json
+
       - name: Checkout LabTrust-Gym
         uses: actions/checkout@v4
         with:

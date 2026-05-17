@@ -27,7 +27,40 @@ After emission, validate with pcs-core:
 pcs validate trace_certificate.json
 ```
 
-Integration tests in `tests/certifyedge-integration/tests/labtrust_release.rs` (release fixtures + runbook smoke), `cli.rs`, and `clean_checkout.rs` exercise these commands. Regenerate fixtures with `make fixtures`. The PCS v0.1 **clean-checkout chain** is run via `make clean-checkout` — see [pcs-handoff.md](pcs-handoff.md).
+Integration tests in `tests/certifyedge-integration/tests/labtrust_release.rs` (release fixtures + runbook smoke), `cli.rs`, `pcs_core_rc.rs`, and `clean_checkout.rs` exercise these commands. Regenerate negative fixtures with `make fixtures`. The PCS v0.1 **clean-checkout chain** is run via `make clean-checkout` — see [pcs-handoff.md](pcs-handoff.md).
+
+## CertifyEdge v0.1 RC certificate compatibility
+
+For **pcs-v0.1.0-rc1**, the canonical trust loop is defined in [pcs-core](https://github.com/SentinelOps-CI/pcs-core) at `examples/labtrust-release/`. CertifyEdge owns **TraceCertificate.v0** in that chain:
+
+LabTrust-Gym runtime trace → RuntimeReceipt.v0 → **TraceCertificate.v0** → ScienceClaimBundle.v0 → Provability Fabric VerificationResult.v0 → SignedScienceClaimBundle.v0 → Scientific Memory import and rendering.
+
+CertifyEdge commits a copy of the canonical RC inputs under `tests/fixtures/labtrust-release/`:
+
+| Fixture | Role |
+|---------|------|
+| `trace.json` | Canonical LabTrust runtime trace |
+| `trace_certificate.json` | Canonical `TraceCertificate.v0` (`CertificateChecked`) |
+| `PCS_CORE_RC_MANIFEST.json` | Copy of pcs-core `RELEASE_FIXTURE_MANIFEST.json` |
+
+**Do not regenerate** `trace.json` or `trace_certificate.json` locally. Sync from pcs-core:
+
+```bash
+PCS_CORE_PATH=../pcs-core make sync-pcs-core-rc
+make check-pcs-core-rc   # fails if bytes drift from pcs-core
+```
+
+**Verify** the canonical certificate against the canonical trace (required for RC gate):
+
+```bash
+certifyedge verify-certificate \
+  tests/fixtures/labtrust-release/trace_certificate.json \
+  --trace tests/fixtures/labtrust-release/trace.json
+```
+
+Release-mode verify additionally enforces `source_repo = https://github.com/fraware/CertifyEdge` and rejects placeholder `source_commit` values.
+
+**Consumers:** LabTrust-Gym attaches the certificate to the science-claim bundle; Provability Fabric and Scientific Memory validate handoff hashes; pcs-core release-chain validation checks the full manifest. Integration tests in `tests/certifyedge-integration/tests/pcs_core_rc.rs` assert canonical identity (`certificate_id`, `trace_hash`, `source_commit`, `schema_version`, `status`) and tamper rejection. CI runs `pcs validate` on the committed certificate and `scripts/check-pcs-core-rc-drift.sh` after checking out pcs-core.
 
 ## v0.1 release certificate (LabTrust handoff)
 
