@@ -1,4 +1,11 @@
-//! Regenerate `tests/labtrust/*.json` fixtures. Run: cargo test -p certifyedge-integration write_fixtures -- --ignored --nocapture
+//! Regenerate LabTrust traces and the release certificate fixture.
+//!
+//! ```bash
+//! cargo build -p certifyedge
+//! cargo test -p certifyedge-integration write_fixtures -- --ignored --nocapture
+//! ```
+
+use std::process::Command;
 
 use labtrust_adapter::{
     check_property,
@@ -11,6 +18,51 @@ use std::path::PathBuf;
 
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
+const RELEASE_FIXTURE_SOURCE_COMMIT: &str =
+    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+fn certifyedge_bin() -> PathBuf {
+    if let Ok(path) = std::env::var("CARGO_BIN_EXE_certifyedge") {
+        return PathBuf::from(path);
+    }
+    let root = repo_root();
+    for name in ["certifyedge.exe", "certifyedge"] {
+        let candidate = root.join("target/debug").join(name);
+        if candidate.is_file() {
+            return candidate;
+        }
+    }
+    panic!("certifyedge binary not found; run `cargo build -p certifyedge` first");
+}
+
+fn emit_release_certificate_fixture() {
+    let out_dir = repo_root().join("tests/fixtures/labtrust");
+    std::fs::create_dir_all(&out_dir).unwrap();
+    let out = out_dir.join("trace_certificate.valid.json");
+    let spec = repo_root().join("templates/hospital_lab/qc_release.stl");
+    let trace = repo_root().join("tests/labtrust/valid_trace.json");
+
+    std::env::set_var("CERTIFYEDGE_SOURCE_COMMIT", RELEASE_FIXTURE_SOURCE_COMMIT);
+    let status = Command::new(certifyedge_bin())
+        .args([
+            "emit-pcs-certificate",
+            "--spec",
+            spec.to_str().unwrap(),
+            "--trace",
+            trace.to_str().unwrap(),
+            "--out",
+            out.to_str().unwrap(),
+        ])
+        .status()
+        .expect("spawn certifyedge emit-pcs-certificate");
+    std::env::remove_var("CERTIFYEDGE_SOURCE_COMMIT");
+    assert!(
+        status.success(),
+        "certifyedge emit-pcs-certificate failed for release fixture"
+    );
+    println!("wrote release certificate {}", out.display());
 }
 
 fn step(action: &str, actor_id: &str, role: &str, ts: &str) -> WorkflowStep {
@@ -150,6 +202,8 @@ fn write_fixtures() {
         format!("{}\n", counterexample_to_json(&unauthorized_cx).unwrap()),
     )
     .unwrap();
+
+    emit_release_certificate_fixture();
 
     println!("wrote fixtures to {}", out_dir.display());
 }

@@ -7,7 +7,10 @@ use predicates::prelude::*;
 #[path = "../common/support.rs"]
 mod support;
 
-use support::{certifyedge_cmd, labtrust_fixture, repo_root, spec_path};
+use support::{
+    certifyedge_cmd, labtrust_fixture, labtrust_release_certificate_fixture, repo_root, spec_path,
+    validate_certificate_against_pcs_core,
+};
 
 fn certifyedge() -> Command {
     certifyedge_cmd()
@@ -55,8 +58,12 @@ fn test_pcs_runbook_end_to_end() {
     validate_trace_certificate_schema(&cert_value).unwrap();
 
     certifyedge()
-        .arg("verify-certificate")
-        .arg(&cert)
+        .args([
+            "verify-certificate",
+            cert.to_str().unwrap(),
+            "--trace",
+            valid.to_str().unwrap(),
+        ])
         .assert()
         .success();
 
@@ -97,6 +104,22 @@ fn test_pcs_runbook_end_to_end() {
             .assert()
             .success();
     }
+}
+
+#[test]
+fn test_labtrust_release_certificate_fixture_in_repo() {
+    let path = labtrust_release_certificate_fixture();
+    assert!(path.is_file(), "missing {}", path.display());
+    validate_certificate_against_pcs_core(&path);
+    certifyedge()
+        .args([
+            "verify-certificate",
+            path.to_str().unwrap(),
+            "--trace",
+            labtrust_fixture("valid_trace.json").to_str().unwrap(),
+        ])
+        .assert()
+        .success();
 }
 
 #[test]

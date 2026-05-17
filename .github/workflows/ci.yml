@@ -63,6 +63,23 @@ jobs:
       - name: Install pcs-core CLI
         run: pip install -e pcs-core/python
 
+      - name: Checkout LabTrust-Gym
+        uses: actions/checkout@v4
+        with:
+          repository: fraware/LabTrust-Gym
+          path: LabTrust-Gym
+
+      - name: Install LabTrust-Gym (PCS)
+        run: pip install -e LabTrust-Gym
+
+      - name: PCS clean-checkout through certified (LabTrust + CertifyEdge)
+        env:
+          LABTRUST_GYM_ROOT: ${{ github.workspace }}/LabTrust-Gym
+          PCS_CHAIN_WORK: ${{ github.workspace }}/target/pcs-chain
+        run: |
+          chmod +x scripts/pcs-v01-clean-checkout.sh scripts/certifyedge.sh
+          ./scripts/pcs-v01-clean-checkout.sh --through-certified
+
       - name: Emit TraceCertificate (release mode) and pcs validate
         env:
           PCS_RUNBOOK_RELEASE: "1"

@@ -40,6 +40,49 @@ pub fn labtrust_fixture(name: &str) -> PathBuf {
     repo_root().join("tests/labtrust").join(name)
 }
 
+/// PCS v0.1 LabTrust release certificate (`certifyedge emit-pcs-certificate` output).
+pub fn labtrust_release_certificate_fixture() -> PathBuf {
+    repo_root()
+        .join("tests/fixtures/labtrust")
+        .join("trace_certificate.valid.json")
+}
+
+/// Pinned provenance for regenerating `trace_certificate.valid.json` (see `write_fixtures`).
+pub const RELEASE_FIXTURE_SOURCE_COMMIT: &str =
+    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+/// Compare certificate fields that must be stable for a given trace, spec, and pinned `source_commit`.
+pub fn assert_certificate_semantics_equal(
+    emitted: &serde_json::Value,
+    expected: &serde_json::Value,
+) {
+    for key in [
+        "schema_version",
+        "trace_hash",
+        "spec_hash",
+        "property_id",
+        "checker",
+        "checker_version",
+        "status",
+        "producer",
+        "producer_version",
+        "source_repo",
+        "source_commit",
+    ] {
+        assert_eq!(
+            emitted.get(key),
+            expected.get(key),
+            "certificate field {key}"
+        );
+    }
+    assert!(emitted["counterexample_ref"].is_null());
+    pcs_certificate::verify_certificate_document(
+        &serde_json::to_string(emitted).unwrap(),
+        Some(emitted["trace_hash"].as_str().unwrap()),
+    )
+    .expect("emitted certificate digest");
+}
+
 /// Validate emitted certificate: vendored pcs-core schema always; `pcs validate` when CLI is on PATH.
 pub fn validate_certificate_against_pcs_core(path: &Path) {
     let text = std::fs::read_to_string(path).expect("read certificate");

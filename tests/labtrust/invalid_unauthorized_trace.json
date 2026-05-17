@@ -13,10 +13,10 @@
       "actor_role": "accession_tech",
       "action": "accession_sample",
       "pre_state": {
+        "analysis_complete": false,
         "lifecycle": "registered",
         "qc_complete": false,
-        "released": false,
-        "analysis_complete": false
+        "released": false
       },
       "post_state": {
         "lifecycle": "accessioned",
@@ -38,16 +38,16 @@
       "actor_role": "qc_tech",
       "action": "perform_qc",
       "pre_state": {
-        "qc_complete": false,
-        "released": false,
         "analysis_complete": false,
-        "lifecycle": "accessioned"
+        "lifecycle": "accessioned",
+        "qc_complete": false,
+        "released": false
       },
       "post_state": {
+        "lifecycle": "qc_complete",
         "analysis_complete": false,
-        "released": false,
         "qc_complete": true,
-        "lifecycle": "qc_complete"
+        "released": false
       },
       "policy_decision": "allow",
       "reason_code": "ok",
@@ -63,16 +63,16 @@
       "actor_role": "analyst",
       "action": "record_analysis",
       "pre_state": {
+        "analysis_complete": false,
         "lifecycle": "qc_complete",
         "qc_complete": true,
-        "released": false,
-        "analysis_complete": false
+        "released": false
       },
       "post_state": {
+        "qc_complete": true,
         "released": false,
-        "lifecycle": "analyzed",
         "analysis_complete": true,
-        "qc_complete": true
+        "lifecycle": "analyzed"
       },
       "policy_decision": "allow",
       "reason_code": "ok",
@@ -88,16 +88,16 @@
       "actor_role": "unauthorized_user",
       "action": "release_sample",
       "pre_state": {
+        "released": false,
         "lifecycle": "analyzed",
         "analysis_complete": true,
-        "released": false,
         "qc_complete": true
       },
       "post_state": {
-        "analysis_complete": true,
         "released": false,
+        "lifecycle": "analyzed",
         "qc_complete": true,
-        "lifecycle": "analyzed"
+        "analysis_complete": true
       },
       "policy_decision": "deny",
       "reason_code": "unauthorized_release",

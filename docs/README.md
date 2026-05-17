@@ -31,7 +31,7 @@ make test          # integration tests + clippy (PCS crates)
 make runbook       # full handoff script (scripts/pcs-runbook.sh)
 ```
 
-Golden fixtures live under `tests/labtrust/`. Regenerate with:
+LabTrust traces live under `tests/labtrust/`. The v0.1 release certificate fixture is `tests/fixtures/labtrust/trace_certificate.valid.json` (CLI-generated). Regenerate traces and the release certificate with:
 
 `cargo test -p certifyedge-integration write_fixtures -- --ignored --nocapture`
 

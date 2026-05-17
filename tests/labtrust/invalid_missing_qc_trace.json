@@ -13,16 +13,16 @@
       "actor_role": "accession_tech",
       "action": "accession_sample",
       "pre_state": {
-        "analysis_complete": false,
-        "qc_complete": false,
+        "released": false,
         "lifecycle": "registered",
-        "released": false
+        "analysis_complete": false,
+        "qc_complete": false
       },
       "post_state": {
-        "qc_complete": false,
-        "released": false,
         "analysis_complete": false,
-        "lifecycle": "accessioned"
+        "released": false,
+        "lifecycle": "accessioned",
+        "qc_complete": false
       },
       "policy_decision": "allow",
       "reason_code": "ok",
@@ -44,10 +44,10 @@
         "analysis_complete": false
       },
       "post_state": {
-        "qc_complete": false,
-        "analysis_complete": false,
+        "released": false,
         "lifecycle": "accessioned",
-        "released": false
+        "analysis_complete": false,
+        "qc_complete": false
       },
       "policy_decision": "deny",
       "reason_code": "missing_qc",

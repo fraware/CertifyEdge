@@ -13,16 +13,16 @@
       "actor_role": "accession_tech",
       "action": "accession_sample",
       "pre_state": {
-        "lifecycle": "registered",
         "qc_complete": false,
-        "analysis_complete": false,
-        "released": false
+        "lifecycle": "registered",
+        "released": false,
+        "analysis_complete": false
       },
       "post_state": {
-        "qc_complete": false,
+        "released": false,
         "analysis_complete": false,
-        "lifecycle": "accessioned",
-        "released": false
+        "qc_complete": false,
+        "lifecycle": "accessioned"
       },
       "policy_decision": "allow",
       "reason_code": "ok",
@@ -38,16 +38,16 @@
       "actor_role": "qc_tech",
       "action": "perform_qc",
       "pre_state": {
-        "lifecycle": "accessioned",
+        "analysis_complete": false,
         "qc_complete": false,
         "released": false,
-        "analysis_complete": false
+        "lifecycle": "accessioned"
       },
       "post_state": {
-        "released": false,
         "lifecycle": "qc_complete",
+        "analysis_complete": false,
         "qc_complete": true,
-        "analysis_complete": false
+        "released": false
       },
       "policy_decision": "allow",
       "reason_code": "ok",
@@ -63,16 +63,16 @@
       "actor_role": "analyst",
       "action": "record_analysis",
       "pre_state": {
-        "lifecycle": "qc_complete",
         "qc_complete": true,
+        "analysis_complete": false,
         "released": false,
-        "analysis_complete": false
+        "lifecycle": "qc_complete"
       },
       "post_state": {
-        "qc_complete": true,
         "analysis_complete": true,
-        "released": false,
-        "lifecycle": "analyzed"
+        "lifecycle": "analyzed",
+        "qc_complete": true,
+        "released": false
       },
       "policy_decision": "allow",
       "reason_code": "ok",
@@ -88,16 +88,16 @@
       "actor_role": "release_manager",
       "action": "release_sample",
       "pre_state": {
-        "released": false,
         "lifecycle": "analyzed",
+        "released": false,
         "qc_complete": true,
         "analysis_complete": true
       },
       "post_state": {
         "lifecycle": "released",
-        "released": true,
         "analysis_complete": true,
-        "qc_complete": true
+        "qc_complete": true,
+        "released": true
       },
       "policy_decision": "allow",
       "reason_code": "ok",

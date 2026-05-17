@@ -65,6 +65,14 @@ cargo run -p certifyedge -- explain-counterexample counterexample.json
 
 End-to-end flow with LabTrust-Gym and Provability Fabric is documented in [docs/pcs-trace-certificates.md](docs/pcs-trace-certificates.md), [docs/labtrust-adapter.md](docs/labtrust-adapter.md), and [docs/pcs-handoff.md](docs/pcs-handoff.md).
 
+PCS v0.1 release gate (full cross-repo chain):
+
+```bash
+export PCS_DETERMINISTIC=1
+make clean-checkout              # requires sibling LabTrust-Gym, pf, scientific-memory
+make clean-checkout-certified    # LabTrust export + CertifyEdge + attach (CI default)
+```
+
 Quick runbook via Make: `make check-trace`, `make emit-certificate`, `make verify-certificate`, `make test`, `make runbook`.
 
 **Simulation disclaimer:** v0.1 certificates attest to LabTrust-Gym simulation traces only. They are not clinical or production laboratory guarantees.

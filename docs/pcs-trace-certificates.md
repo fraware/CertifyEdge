@@ -27,7 +27,40 @@ After emission, validate with pcs-core:
 pcs validate trace_certificate.json
 ```
 
-Integration tests in `tests/certifyedge-integration/tests/cli.rs` exercise these commands and assert vendored-schema validation (plus `pcs validate` when the `pcs` CLI is on `PATH`).
+Integration tests in `tests/certifyedge-integration/tests/cli.rs` and `clean_checkout.rs` exercise these commands. The PCS v0.1 **clean-checkout chain** (LabTrust-Gym → CertifyEdge → Provability Fabric → Scientific Memory) is run via `make clean-checkout` or `./scripts/pcs-v01-clean-checkout.sh` — see [pcs-handoff.md](pcs-handoff.md).
+
+## v0.1 release certificate (LabTrust handoff)
+
+The canonical **v0.1 release certificate** for the hospital-lab demo is checked into the repository at:
+
+`tests/fixtures/labtrust/trace_certificate.valid.json`
+
+It is produced by the CertifyEdge CLI (not maintained by hand):
+
+```bash
+cargo build -p certifyedge
+CERTIFYEDGE_SOURCE_COMMIT=<pinned-commit> certifyedge emit-pcs-certificate \
+  --spec templates/hospital_lab/qc_release.stl \
+  --trace tests/labtrust/valid_trace.json \
+  --out tests/fixtures/labtrust/trace_certificate.valid.json
+```
+
+Regenerate traces and this fixture together:
+
+```bash
+cargo test -p certifyedge-integration write_fixtures -- --ignored --nocapture
+```
+
+**Consumers:** [LabTrust-Gym](https://github.com/fraware/LabTrust-Gym), Provability Fabric, and Scientific Memory load this artifact (or an equivalent emit from the same trace and spec) to assert `CertificateChecked`, matching `trace_hash`, and pcs-core `signature_or_digest` rules.
+
+For CI or release pipelines, emit with global `--release-mode` so `source_commit` is a real git SHA and `pcs validate` runs on the output:
+
+```bash
+CERTIFYEDGE_SOURCE_COMMIT="$(git rev-parse HEAD)" certifyedge --release-mode emit-pcs-certificate \
+  --spec templates/hospital_lab/qc_release.stl \
+  --trace tests/labtrust/valid_trace.json \
+  --out trace_certificate.json
+```
 
 ## CLI
 

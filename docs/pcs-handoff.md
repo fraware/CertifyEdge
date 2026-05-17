@@ -1,11 +1,116 @@
 # PCS v0.1 handoff (LabTrust-Gym → CertifyEdge → Provability Fabric)
 
+## Clean-checkout chain (release gate)
+
+PCS v0.1 is **release-ready** when the full cross-repo chain succeeds. Canonical commands are documented in [LabTrust-Gym `docs/pcs_v01_clean_chain.md`](https://github.com/fraware/LabTrust-Gym/blob/main/docs/pcs_v01_clean_chain.md).
+
+From **CertifyEdge** (sibling `../LabTrust-Gym`, `pcs` and `labtrust` on `PATH`):
+
+```bash
+export PCS_DETERMINISTIC=1
+make clean-checkout                    # full chain (PF + Scientific Memory)
+make clean-checkout-certified          # LabTrust export + CertifyEdge + attach only
+```
+
+Or:
+
+```bash
+./scripts/pcs-v01-clean-checkout.sh
+./scripts/pcs-v01-clean-checkout.sh --through-certified
+```
+
+On Windows (Git Bash for `--through-certified`):
+
+```powershell
+$env:PCS_DETERMINISTIC = "1"
+.\scripts\pcs-v01-clean-checkout.ps1
+```
+
+### Manual chain (exact runbook commands)
+
+Run from **LabTrust-Gym** repo root unless noted.
+
+**LabTrust-Gym**
+
+```bash
+PCS_DETERMINISTIC=1 labtrust run-demo qc-release
+PCS_DETERMINISTIC=1 labtrust run-demo qc-release-invalid-missing-qc
+PCS_DETERMINISTIC=1 labtrust run-demo qc-release-invalid-unauthorized
+
+labtrust export-trace --run runs/qc-release --out trace.json
+labtrust export-runtime-receipt --run runs/qc-release --out runtime_receipt.json
+labtrust export-pcs --run runs/qc-release --out science_claim_bundle.pending.json
+pcs validate science_claim_bundle.pending.json
+```
+
+**CertifyEdge** (from `CERTIFYEDGE_ROOT` or set `CERTIFYEDGE_SPEC` to an absolute path)
+
+```bash
+certifyedge emit-pcs-certificate \
+  --spec templates/hospital_lab/qc_release.stl \
+  --trace trace.json \
+  --out trace_certificate.json
+pcs validate trace_certificate.json
+certifyedge verify-certificate trace_certificate.json --trace trace.json
+```
+
+**LabTrust-Gym (attach)**
+
+```bash
+labtrust attach-certificate \
+  --bundle science_claim_bundle.pending.json \
+  --certificate trace_certificate.json \
+  --out science_claim_bundle.certified.json
+pcs validate science_claim_bundle.certified.json
+```
+
+**Provability Fabric**
+
+```bash
+pf verify science-claim science_claim_bundle.certified.json \
+  --out verification_result.json
+pcs validate verification_result.json
+
+pf sign science-claim science_claim_bundle.certified.json \
+  --out signed_science_claim_bundle.json
+pcs validate signed_science_claim_bundle.json
+pf inspect science-claim signed_science_claim_bundle.json
+```
+
+**Scientific Memory** (positional `just` args, not `BUNDLE=` / `CLAIM_ID=`)
+
+```bash
+cd ../scientific-memory
+just pcs-import-bundle ../LabTrust-Gym/signed_science_claim_bundle.json
+just pcs-render-claim claim-pcs-qc-release-v0.1
+```
+
+Post-chain validation (LabTrust-Gym):
+
+```bash
+python examples/pcs_qc_release/scripts/verify_pcs_v01_chain.py --work . --stage full
+```
+
+### Environment overrides
+
+| Variable | Role |
+|----------|------|
+| `PCS_DETERMINISTIC` | `1` for golden demos |
+| `LABTRUST_GYM_ROOT` | Path to LabTrust-Gym (default `../LabTrust-Gym`) |
+| `CERTIFYEDGE_ROOT` | Path to CertifyEdge (default: this repo) |
+| `CERTIFYEDGE_BIN` | Default `$CERTIFYEDGE_ROOT/scripts/certifyedge.sh` |
+| `PCS_CHAIN_WORK` | Artifact directory (LabTrust repo root by default) |
+| `PF_BIN` | Provability Fabric CLI (`pf`) |
+| `SCIENTIFIC_MEMORY_ROOT` | Sibling `scientific-memory` |
+
 ## Artifacts CertifyEdge produces
 
 | Output | When |
 |--------|------|
 | `trace_certificate.json` | `emit-pcs-certificate` on any trace |
 | `counterexample.json` | Rejected traces (default beside certificate, or `--counterexample-out`) |
+
+Committed release fixture: `tests/fixtures/labtrust/trace_certificate.valid.json` (CLI-generated; see [pcs-trace-certificates.md](pcs-trace-certificates.md)).
 
 ## TraceCertificate.v0 contract
 
@@ -53,6 +158,13 @@ Rejected traces use `"status": "Rejected"` and a non-null `counterexample_ref`.
 
 Reason codes: `release_before_qc`, `unauthorized_release`, `invalid_event_order`, `malformed_trace`.
 
+Invalid-trace `check-trace` (from CertifyEdge, `qc_release.stl` spec):
+
+| Trace | Expected `reason` |
+|-------|-------------------|
+| `invalid_missing_qc_trace.json` | `release_before_qc` |
+| `invalid_unauthorized_trace.json` | `unauthorized_release` |
+
 ## Property templates
 
 | File | Property ID |
@@ -72,22 +184,19 @@ Use `--release-mode` for CI and handoff builds. In release mode, `CERTIFYEDGE_SO
 
 ## Runbook commands
 
-Build once (`cargo build -p certifyedge`) or use `./scripts/certifyedge.sh` / `make install-cli`.
-
 ```bash
 certifyedge check-trace --spec templates/hospital_lab/qc_release.stl --trace trace.json
 certifyedge emit-pcs-certificate --spec templates/hospital_lab/qc_release.stl --trace trace.json --out trace_certificate.json
-certifyedge verify-certificate trace_certificate.json
+certifyedge verify-certificate trace_certificate.json --trace trace.json
 certifyedge explain-counterexample counterexample.json
 certifyedge --release-mode emit-pcs-certificate ...   # CI / release artifacts
-
-Full local runbook including release emit (requires `pcs` on PATH):
-
-```bash
-PCS_RUNBOOK_RELEASE=1 ./scripts/pcs-runbook.sh
 ```
 
-Uses `git rev-parse HEAD` when `CERTIFYEDGE_SOURCE_COMMIT` is unset.
+Local CertifyEdge-only runbook:
+
+```bash
+make runbook
+PCS_RUNBOOK_RELEASE=1 ./scripts/pcs-runbook.sh
 ```
 
 Snake_case aliases (`check_trace`, `emit_pcs_certificate`, …) are accepted.
