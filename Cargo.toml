@@ -9,6 +9,7 @@ members = [
     "cli",
     "tests/pipeline_integration",
     "tests/certifyedge-integration",
+    "tests/substrate-unit",
 ]
 
 [workspace.package]

@@ -1,7 +1,7 @@
 use std::process::ExitCode;
 
-use clap::Parser;
 use certifyedge::{run, Cli};
+use clap::Parser;
 
 fn main() -> ExitCode {
     match run(Cli::parse()) {

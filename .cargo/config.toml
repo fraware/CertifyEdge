@@ -1,0 +1,4 @@
+# Windows schannel often fails certificate revocation checks (CRYPT_E_NO_REVOCATION_CHECK).
+# See: https://doc.rust-lang.org/cargo/reference/config.html#httpcheck-revoke
+[http]
+check-revoke = false

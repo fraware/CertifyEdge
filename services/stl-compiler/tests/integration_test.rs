@@ -12,10 +12,10 @@ async fn test_simple_compilation() {
     let compiler = test_compiler();
     let spec_text = "test_spec
 voltage > 220";
-    
+
     let result = compiler.compile(spec_text).await;
     assert!(result.is_ok());
-    
+
     if let Ok(compilation_result) = result {
         assert_eq!(compilation_result.specification.name, "test_spec");
         let s = compilation_result.stats;
@@ -28,10 +28,10 @@ async fn test_binary_formula_compilation() {
     let compiler = test_compiler();
     let spec_text = "binary_test
 voltage > 220 && current < 100";
-    
+
     let result = compiler.compile(spec_text).await;
     assert!(result.is_ok());
-    
+
     if let Ok(compilation_result) = result {
         assert_eq!(compilation_result.specification.name, "binary_test");
         // Check that we have both voltage and current variables
@@ -46,10 +46,10 @@ async fn test_temporal_formula_compilation() {
     let compiler = test_compiler();
     let spec_text = "temporal_test
 G[0,10] voltage > 220";
-    
+
     let result = compiler.compile(spec_text).await;
     assert!(result.is_ok());
-    
+
     if let Ok(compilation_result) = result {
         assert_eq!(compilation_result.specification.name, "temporal_test");
         assert!(compilation_result.specification.formula.temporal_depth() > 0);
@@ -63,15 +63,17 @@ async fn test_parameter_parsing() {
 voltage > 220
 param: max_voltage real 240.0 Maximum voltage threshold
 param: safety_margin real 0.1 Safety margin factor";
-    
+
     let result = compiler.compile(spec_text).await;
     assert!(result.is_ok());
-    
+
     if let Ok(compilation_result) = result {
         assert_eq!(compilation_result.specification.name, "param_test");
         assert_eq!(compilation_result.specification.parameters.len(), 2);
-        
-        let param_names: Vec<_> = compilation_result.specification.parameters
+
+        let param_names: Vec<_> = compilation_result
+            .specification
+            .parameters
             .iter()
             .map(|p| p.name.clone())
             .collect();
@@ -87,15 +89,17 @@ async fn test_constraint_parsing() {
 voltage > 220
 constraint: voltage_bounds bounds voltage <= 250.0
 constraint: power_limit linear voltage * current <= 30000.0";
-    
+
     let result = compiler.compile(spec_text).await;
     assert!(result.is_ok());
-    
+
     if let Ok(compilation_result) = result {
         assert_eq!(compilation_result.specification.name, "constraint_test");
         assert_eq!(compilation_result.specification.constraints.len(), 2);
-        
-        let constraint_names: Vec<_> = compilation_result.specification.constraints
+
+        let constraint_names: Vec<_> = compilation_result
+            .specification
+            .constraints
             .iter()
             .map(|c| c.name.clone())
             .collect();
@@ -112,17 +116,26 @@ voltage > 220
 meta: author Example author
 meta: version 1.0.0
 meta: category safety";
-    
+
     let result = compiler.compile(spec_text).await;
     assert!(result.is_ok());
-    
+
     if let Ok(compilation_result) = result {
         assert_eq!(compilation_result.specification.name, "meta_test");
         assert_eq!(compilation_result.specification.metadata.len(), 3);
-        
-        assert_eq!(compilation_result.specification.metadata.get("author"), Some(&"Example author".to_string()));
-        assert_eq!(compilation_result.specification.metadata.get("version"), Some(&"1.0.0".to_string()));
-        assert_eq!(compilation_result.specification.metadata.get("category"), Some(&"safety".to_string()));
+
+        assert_eq!(
+            compilation_result.specification.metadata.get("author"),
+            Some(&"Example author".to_string())
+        );
+        assert_eq!(
+            compilation_result.specification.metadata.get("version"),
+            Some(&"1.0.0".to_string())
+        );
+        assert_eq!(
+            compilation_result.specification.metadata.get("category"),
+            Some(&"safety".to_string())
+        );
     }
 }
 
@@ -131,10 +144,10 @@ async fn test_roundtrip_validation() {
     let compiler = test_compiler();
     let spec_text = "roundtrip_test
 voltage > 220 && current < 100";
-    
+
     let result = compiler.compile(spec_text).await;
     assert!(result.is_ok());
-    
+
     if let Ok(compilation_result) = result {
         assert!(compilation_result.validation.roundtrip_valid);
     }
@@ -145,10 +158,10 @@ async fn test_compilation_statistics() {
     let compiler = test_compiler();
     let spec_text = "stats_test
 voltage > 220";
-    
+
     let result = compiler.compile(spec_text).await;
     assert!(result.is_ok());
-    
+
     if let Ok(compilation_result) = result {
         let stats = compilation_result.stats;
         assert!(stats.total_time_ms >= stats.parse_time_ms);
@@ -161,11 +174,11 @@ voltage > 220";
 #[tokio::test]
 async fn test_error_handling() {
     let compiler = test_compiler();
-    
+
     // Test empty specification
     let result = compiler.compile("").await;
     assert!(result.is_err());
-    
+
     // Test invalid formula
     let result = compiler.compile("test_spec\ninvalid_formula").await;
     assert!(result.is_err());
@@ -176,13 +189,13 @@ async fn test_file_compilation() {
     let temp_dir = tempdir().unwrap();
     let spec_file = temp_dir.path().join("test.stl");
     std::fs::write(&spec_file, "file_test\nvoltage > 220").unwrap();
-    
+
     let compiler = test_compiler();
     let spec_text = std::fs::read_to_string(&spec_file).unwrap();
-    
+
     let result = compiler.compile(&spec_text).await;
     assert!(result.is_ok());
-    
+
     if let Ok(compilation_result) = result {
         assert_eq!(compilation_result.specification.name, "file_test");
     }
@@ -201,10 +214,10 @@ constraint: current_bounds bounds current <= 120.0
 meta: author Example author
 meta: version 1.0.0
 meta: category complex_safety";
-    
+
     let result = compiler.compile(spec_text).await;
     assert!(result.is_ok());
-    
+
     if let Ok(compilation_result) = result {
         assert_eq!(compilation_result.specification.name, "complex_spec");
         assert!(compilation_result.specification.description.is_some());
@@ -213,4 +226,4 @@ meta: category complex_safety";
         assert_eq!(compilation_result.specification.metadata.len(), 3);
         assert!(compilation_result.specification.formula.temporal_depth() > 0);
     }
-} 
+}

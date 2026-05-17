@@ -1,5 +1,5 @@
 //! SMT solver management
-//! 
+//!
 //! This module provides management for different SMT solvers (Z3, CVC5)
 //! and their configurations.
 
@@ -77,19 +77,19 @@ impl SolverConfig {
     pub fn validate(&self) -> Result<(), VerifierError> {
         if self.executable_path.is_empty() {
             return Err(VerifierError::InvalidSolverConfig(
-                "Executable path cannot be empty".to_string()
+                "Executable path cannot be empty".to_string(),
             ));
         }
 
         if self.timeout_ms == 0 {
             return Err(VerifierError::InvalidSolverConfig(
-                "Timeout must be greater than 0".to_string()
+                "Timeout must be greater than 0".to_string(),
             ));
         }
 
         if self.memory_limit_mb == 0 {
             return Err(VerifierError::InvalidSolverConfig(
-                "Memory limit must be greater than 0".to_string()
+                "Memory limit must be greater than 0".to_string(),
             ));
         }
 
@@ -98,9 +98,7 @@ impl SolverConfig {
 
     /// Get solver command arguments
     pub fn get_args(&self) -> Vec<String> {
-        let mut args = vec![
-            "--version".to_string(),
-        ];
+        let mut args = vec!["--version".to_string()];
 
         // Add timeout if specified
         if self.timeout_ms > 0 {
@@ -129,7 +127,7 @@ impl Solver {
     /// Create a new solver instance
     pub fn new(solver_type: SolverType, config: &SolverConfig) -> Result<Self, VerifierError> {
         config.validate()?;
-        
+
         Ok(Self {
             config: config.clone(),
             stats: SolverStats::new(solver_type),
@@ -147,16 +145,18 @@ impl Solver {
     }
 
     /// Execute an SMT-LIB script
-    pub async fn execute_script(&mut self, script: &str) -> Result<VerificationResult, VerifierError> {
+    pub async fn execute_script(
+        &mut self,
+        script: &str,
+    ) -> Result<VerificationResult, VerifierError> {
         let start_time = SystemTime::now();
         let verification_id = uuid::Uuid::new_v4().to_string();
 
         // Create temporary file for script
-        let temp_file = tempfile::NamedTempFile::new()
-            .map_err(|e| VerifierError::IOError(e.to_string()))?;
-        
-        std::fs::write(&temp_file, script)
-            .map_err(|e| VerifierError::IOError(e.to_string()))?;
+        let temp_file =
+            tempfile::NamedTempFile::new().map_err(|e| VerifierError::IOError(e.to_string()))?;
+
+        std::fs::write(&temp_file, script).map_err(|e| VerifierError::IOError(e.to_string()))?;
 
         // Execute solver
         let output = tokio::process::Command::new(&self.config.executable_path)
@@ -175,7 +175,11 @@ impl Solver {
 
         let success = output.status.success();
         let result = self.parse_solver_output(&output_str)?;
-        let errors = if success { vec![] } else { vec![error_str.to_string()] };
+        let errors = if success {
+            vec![]
+        } else {
+            vec![error_str.to_string()]
+        };
 
         // Estimate memory usage (simplified)
         let memory_usage_mb = self.estimate_memory_usage(execution_time_ms);
@@ -202,7 +206,7 @@ impl Solver {
     /// Parse solver output to determine result
     fn parse_solver_output(&self, output: &str) -> Result<SMTResult, VerifierError> {
         let output_lower = output.trim().to_lowercase();
-        
+
         if output_lower.contains("sat") {
             Ok(SMTResult::Sat)
         } else if output_lower.contains("unsat") {
@@ -345,14 +349,14 @@ impl SolverStats {
     pub fn result_distribution(&self) -> HashMap<SMTResult, f64> {
         let mut distribution = HashMap::new();
         let total = self.total_executions as f64;
-        
+
         if total > 0.0 {
             distribution.insert(SMTResult::Sat, self.sat_count as f64 / total);
             distribution.insert(SMTResult::Unsat, self.unsat_count as f64 / total);
             distribution.insert(SMTResult::Unknown, self.unknown_count as f64 / total);
             distribution.insert(SMTResult::Error, self.error_count as f64 / total);
         }
-        
+
         distribution
     }
 }
@@ -380,7 +384,7 @@ mod tests {
     #[test]
     fn test_solver_stats() {
         let mut stats = SolverStats::new(SolverType::Z3);
-        
+
         let result = VerificationResult {
             verification_id: "test".to_string(),
             solver_type: SolverType::Z3,
@@ -393,11 +397,11 @@ mod tests {
             errors: vec![],
             metadata: HashMap::new(),
         };
-        
+
         stats.update(&result);
         assert_eq!(stats.total_executions, 1);
         assert_eq!(stats.successful_executions, 1);
         assert_eq!(stats.sat_count, 1);
         assert_eq!(stats.success_rate(), 1.0);
     }
-} 
+}

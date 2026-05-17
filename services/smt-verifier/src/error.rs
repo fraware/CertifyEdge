@@ -1,5 +1,5 @@
 //! Error types for SMT verification service
-//! 
+//!
 //! This module defines error types used throughout the SMT verification service.
 
 use thiserror::Error;
@@ -87,4 +87,4 @@ impl From<tokio::time::error::Elapsed> for VerifierError {
 }
 
 /// Result type for verifier operations
-pub type VerifierResult<T> = Result<T, VerifierError>; 
+pub type VerifierResult<T> = Result<T, VerifierError>;

@@ -17,3 +17,7 @@ build:ci --worker_sandboxing=false
 
 test:ci --test_output=errors
 test:ci --test_summary=detailed
+
+# rules_rust crate_universe runs Cargo; inherit CARGO_HOME from the shell (see scripts/bazel-pcs-test.sh).
+build:ci --action_env=CARGO_HOME
+test:ci --action_env=CARGO_HOME

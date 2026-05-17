@@ -1,0 +1,9 @@
+# Windows TLS: use the OS certificate store for Bazel's JVM (BCR registry fetch).
+# Load via: bazel --bazelrc=.bazelrc.windows ...
+# Or run: make bazel-pcs-test / ./scripts/bazel-pcs-test.sh
+
+startup --host_jvm_args=-Djavax.net.ssl.trustStoreType=Windows-ROOT
+
+# Large crate graphs can OOM rustc when Bazel runs many local jobs in parallel.
+build --jobs=2
+test --jobs=2

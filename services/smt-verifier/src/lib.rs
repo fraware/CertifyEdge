@@ -1,13 +1,13 @@
 //! SMT-LIB verification: run scripts against configured solvers (for example Z3 or CVC5),
 //! record results, and expose configuration and metrics for a verification service.
 
-pub mod verifier;
-pub mod solver;
-pub mod sandbox;
-pub mod metrics;
-pub mod error;
 pub mod config;
+pub mod error;
+pub mod metrics;
 pub mod proto;
+pub mod sandbox;
+pub mod solver;
+pub mod verifier;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -34,7 +34,7 @@ impl SMTVerifier {
         let solvers = Self::initialize_solvers(&config)?;
         let sandbox = sandbox::WasmSandbox::new(&config.sandbox)?;
         let metrics = metrics::VerifierMetrics::new();
-        
+
         Ok(Self {
             config,
             solvers,
@@ -48,7 +48,7 @@ impl SMTVerifier {
         let solvers = Self::initialize_solvers(&config)?;
         let sandbox = sandbox::WasmSandbox::new(&config.sandbox)?;
         let metrics = metrics::VerifierMetrics::new();
-        
+
         Ok(Self {
             config,
             solvers,
@@ -58,23 +58,25 @@ impl SMTVerifier {
     }
 
     /// Initialize SMT solvers
-    fn initialize_solvers(config: &config::VerifierConfig) -> Result<HashMap<SolverType, solver::Solver>, VerifierError> {
+    fn initialize_solvers(
+        config: &config::VerifierConfig,
+    ) -> Result<HashMap<SolverType, solver::Solver>, VerifierError> {
         let mut solvers = HashMap::new();
-        
+
         if config.enable_z3 {
             let z3_solver = solver::Solver::new(SolverType::Z3, &config.z3_config)?;
             solvers.insert(SolverType::Z3, z3_solver);
         }
-        
+
         if config.enable_cvc5 {
             let cvc5_solver = solver::Solver::new(SolverType::CVC5, &config.cvc5_config)?;
             solvers.insert(SolverType::CVC5, cvc5_solver);
         }
-        
+
         if solvers.is_empty() {
             return Err(VerifierError::NoSolversAvailable);
         }
-        
+
         Ok(solvers)
     }
 
@@ -86,31 +88,33 @@ impl SMTVerifier {
     ) -> Result<VerificationResult, VerifierError> {
         let start_time = SystemTime::now();
         let verification_id = Uuid::new_v4().to_string();
-        
+
         // Parse and validate SMT-LIB script
         let parsed_script = self.parse_smt_script(script)?;
-        
+
         // Determine which solvers to use
-        let solvers_to_use = solver_preferences.unwrap_or_else(|| {
-            self.solvers.keys().cloned().collect()
-        });
-        
+        let solvers_to_use =
+            solver_preferences.unwrap_or_else(|| self.solvers.keys().cloned().collect());
+
         // Execute verification with multiple solvers
         let mut results = Vec::new();
         for solver_type in solvers_to_use {
             if let Some(solver) = self.solvers.get(&solver_type) {
-                let result = self.execute_verification(solver, &parsed_script, &verification_id).await?;
+                let result = self
+                    .execute_verification(solver, &parsed_script, &verification_id)
+                    .await?;
                 results.push(result);
             }
         }
-        
+
         // Aggregate results
         let aggregated_result = self.aggregate_results(results, &verification_id)?;
-        
+
         // Update metrics
         let verification_time = start_time.elapsed()?;
-        self.metrics.record_verification(aggregated_result.success, verification_time);
-        
+        self.metrics
+            .record_verification(aggregated_result.success, verification_time);
+
         Ok(aggregated_result)
     }
 
@@ -122,12 +126,12 @@ impl SMTVerifier {
         verification_id: &str,
     ) -> Result<VerificationResult, VerifierError> {
         let start_time = SystemTime::now();
-        
+
         // Execute in sandbox
         let sandbox_result = self.sandbox.execute_solver(solver, script).await?;
-        
+
         let execution_time = start_time.elapsed()?;
-        
+
         Ok(VerificationResult {
             verification_id: verification_id.to_string(),
             solver_type: solver.solver_type(),
@@ -148,11 +152,13 @@ impl SMTVerifier {
         if script.trim().is_empty() {
             return Err(VerifierError::InvalidScript("Empty script".to_string()));
         }
-        
+
         if !script.contains("(set-logic") {
-            return Err(VerifierError::InvalidScript("Missing set-logic".to_string()));
+            return Err(VerifierError::InvalidScript(
+                "Missing set-logic".to_string(),
+            ));
         }
-        
+
         Ok(script.to_string())
     }
 
@@ -165,11 +171,11 @@ impl SMTVerifier {
         if results.is_empty() {
             return Err(VerifierError::NoResultsAvailable);
         }
-        
+
         // If all results agree, use the first one
         let first_result = &results[0];
         let all_same = results.iter().all(|r| r.result == first_result.result);
-        
+
         if all_same {
             Ok(first_result.clone())
         } else {
@@ -192,7 +198,10 @@ impl SMTVerifier {
     }
 
     /// Check solver health
-    pub async fn check_solver_health(&self, solver_type: SolverType) -> Result<bool, VerifierError> {
+    pub async fn check_solver_health(
+        &self,
+        solver_type: SolverType,
+    ) -> Result<bool, VerifierError> {
         if let Some(solver) = self.solvers.get(&solver_type) {
             solver.check_health().await
         } else {
@@ -265,4 +274,4 @@ mod tests {
             }
         }
     }
-} 
+}

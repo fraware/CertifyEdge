@@ -4,8 +4,8 @@ use crate::ast::STLSpecification;
 use crate::config::CompilerConfig;
 use crate::error::{CompilerError, CompilerResult};
 use crate::lean4::{Lean4Output, Lean4Translator};
-use crate::smt::{SMTOutput, SMTTranslator};
 use crate::parser::STLParser;
+use crate::smt::{SMTOutput, SMTTranslator};
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
 
@@ -89,29 +89,29 @@ impl Compiler {
     /// Compile STL specification to Lean 4 and SMT-LIB
     pub async fn compile(&self, spec_text: &str) -> CompilerResult<CompilationResult> {
         let start_time = Instant::now();
-        
+
         // Parse specification
         let parse_start = Instant::now();
         let specification = self.parse_spec_internal(spec_text)?;
         let parse_time = parse_start.elapsed().as_millis() as u64;
-        
+
         // Translate to Lean 4
         let lean4_start = Instant::now();
         let lean4_output = self.translate_to_lean4(&specification).await?;
         let lean4_time = lean4_start.elapsed().as_millis() as u64;
-        
+
         // Translate to SMT-LIB
         let smt_start = Instant::now();
         let smt_output = self.translate_to_smt(&specification).await?;
         let smt_time = smt_start.elapsed().as_millis() as u64;
-        
+
         // Validate results
         let validation_start = Instant::now();
         let validation = self.validate_results(&specification, &lean4_output, &smt_output)?;
         let validation_time = validation_start.elapsed().as_millis() as u64;
-        
+
         let total_time = start_time.elapsed().as_millis() as u64;
-        
+
         let stats = CompilationStats {
             total_time_ms: total_time,
             parse_time_ms: parse_time,
@@ -122,7 +122,7 @@ impl Compiler {
             lean4_size_bytes: lean4_output.lean4_code.len(),
             smt_size_bytes: smt_output.smt_lib_code.len(),
         };
-        
+
         Ok(CompilationResult {
             specification,
             lean4_output,
@@ -140,13 +140,19 @@ impl Compiler {
     /// Translate specification to Lean 4
     async fn translate_to_lean4(&self, spec: &STLSpecification) -> CompilerResult<Lean4Output> {
         let mut translator = Lean4Translator::new(&self.config);
-        translator.translate(spec).await.map_err(CompilerError::Lean4Error)
+        translator
+            .translate(spec)
+            .await
+            .map_err(CompilerError::Lean4Error)
     }
 
     /// Translate specification to SMT-LIB
     async fn translate_to_smt(&self, spec: &STLSpecification) -> CompilerResult<SMTOutput> {
         let mut translator = SMTTranslator::new(&self.config);
-        translator.translate(spec).await.map_err(CompilerError::SMTError)
+        translator
+            .translate(spec)
+            .await
+            .map_err(CompilerError::SMTError)
     }
 
     /// Validate compilation results
@@ -157,27 +163,27 @@ impl Compiler {
         smt_output: &SMTOutput,
     ) -> CompilerResult<ValidationResult> {
         let mut errors = Vec::new();
-        
+
         // Validate round-trip
         let roundtrip_valid = self.validate_roundtrip_internal(spec);
         if !roundtrip_valid {
             errors.push("Round-trip validation failed".to_string());
         }
-        
+
         // Validate Lean 4 compilation
         let lean4_valid = lean4_output.metadata.success;
         if !lean4_valid {
             errors.extend(lean4_output.metadata.errors.clone());
         }
-        
+
         // Validate SMT solver execution
         let smt_valid = smt_output.metadata.success;
         if !smt_valid {
             errors.push("SMT solver execution failed".to_string());
         }
-        
+
         let all_valid = roundtrip_valid && lean4_valid && smt_valid;
-        
+
         Ok(ValidationResult {
             roundtrip_valid,
             lean4_valid,
@@ -189,12 +195,10 @@ impl Compiler {
 
     fn validate_roundtrip_internal(&self, spec: &STLSpecification) -> bool {
         match serde_json::to_string(spec) {
-            Ok(json) => {
-                match serde_json::from_str::<STLSpecification>(&json) {
-                    Ok(deserialized) => spec == &deserialized,
-                    Err(_) => false,
-                }
-            }
+            Ok(json) => match serde_json::from_str::<STLSpecification>(&json) {
+                Ok(deserialized) => spec == &deserialized,
+                Err(_) => false,
+            },
             Err(_) => false,
         }
     }
@@ -242,7 +246,7 @@ impl Default for Compiler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::{STLFormula, AtomicPredicate, ComparisonOperator};
+    use crate::ast::{AtomicPredicate, ComparisonOperator, STLFormula};
 
     #[tokio::test]
     async fn test_compiler_creation() {
@@ -256,14 +260,17 @@ mod tests {
         let compiler = Compiler::default();
         let spec_text = "test_spec
 voltage > 220";
-        
+
         let result = compiler.compile(spec_text).await;
         // This might fail if Lean 4 or SMT solvers are not available
         // but the parsing should work
         match result {
             Ok(compilation_result) => {
                 assert_eq!(compilation_result.specification.name, "test_spec");
-                assert!(matches!(compilation_result.specification.formula, STLFormula::Atomic(_)));
+                assert!(matches!(
+                    compilation_result.specification.formula,
+                    STLFormula::Atomic(_)
+                ));
             }
             Err(_) => {
                 // Expected if external tools are not available
@@ -287,7 +294,7 @@ voltage > 220";
             constraints: vec![],
             metadata: std::collections::HashMap::new(),
         };
-        
+
         assert!(compiler.validate_roundtrip(&spec));
     }
 
@@ -295,9 +302,9 @@ voltage > 220";
     fn test_supported_features() {
         let compiler = Compiler::default();
         let features = compiler.get_supported_features();
-        
+
         assert!(features.contains(&"STL parsing".to_string()));
         assert!(features.contains(&"Lean 4 translation".to_string()));
         assert!(features.contains(&"SMT-LIB translation".to_string()));
     }
-} 
+}

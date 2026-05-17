@@ -1,5 +1,5 @@
 //! Metrics collection for SMT verification service
-//! 
+//!
 //! This module provides Prometheus metrics and OpenTelemetry tracing
 //! for the SMT verification service.
 
@@ -7,13 +7,13 @@ use prometheus::{Counter, Gauge, Histogram, HistogramOpts, Registry};
 use std::collections::HashMap;
 use std::time::SystemTime;
 
-use crate::verifier::{VerificationStats, SolverStats, SMTResult};
 use crate::solver::SolverType;
+use crate::verifier::{SMTResult, SolverStats, VerificationStats};
 
 /// Metrics for the SMT verifier
 pub struct VerifierMetrics {
     registry: Registry,
-    
+
     // Counters
     total_verifications: Counter,
     successful_verifications: Counter,
@@ -22,11 +22,11 @@ pub struct VerifierMetrics {
     unsat_results: Counter,
     unknown_results: Counter,
     error_results: Counter,
-    
+
     // Histograms
     verification_duration: Histogram,
     memory_usage: Histogram,
-    
+
     // Gauges
     active_verifications: Gauge,
     solver_health: Gauge,
@@ -36,43 +36,40 @@ impl VerifierMetrics {
     /// Create new verifier metrics
     pub fn new() -> Self {
         let registry = Registry::new();
-        
+
         let total_verifications = Counter::new(
             "smt_verifier_total_verifications",
-            "Total number of verifications"
-        ).unwrap();
-        
+            "Total number of verifications",
+        )
+        .unwrap();
+
         let successful_verifications = Counter::new(
             "smt_verifier_successful_verifications",
-            "Number of successful verifications"
-        ).unwrap();
-        
+            "Number of successful verifications",
+        )
+        .unwrap();
+
         let failed_verifications = Counter::new(
             "smt_verifier_failed_verifications",
-            "Number of failed verifications"
-        ).unwrap();
-        
-        let sat_results = Counter::new(
-            "smt_verifier_sat_results",
-            "Number of SAT results"
-        ).unwrap();
-        
-        let unsat_results = Counter::new(
-            "smt_verifier_unsat_results",
-            "Number of UNSAT results"
-        ).unwrap();
-        
-        let unknown_results = Counter::new(
-            "smt_verifier_unknown_results",
-            "Number of UNKNOWN results"
-        ).unwrap();
-        
-        let error_results = Counter::new(
-            "smt_verifier_error_results",
-            "Number of ERROR results"
-        ).unwrap();
-        
-        let buckets = vec![0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0];
+            "Number of failed verifications",
+        )
+        .unwrap();
+
+        let sat_results =
+            Counter::new("smt_verifier_sat_results", "Number of SAT results").unwrap();
+
+        let unsat_results =
+            Counter::new("smt_verifier_unsat_results", "Number of UNSAT results").unwrap();
+
+        let unknown_results =
+            Counter::new("smt_verifier_unknown_results", "Number of UNKNOWN results").unwrap();
+
+        let error_results =
+            Counter::new("smt_verifier_error_results", "Number of ERROR results").unwrap();
+
+        let buckets = vec![
+            0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0,
+        ];
         let verification_duration = Histogram::with_opts(
             HistogramOpts::new(
                 "smt_verifier_duration_seconds",
@@ -83,37 +80,48 @@ impl VerifierMetrics {
         .unwrap();
 
         let memory_usage = Histogram::with_opts(
-            HistogramOpts::new(
-                "smt_verifier_memory_usage_mb",
-                "Memory usage in MB",
-            )
-            .buckets(buckets),
+            HistogramOpts::new("smt_verifier_memory_usage_mb", "Memory usage in MB")
+                .buckets(buckets),
         )
         .unwrap();
-        
+
         let active_verifications = Gauge::new(
             "smt_verifier_active_verifications",
-            "Number of active verifications"
-        ).unwrap();
-        
+            "Number of active verifications",
+        )
+        .unwrap();
+
         let solver_health = Gauge::new(
             "smt_verifier_solver_health",
-            "Solver health status (1 = healthy, 0 = unhealthy)"
-        ).unwrap();
-        
+            "Solver health status (1 = healthy, 0 = unhealthy)",
+        )
+        .unwrap();
+
         // Register metrics
-        registry.register(Box::new(total_verifications.clone())).unwrap();
-        registry.register(Box::new(successful_verifications.clone())).unwrap();
-        registry.register(Box::new(failed_verifications.clone())).unwrap();
+        registry
+            .register(Box::new(total_verifications.clone()))
+            .unwrap();
+        registry
+            .register(Box::new(successful_verifications.clone()))
+            .unwrap();
+        registry
+            .register(Box::new(failed_verifications.clone()))
+            .unwrap();
         registry.register(Box::new(sat_results.clone())).unwrap();
         registry.register(Box::new(unsat_results.clone())).unwrap();
-        registry.register(Box::new(unknown_results.clone())).unwrap();
+        registry
+            .register(Box::new(unknown_results.clone()))
+            .unwrap();
         registry.register(Box::new(error_results.clone())).unwrap();
-        registry.register(Box::new(verification_duration.clone())).unwrap();
+        registry
+            .register(Box::new(verification_duration.clone()))
+            .unwrap();
         registry.register(Box::new(memory_usage.clone())).unwrap();
-        registry.register(Box::new(active_verifications.clone())).unwrap();
+        registry
+            .register(Box::new(active_verifications.clone()))
+            .unwrap();
         registry.register(Box::new(solver_health.clone())).unwrap();
-        
+
         Self {
             registry,
             total_verifications,
@@ -133,13 +141,13 @@ impl VerifierMetrics {
     /// Record a verification result
     pub fn record_verification(&self, success: bool, duration: std::time::Duration) {
         self.total_verifications.inc();
-        
+
         if success {
             self.successful_verifications.inc();
         } else {
             self.failed_verifications.inc();
         }
-        
+
         self.verification_duration.observe(duration.as_secs_f64());
     }
 
@@ -151,7 +159,7 @@ impl VerifierMetrics {
             SMTResult::Unknown => self.unknown_results.inc(),
             SMTResult::Error => self.error_results.inc(),
         }
-        
+
         self.memory_usage.observe(memory_usage_mb as f64);
     }
 
@@ -176,9 +184,10 @@ impl VerifierMetrics {
         use prometheus::Encoder;
         let mut buffer = Vec::new();
         let encoder = prometheus::TextEncoder::new();
-        encoder.encode(&self.registry.gather(), &mut buffer)
+        encoder
+            .encode(&self.registry.gather(), &mut buffer)
             .map_err(|e| crate::error::VerifierError::MetricsError(e.to_string()))?;
-        
+
         String::from_utf8(buffer)
             .map_err(|e| crate::error::VerifierError::MetricsError(e.to_string()))
     }
@@ -253,13 +262,13 @@ mod tests {
     #[test]
     fn test_metrics_recording() {
         let metrics = VerifierMetrics::new();
-        
+
         // Record a verification
         metrics.record_verification(true, std::time::Duration::from_secs(1));
-        
+
         // Record a solver result
         metrics.record_solver_result(&SMTResult::Sat, 50);
-        
+
         let stats = metrics.get_stats();
         assert_eq!(stats.total_verifications, 1);
         assert_eq!(stats.successful_verifications, 1);
@@ -271,4 +280,4 @@ mod tests {
         let tracing = TracingSetup::new();
         assert!(tracing.is_ok());
     }
-} 
+}

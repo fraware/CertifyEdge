@@ -46,7 +46,11 @@ pub enum ParseError {
     UnexpectedToken { token: String, position: usize },
 
     #[error("Expected token '{expected}' but found '{found}' at position {position}")]
-    ExpectedToken { expected: String, found: String, position: usize },
+    ExpectedToken {
+        expected: String,
+        found: String,
+        position: usize,
+    },
 
     #[error("Unterminated string at position {position}")]
     UnterminatedString { position: usize },
@@ -165,7 +169,7 @@ mod tests {
             message: "Invalid syntax".to_string(),
         };
         let compiler_err: CompilerError = parse_err.into();
-        
+
         match compiler_err {
             CompilerError::ParseError(_) => (),
             _ => panic!("Expected ParseError"),
@@ -178,7 +182,7 @@ mod tests {
             path: "/usr/bin/lean".to_string(),
         };
         let compiler_err: CompilerError = lean4_err.into();
-        
+
         match compiler_err {
             CompilerError::Lean4Error(_) => (),
             _ => panic!("Expected Lean4Error"),
@@ -191,10 +195,10 @@ mod tests {
             solver: "z3".to_string(),
         };
         let compiler_err: CompilerError = smt_err.into();
-        
+
         match compiler_err {
             CompilerError::SMTError(_) => (),
             _ => panic!("Expected SMTError"),
         }
     }
-} 
+}

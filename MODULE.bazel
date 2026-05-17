@@ -25,6 +25,16 @@ crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 crate.from_cargo(
     name = "crates",
     cargo_lockfile = "//:Cargo.lock",
+    cargo_config = "//:.cargo/config.toml",
+    lockfile = "//:Cargo.Bazel.lock",
     manifests = ["//:Cargo.toml"],
 )
-use_repo(crate, "crates")
+use_repo(
+    crate,
+    "crates",
+    # Proc-macro crates referenced from hand-written BUILD.bazel (bzlmod visibility).
+    "crates__clap_derive-4.6.1",
+    "crates__serde_derive-1.0.228",
+    "crates__thiserror-impl-1.0.69",
+    "crates__thiserror-impl-2.0.18",
+)

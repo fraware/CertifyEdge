@@ -1,12 +1,12 @@
 //! Signed certificate format (Ed25519), verification helpers, and optional hooks
 //! for external signing services.
 
+pub mod config;
+pub mod error;
 pub mod format;
 pub mod signing;
-pub mod verification;
 pub mod sigstore;
-pub mod error;
-pub mod config;
+pub mod verification;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -69,7 +69,7 @@ impl CertificateService {
     ) -> Result<CertificateFormat, CertificateError> {
         let certificate_id = Uuid::new_v4().to_string();
         let created_at = SystemTime::now();
-        
+
         let mut certificate = CertificateFormat {
             certificate_id,
             created_at,
@@ -119,9 +119,10 @@ impl CertificateService {
         &self,
         file_path: &str,
     ) -> Result<CertificateFormat, CertificateError> {
-        let content = tokio::fs::read_to_string(file_path).await
+        let content = tokio::fs::read_to_string(file_path)
+            .await
             .map_err(|e| CertificateError::IOError(e.to_string()))?;
-        
+
         serde_json::from_str(&content)
             .map_err(|e| CertificateError::DeserializationError(e.to_string()))
     }
@@ -134,8 +135,9 @@ impl CertificateService {
     ) -> Result<(), CertificateError> {
         let content = serde_json::to_string_pretty(certificate)
             .map_err(|e| CertificateError::SerializationError(e.to_string()))?;
-        
-        tokio::fs::write(file_path, content).await
+
+        tokio::fs::write(file_path, content)
+            .await
             .map_err(|e| CertificateError::IOError(e.to_string()))
     }
 
@@ -251,17 +253,20 @@ mod tests {
     #[tokio::test]
     async fn test_certificate_creation() {
         let service = CertificateService::new().unwrap();
-        
-        let certificate = service.create_certificate(
-            vec![1, 2, 3, 4],
-            vec![5, 6, 7, 8],
-            vec![vec![9, 10, 11, 12]],
-            vec![13, 14, 15, 16],
-            "z3-4.13.0".to_string(),
-            "lean-4.0.0".to_string(),
-            vec!["component1".to_string(), "component2".to_string()],
-        ).await.unwrap();
-        
+
+        let certificate = service
+            .create_certificate(
+                vec![1, 2, 3, 4],
+                vec![5, 6, 7, 8],
+                vec![vec![9, 10, 11, 12]],
+                vec![13, 14, 15, 16],
+                "z3-4.13.0".to_string(),
+                "lean-4.0.0".to_string(),
+                vec!["component1".to_string(), "component2".to_string()],
+            )
+            .await
+            .unwrap();
+
         assert!(!certificate.certificate_id.is_empty());
         assert_eq!(certificate.version, "1.0.0");
         assert_eq!(certificate.solver_version, "z3-4.13.0");
@@ -270,17 +275,20 @@ mod tests {
     #[tokio::test]
     async fn test_certificate_validation() {
         let service = CertificateService::new().unwrap();
-        
-        let certificate = service.create_certificate(
-            vec![1, 2, 3, 4],
-            vec![5, 6, 7, 8],
-            vec![vec![9, 10, 11, 12]],
-            vec![13, 14, 15, 16],
-            "z3-4.13.0".to_string(),
-            "lean-4.0.0".to_string(),
-            vec!["component1".to_string()],
-        ).await.unwrap();
-        
+
+        let certificate = service
+            .create_certificate(
+                vec![1, 2, 3, 4],
+                vec![5, 6, 7, 8],
+                vec![vec![9, 10, 11, 12]],
+                vec![13, 14, 15, 16],
+                "z3-4.13.0".to_string(),
+                "lean-4.0.0".to_string(),
+                vec!["component1".to_string()],
+            )
+            .await
+            .unwrap();
+
         let result = service.validate_certificate_format(&certificate);
         assert!(result.is_ok());
     }
@@ -289,12 +297,12 @@ mod tests {
     async fn test_verification_result() {
         let mut result = VerificationResult::success("test-cert".to_string());
         assert!(result.valid);
-        
+
         result.add_error("Test error".to_string());
         assert!(!result.valid);
         assert_eq!(result.errors.len(), 1);
-        
+
         result.add_warning("Test warning".to_string());
         assert_eq!(result.warnings.len(), 1);
     }
-} 
+}

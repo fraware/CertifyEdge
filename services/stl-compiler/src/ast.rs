@@ -158,7 +158,14 @@ impl STLFormula {
             STLFormula::Atomic(pred) => {
                 vars.insert(pred.variable.clone());
             }
-            STLFormula::And(left, right) | STLFormula::Or(left, right) | STLFormula::TemporalAnd(left, right) | STLFormula::TemporalOr(left, right) | STLFormula::Until(_, left, right) | STLFormula::Release(_, left, right) | STLFormula::Implies(left, right) | STLFormula::Equiv(left, right) => {
+            STLFormula::And(left, right)
+            | STLFormula::Or(left, right)
+            | STLFormula::TemporalAnd(left, right)
+            | STLFormula::TemporalOr(left, right)
+            | STLFormula::Until(_, left, right)
+            | STLFormula::Release(_, left, right)
+            | STLFormula::Implies(left, right)
+            | STLFormula::Equiv(left, right) => {
                 left.collect_variables(vars);
                 right.collect_variables(vars);
             }
@@ -175,12 +182,15 @@ impl STLFormula {
     pub fn temporal_depth(&self) -> usize {
         match self {
             STLFormula::Atomic(_) => 0,
-            STLFormula::And(left, right) | STLFormula::Or(left, right) | STLFormula::TemporalAnd(left, right) | STLFormula::TemporalOr(left, right) | STLFormula::Implies(left, right) | STLFormula::Equiv(left, right) => {
+            STLFormula::And(left, right)
+            | STLFormula::Or(left, right)
+            | STLFormula::TemporalAnd(left, right)
+            | STLFormula::TemporalOr(left, right)
+            | STLFormula::Implies(left, right)
+            | STLFormula::Equiv(left, right) => {
                 std::cmp::max(left.temporal_depth(), right.temporal_depth())
             }
-            STLFormula::Not(formula) | STLFormula::Next(formula) => {
-                formula.temporal_depth()
-            }
+            STLFormula::Not(formula) | STLFormula::Next(formula) => formula.temporal_depth(),
             STLFormula::Always(_, formula) | STLFormula::Eventually(_, formula) => {
                 1 + formula.temporal_depth()
             }
@@ -194,15 +204,20 @@ impl STLFormula {
     pub fn is_negation_normal_form(&self) -> bool {
         match self {
             STLFormula::Atomic(_) => true,
-            STLFormula::And(left, right) | STLFormula::Or(left, right) | STLFormula::TemporalAnd(left, right) | STLFormula::TemporalOr(left, right) | STLFormula::Until(_, left, right) | STLFormula::Release(_, left, right) | STLFormula::Implies(left, right) | STLFormula::Equiv(left, right) => {
+            STLFormula::And(left, right)
+            | STLFormula::Or(left, right)
+            | STLFormula::TemporalAnd(left, right)
+            | STLFormula::TemporalOr(left, right)
+            | STLFormula::Until(_, left, right)
+            | STLFormula::Release(_, left, right)
+            | STLFormula::Implies(left, right)
+            | STLFormula::Equiv(left, right) => {
                 left.is_negation_normal_form() && right.is_negation_normal_form()
             }
             STLFormula::Not(formula) => {
                 matches!(**formula, STLFormula::Atomic(_))
             }
-            STLFormula::Next(formula) => {
-                formula.is_negation_normal_form()
-            }
+            STLFormula::Next(formula) => formula.is_negation_normal_form(),
             STLFormula::Always(_, formula) | STLFormula::Eventually(_, formula) => {
                 formula.is_negation_normal_form()
             }
@@ -287,4 +302,4 @@ mod tests {
         assert!(not_atomic.is_negation_normal_form());
         assert!(!not_not_atomic.is_negation_normal_form());
     }
-} 
+}

@@ -1,5 +1,5 @@
 //! Configuration for certificate service
-//! 
+//!
 //! This module handles configuration management for the certificate service.
 
 use serde::{Deserialize, Serialize};
@@ -10,34 +10,34 @@ use std::path::PathBuf;
 pub struct CertificateConfig {
     /// Enable Ed25519 signing
     pub enable_ed25519: bool,
-    
+
     /// Enable Sigstore signing
     pub enable_sigstore: bool,
-    
+
     /// Ed25519 private key path
     pub ed25519_private_key_path: Option<PathBuf>,
-    
+
     /// Ed25519 public key path
     pub ed25519_public_key_path: Option<PathBuf>,
 
     /// Raw Ed25519 verifying key (32 bytes), e.g. paired with an ephemeral signer in `CertificateService::new`.
     pub ed25519_verifying_key: Option<Vec<u8>>,
-    
+
     /// Sigstore configuration
     pub sigstore: SigstoreConfig,
-    
+
     /// Certificate validity period (seconds)
     pub validity_period_seconds: u64,
-    
+
     /// Maximum certificate size (bytes)
     pub max_certificate_size_bytes: u64,
-    
+
     /// Enable certificate compression
     pub enable_compression: bool,
-    
+
     /// Output directory for certificates
     pub output_dir: PathBuf,
-    
+
     /// Log level
     pub log_level: String,
 }
@@ -47,25 +47,25 @@ pub struct CertificateConfig {
 pub struct SigstoreConfig {
     /// Enable Sigstore integration
     pub enabled: bool,
-    
+
     /// Fulcio endpoint
     pub fulcio_endpoint: String,
-    
+
     /// Rekor endpoint
     pub rekor_endpoint: String,
-    
+
     /// OIDC issuer
     pub oidc_issuer: String,
-    
+
     /// OIDC client ID
     pub oidc_client_id: String,
-    
+
     /// OIDC client secret
     pub oidc_client_secret: Option<String>,
-    
+
     /// Certificate chain path
     pub certificate_chain_path: Option<PathBuf>,
-    
+
     /// Private key path
     pub private_key_path: Option<PathBuf>,
 }
@@ -79,7 +79,7 @@ impl Default for CertificateConfig {
             ed25519_public_key_path: None,
             ed25519_verifying_key: None,
             sigstore: SigstoreConfig::default(),
-            validity_period_seconds: 31536000, // 1 year
+            validity_period_seconds: 31536000,       // 1 year
             max_certificate_size_bytes: 1024 * 1024, // 1MB
             enable_compression: false,
             output_dir: PathBuf::from("certificates"),
@@ -108,7 +108,7 @@ impl CertificateConfig {
     pub fn from_file(path: &PathBuf) -> Result<Self, crate::error::CertificateError> {
         let content = std::fs::read_to_string(path)
             .map_err(|e| crate::error::CertificateError::ConfigError(e.to_string()))?;
-        
+
         toml::from_str(&content)
             .map_err(|e| crate::error::CertificateError::ConfigError(e.to_string()))
     }
@@ -117,7 +117,7 @@ impl CertificateConfig {
     pub fn save_to_file(&self, path: &PathBuf) -> Result<(), crate::error::CertificateError> {
         let content = toml::to_string_pretty(self)
             .map_err(|e| crate::error::CertificateError::ConfigError(e.to_string()))?;
-        
+
         std::fs::write(path, content)
             .map_err(|e| crate::error::CertificateError::ConfigError(e.to_string()))
     }
@@ -127,14 +127,14 @@ impl CertificateConfig {
         // Check validity period
         if self.validity_period_seconds == 0 {
             return Err(crate::error::CertificateError::ConfigError(
-                "Validity period must be greater than 0".to_string()
+                "Validity period must be greater than 0".to_string(),
             ));
         }
 
         // Check maximum certificate size
         if self.max_certificate_size_bytes == 0 {
             return Err(crate::error::CertificateError::ConfigError(
-                "Maximum certificate size must be greater than 0".to_string()
+                "Maximum certificate size must be greater than 0".to_string(),
             ));
         }
 
@@ -162,13 +162,31 @@ impl CertificateConfig {
     /// Get configuration as environment variables
     pub fn as_env_vars(&self) -> Vec<(String, String)> {
         vec![
-            ("ENABLE_ED25519".to_string(), self.enable_ed25519.to_string()),
-            ("ENABLE_SIGSTORE".to_string(), self.enable_sigstore.to_string()),
-            ("VALIDITY_PERIOD_SECONDS".to_string(), self.validity_period_seconds.to_string()),
-            ("MAX_CERTIFICATE_SIZE_BYTES".to_string(), self.max_certificate_size_bytes.to_string()),
-            ("ENABLE_COMPRESSION".to_string(), self.enable_compression.to_string()),
+            (
+                "ENABLE_ED25519".to_string(),
+                self.enable_ed25519.to_string(),
+            ),
+            (
+                "ENABLE_SIGSTORE".to_string(),
+                self.enable_sigstore.to_string(),
+            ),
+            (
+                "VALIDITY_PERIOD_SECONDS".to_string(),
+                self.validity_period_seconds.to_string(),
+            ),
+            (
+                "MAX_CERTIFICATE_SIZE_BYTES".to_string(),
+                self.max_certificate_size_bytes.to_string(),
+            ),
+            (
+                "ENABLE_COMPRESSION".to_string(),
+                self.enable_compression.to_string(),
+            ),
             ("LOG_LEVEL".to_string(), self.log_level.clone()),
-            ("OUTPUT_DIR".to_string(), self.output_dir.to_string_lossy().to_string()),
+            (
+                "OUTPUT_DIR".to_string(),
+                self.output_dir.to_string_lossy().to_string(),
+            ),
         ]
     }
 
@@ -180,15 +198,15 @@ impl CertificateConfig {
     /// Get signing methods
     pub fn get_signing_methods(&self) -> Vec<String> {
         let mut methods = Vec::new();
-        
+
         if self.enable_ed25519 {
             methods.push("ed25519".to_string());
         }
-        
+
         if self.enable_sigstore {
             methods.push("sigstore".to_string());
         }
-        
+
         methods
     }
 }
@@ -203,26 +221,26 @@ impl SigstoreConfig {
         // Check endpoints
         if self.fulcio_endpoint.is_empty() {
             return Err(crate::error::CertificateError::ConfigError(
-                "Fulcio endpoint cannot be empty".to_string()
+                "Fulcio endpoint cannot be empty".to_string(),
             ));
         }
 
         if self.rekor_endpoint.is_empty() {
             return Err(crate::error::CertificateError::ConfigError(
-                "Rekor endpoint cannot be empty".to_string()
+                "Rekor endpoint cannot be empty".to_string(),
             ));
         }
 
         // Check OIDC configuration
         if self.oidc_issuer.is_empty() {
             return Err(crate::error::CertificateError::ConfigError(
-                "OIDC issuer cannot be empty".to_string()
+                "OIDC issuer cannot be empty".to_string(),
             ));
         }
 
         if self.oidc_client_id.is_empty() {
             return Err(crate::error::CertificateError::ConfigError(
-                "OIDC client ID cannot be empty".to_string()
+                "OIDC client ID cannot be empty".to_string(),
             ));
         }
 
@@ -231,10 +249,7 @@ impl SigstoreConfig {
 
     /// Get Sigstore endpoints
     pub fn get_endpoints(&self) -> Vec<String> {
-        vec![
-            self.fulcio_endpoint.clone(),
-            self.rekor_endpoint.clone(),
-        ]
+        vec![self.fulcio_endpoint.clone(), self.rekor_endpoint.clone()]
     }
 }
 
@@ -255,7 +270,7 @@ mod tests {
     fn test_config_validation() {
         let mut config = CertificateConfig::default();
         config.validity_period_seconds = 0;
-        
+
         let result = config.validate();
         assert!(result.is_err());
     }
@@ -281,9 +296,9 @@ mod tests {
     fn test_config_env_vars() {
         let config = CertificateConfig::default();
         let env_vars = config.as_env_vars();
-        
+
         assert!(!env_vars.is_empty());
         assert!(env_vars.iter().any(|(k, _)| k == "ENABLE_ED25519"));
         assert!(env_vars.iter().any(|(k, _)| k == "ENABLE_SIGSTORE"));
     }
-} 
+}

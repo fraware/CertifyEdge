@@ -1,51 +1,51 @@
 //! Configuration for SMT verification service
-//! 
+//!
 //! This module handles configuration management for the SMT verifier.
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use crate::solver::{SolverType, SolverConfig};
+use crate::solver::{SolverConfig, SolverType};
 
 /// Configuration for the SMT verifier
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VerifierConfig {
     /// Enable Z3 solver
     pub enable_z3: bool,
-    
+
     /// Enable CVC5 solver
     pub enable_cvc5: bool,
-    
+
     /// Z3 configuration
     pub z3_config: SolverConfig,
-    
+
     /// CVC5 configuration
     pub cvc5_config: SolverConfig,
-    
+
     /// Sandbox configuration
     pub sandbox: SandboxConfig,
-    
+
     /// Metrics configuration
     pub metrics: MetricsConfig,
-    
+
     /// Server configuration
     pub server: ServerConfig,
-    
+
     /// Enable differential testing
     pub enable_differential_testing: bool,
-    
+
     /// Enable sandboxing
     pub enable_sandboxing: bool,
-    
+
     /// Enable metrics collection
     pub enable_metrics: bool,
-    
+
     /// Enable health checks
     pub enable_health_checks: bool,
-    
+
     /// Output directory for results
     pub output_dir: PathBuf,
-    
+
     /// Log level
     pub log_level: String,
 }
@@ -55,22 +55,22 @@ pub struct VerifierConfig {
 pub struct SandboxConfig {
     /// Enable WebAssembly sandboxing
     pub enable_wasm: bool,
-    
+
     /// Wasmtime configuration
     pub wasmtime: WasmtimeConfig,
-    
+
     /// Memory limit for sandbox (MB)
     pub memory_limit_mb: u64,
-    
+
     /// Timeout for sandbox execution (ms)
     pub timeout_ms: u64,
-    
+
     /// Enable resource limits
     pub enable_resource_limits: bool,
-    
+
     /// Enable network isolation
     pub enable_network_isolation: bool,
-    
+
     /// Enable filesystem isolation
     pub enable_fs_isolation: bool,
 }
@@ -80,19 +80,19 @@ pub struct SandboxConfig {
 pub struct WasmtimeConfig {
     /// Wasmtime engine configuration
     pub engine_config: String,
-    
+
     /// Enable WASI
     pub enable_wasi: bool,
-    
+
     /// Enable WASI preview1
     pub enable_wasi_preview1: bool,
-    
+
     /// Enable WASI preview2
     pub enable_wasi_preview2: bool,
-    
+
     /// WASI environment variables
     pub wasi_env_vars: Vec<(String, String)>,
-    
+
     /// WASI preopen directories
     pub wasi_preopen_dirs: Vec<(String, String)>,
 }
@@ -102,19 +102,19 @@ pub struct WasmtimeConfig {
 pub struct MetricsConfig {
     /// Enable Prometheus metrics
     pub enable_prometheus: bool,
-    
+
     /// Prometheus endpoint
     pub prometheus_endpoint: String,
-    
+
     /// Enable OpenTelemetry
     pub enable_opentelemetry: bool,
-    
+
     /// OpenTelemetry endpoint
     pub opentelemetry_endpoint: String,
-    
+
     /// Metrics collection interval (seconds)
     pub collection_interval_seconds: u64,
-    
+
     /// Enable custom metrics
     pub enable_custom_metrics: bool,
 }
@@ -124,28 +124,28 @@ pub struct MetricsConfig {
 pub struct ServerConfig {
     /// gRPC server host
     pub host: String,
-    
+
     /// gRPC server port
     pub port: u16,
-    
+
     /// Enable TLS
     pub enable_tls: bool,
-    
+
     /// TLS certificate path
     pub tls_cert_path: Option<PathBuf>,
-    
+
     /// TLS key path
     pub tls_key_path: Option<PathBuf>,
-    
+
     /// Maximum concurrent connections
     pub max_concurrent_connections: u32,
-    
+
     /// Request timeout (seconds)
     pub request_timeout_seconds: u64,
-    
+
     /// Enable health check endpoint
     pub enable_health_check: bool,
-    
+
     /// Enable metrics endpoint
     pub enable_metrics_endpoint: bool,
 }
@@ -231,7 +231,7 @@ impl VerifierConfig {
     pub fn from_file(path: &PathBuf) -> Result<Self, crate::error::VerifierError> {
         let content = std::fs::read_to_string(path)
             .map_err(|e| crate::error::VerifierError::ConfigError(e.to_string()))?;
-        
+
         toml::from_str(&content)
             .map_err(|e| crate::error::VerifierError::ConfigError(e.to_string()))
     }
@@ -240,7 +240,7 @@ impl VerifierConfig {
     pub fn save_to_file(&self, path: &PathBuf) -> Result<(), crate::error::VerifierError> {
         let content = toml::to_string_pretty(self)
             .map_err(|e| crate::error::VerifierError::ConfigError(e.to_string()))?;
-        
+
         std::fs::write(path, content)
             .map_err(|e| crate::error::VerifierError::ConfigError(e.to_string()))
     }
@@ -250,7 +250,7 @@ impl VerifierConfig {
         // Validate that at least one solver is enabled
         if !self.enable_z3 && !self.enable_cvc5 {
             return Err(crate::error::VerifierError::ConfigError(
-                "At least one solver must be enabled".to_string()
+                "At least one solver must be enabled".to_string(),
             ));
         }
 
@@ -285,15 +285,15 @@ impl VerifierConfig {
     /// Get enabled solvers
     pub fn get_enabled_solvers(&self) -> Vec<SolverType> {
         let mut solvers = Vec::new();
-        
+
         if self.enable_z3 {
             solvers.push(SolverType::Z3);
         }
-        
+
         if self.enable_cvc5 {
             solvers.push(SolverType::CVC5);
         }
-        
+
         solvers
     }
 
@@ -302,12 +302,27 @@ impl VerifierConfig {
         vec![
             ("ENABLE_Z3".to_string(), self.enable_z3.to_string()),
             ("ENABLE_CVC5".to_string(), self.enable_cvc5.to_string()),
-            ("ENABLE_DIFFERENTIAL_TESTING".to_string(), self.enable_differential_testing.to_string()),
-            ("ENABLE_SANDBOXING".to_string(), self.enable_sandboxing.to_string()),
-            ("ENABLE_METRICS".to_string(), self.enable_metrics.to_string()),
-            ("ENABLE_HEALTH_CHECKS".to_string(), self.enable_health_checks.to_string()),
+            (
+                "ENABLE_DIFFERENTIAL_TESTING".to_string(),
+                self.enable_differential_testing.to_string(),
+            ),
+            (
+                "ENABLE_SANDBOXING".to_string(),
+                self.enable_sandboxing.to_string(),
+            ),
+            (
+                "ENABLE_METRICS".to_string(),
+                self.enable_metrics.to_string(),
+            ),
+            (
+                "ENABLE_HEALTH_CHECKS".to_string(),
+                self.enable_health_checks.to_string(),
+            ),
             ("LOG_LEVEL".to_string(), self.log_level.clone()),
-            ("OUTPUT_DIR".to_string(), self.output_dir.to_string_lossy().to_string()),
+            (
+                "OUTPUT_DIR".to_string(),
+                self.output_dir.to_string_lossy().to_string(),
+            ),
         ]
     }
 }
@@ -317,13 +332,13 @@ impl SandboxConfig {
     pub fn validate(&self) -> Result<(), crate::error::VerifierError> {
         if self.memory_limit_mb == 0 {
             return Err(crate::error::VerifierError::ConfigError(
-                "Memory limit must be greater than 0".to_string()
+                "Memory limit must be greater than 0".to_string(),
             ));
         }
 
         if self.timeout_ms == 0 {
             return Err(crate::error::VerifierError::ConfigError(
-                "Timeout must be greater than 0".to_string()
+                "Timeout must be greater than 0".to_string(),
             ));
         }
 
@@ -338,7 +353,7 @@ impl WasmtimeConfig {
     pub fn validate(&self) -> Result<(), crate::error::VerifierError> {
         if self.engine_config.is_empty() {
             return Err(crate::error::VerifierError::ConfigError(
-                "Engine config cannot be empty".to_string()
+                "Engine config cannot be empty".to_string(),
             ));
         }
 
@@ -351,7 +366,7 @@ impl MetricsConfig {
     pub fn validate(&self) -> Result<(), crate::error::VerifierError> {
         if self.collection_interval_seconds == 0 {
             return Err(crate::error::VerifierError::ConfigError(
-                "Collection interval must be greater than 0".to_string()
+                "Collection interval must be greater than 0".to_string(),
             ));
         }
 
@@ -364,25 +379,25 @@ impl ServerConfig {
     pub fn validate(&self) -> Result<(), crate::error::VerifierError> {
         if self.host.is_empty() {
             return Err(crate::error::VerifierError::ConfigError(
-                "Host cannot be empty".to_string()
+                "Host cannot be empty".to_string(),
             ));
         }
 
         if self.port == 0 {
             return Err(crate::error::VerifierError::ConfigError(
-                "Port must be greater than 0".to_string()
+                "Port must be greater than 0".to_string(),
             ));
         }
 
         if self.max_concurrent_connections == 0 {
             return Err(crate::error::VerifierError::ConfigError(
-                "Max concurrent connections must be greater than 0".to_string()
+                "Max concurrent connections must be greater than 0".to_string(),
             ));
         }
 
         if self.request_timeout_seconds == 0 {
             return Err(crate::error::VerifierError::ConfigError(
-                "Request timeout must be greater than 0".to_string()
+                "Request timeout must be greater than 0".to_string(),
             ));
         }
 
@@ -390,13 +405,13 @@ impl ServerConfig {
         if self.enable_tls {
             if self.tls_cert_path.is_none() {
                 return Err(crate::error::VerifierError::ConfigError(
-                    "TLS certificate path is required when TLS is enabled".to_string()
+                    "TLS certificate path is required when TLS is enabled".to_string(),
                 ));
             }
 
             if self.tls_key_path.is_none() {
                 return Err(crate::error::VerifierError::ConfigError(
-                    "TLS key path is required when TLS is enabled".to_string()
+                    "TLS key path is required when TLS is enabled".to_string(),
                 ));
             }
         }
@@ -424,7 +439,7 @@ mod tests {
         let mut config = VerifierConfig::default();
         config.enable_z3 = false;
         config.enable_cvc5 = false;
-        
+
         let result = config.validate();
         assert!(result.is_err());
     }
@@ -442,9 +457,9 @@ mod tests {
     fn test_config_env_vars() {
         let config = VerifierConfig::default();
         let env_vars = config.as_env_vars();
-        
+
         assert!(!env_vars.is_empty());
         assert!(env_vars.iter().any(|(k, _)| k == "ENABLE_Z3"));
         assert!(env_vars.iter().any(|(k, _)| k == "ENABLE_CVC5"));
     }
-} 
+}

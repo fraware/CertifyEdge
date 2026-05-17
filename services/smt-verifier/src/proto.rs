@@ -1,5 +1,5 @@
 //! Protocol buffer definitions for SMT verification service
-//! 
+//!
 //! This module contains the gRPC service definitions and message types
 //! for the SMT verification service.
 
@@ -9,8 +9,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::verifier::{SMTResult, VerificationResult};
 use crate::solver::SolverType;
+use crate::verifier::{SMTResult, VerificationResult};
 
 /// gRPC verification request
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -167,7 +167,7 @@ mod tests {
             timeout_ms: Some(5000),
             max_memory_mb: Some(512),
         };
-        
+
         assert_eq!(request.request_id, "test-123");
         assert!(request.script.contains("set-logic"));
         assert_eq!(request.solver_preferences.len(), 2);
@@ -179,7 +179,7 @@ mod tests {
             status: HealthStatus::Serving,
             details: HashMap::new(),
         };
-        
+
         match response.status {
             HealthStatus::Serving => assert!(true),
             _ => assert!(false),
@@ -199,4 +199,4 @@ mod tests {
         let solver_str: String = solver_type.into();
         assert_eq!(solver_str, "z3");
     }
-} 
+}

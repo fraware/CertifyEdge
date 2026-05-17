@@ -11,10 +11,13 @@ proto_library(
 
 rust_library(
     name = "stl_compiler_lib",
+    crate_name = "stl_compiler",
     srcs = glob(["src/**/*.rs"]),
     edition = "2021",
     proc_macro_deps = [
-        "@crates//:serde_derive",
+        "@crates__clap_derive-4.6.1//:clap_derive",
+        "@crates__serde_derive-1.0.228//:serde_derive",
+        "@crates__thiserror-impl-1.0.69//:thiserror_impl",
     ],
     deps = [
         "@crates//:anyhow",
@@ -25,7 +28,7 @@ rust_library(
         "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:tempfile",
-        "@crates//:thiserror",
+        "@crates//:thiserror-1.0.69",
         "@crates//:tokio",
         "@crates//:tower",
         "@crates//:tower-http",

@@ -1,5 +1,5 @@
 //! Certificate format definitions
-//! 
+//!
 //! This module defines the certificate format structure and validation logic.
 
 use serde::{Deserialize, Serialize};
@@ -110,9 +110,9 @@ impl CertificateFormat {
 
     /// Get certificate fingerprint
     pub fn fingerprint(&self) -> Result<String, CertificateError> {
-        use sha2::{Sha256, Digest};
+        use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
-        
+
         // Hash the certificate content (excluding signatures)
         hasher.update(self.certificate_id.as_bytes());
         hasher.update(self.version.as_bytes());
@@ -121,15 +121,15 @@ impl CertificateFormat {
         hasher.update(&self.model_hash);
         hasher.update(self.solver_version.as_bytes());
         hasher.update(self.lean_version.as_bytes());
-        
+
         for component in &self.sbom_components {
             hasher.update(component.as_bytes());
         }
-        
+
         for hash in &self.smt_proof_hashes {
             hasher.update(hash);
         }
-        
+
         Ok(format!("{:x}", hasher.finalize()))
     }
 
@@ -322,12 +322,12 @@ mod tests {
     fn test_validity_period() {
         let now = SystemTime::now();
         let later = now + std::time::Duration::from_secs(3600);
-        
+
         let validity = ValidityPeriod::new(now, later);
         assert!(validity.is_valid());
-        
+
         let remaining = validity.remaining_time();
         assert!(remaining.is_some());
         assert!(remaining.unwrap().as_secs() > 0);
     }
-} 
+}

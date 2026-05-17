@@ -5,7 +5,7 @@ SPEC ?= templates/hospital_lab/qc_release.stl
 TRACE ?= tests/labtrust/valid_trace.json
 CERT ?= trace_certificate.json
 
-.PHONY: build test pcs-test runbook check-trace emit-certificate verify-certificate install-cli
+.PHONY: build test pcs-test runbook check-trace emit-certificate verify-certificate install-cli substrate-test bazel-pcs-test
 
 build:
 	$(CARGO) build -p certifyedge
@@ -16,6 +16,12 @@ install-cli:
 test:
 	$(CARGO) test -p certifyedge-integration -- --nocapture
 	$(CARGO) clippy -p labtrust-adapter -p pcs-certificate -p certifyedge -- -D warnings
+
+substrate-test:
+	./scripts/test-substrate.sh
+
+bazel-pcs-test:
+	./scripts/bazel-pcs-test.sh
 
 pcs-test: build test
 

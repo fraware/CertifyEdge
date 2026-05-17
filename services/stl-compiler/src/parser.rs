@@ -1,6 +1,9 @@
 //! STL parser using ANTLR-generated grammar
 
-use crate::ast::{STLSpecification, STLFormula, AtomicPredicate, ComparisonOperator, TimeInterval, TimeUnit, Parameter, Constraint, ParameterType, ConstraintType};
+use crate::ast::{
+    AtomicPredicate, ComparisonOperator, Constraint, ConstraintType, Parameter, ParameterType,
+    STLFormula, STLSpecification, TimeInterval, TimeUnit,
+};
 use crate::error::{ParseError, ParseResult};
 use std::collections::HashMap;
 
@@ -53,7 +56,7 @@ impl STLParser {
     /// Parse specification
     fn parse_specification(&mut self, input: &str) -> ParseResult<STLSpecification> {
         let lines: Vec<&str> = input.lines().collect();
-        
+
         if lines.is_empty() {
             return Err(ParseError::SyntaxError {
                 position: 0,
@@ -63,7 +66,7 @@ impl STLParser {
 
         // Parse name (first line)
         let name = self.parse_name(lines[0])?;
-        
+
         // Parse description (optional, second line)
         let description = if lines.len() > 1 && lines[1].starts_with("//") {
             Some(lines[1][2..].trim().to_string())
@@ -127,7 +130,7 @@ impl STLParser {
     /// Parse STL formula
     fn parse_formula(&mut self, input: &str) -> ParseResult<STLFormula> {
         let input = input.trim();
-        
+
         // Simple recursive descent parser for basic STL formulas
         if input.contains("&&") {
             self.parse_binary_formula(input, "&&", |left, right| {
@@ -166,7 +169,12 @@ impl STLParser {
     }
 
     /// Parse binary formula
-    fn parse_binary_formula<F>(&mut self, input: &str, op: &str, constructor: F) -> ParseResult<STLFormula>
+    fn parse_binary_formula<F>(
+        &mut self,
+        input: &str,
+        op: &str,
+        constructor: F,
+    ) -> ParseResult<STLFormula>
     where
         F: FnOnce(STLFormula, STLFormula) -> STLFormula,
     {
@@ -185,7 +193,12 @@ impl STLParser {
     }
 
     /// Parse temporal formula
-    fn parse_temporal_formula<F>(&mut self, input: &str, op: &str, constructor: F) -> ParseResult<STLFormula>
+    fn parse_temporal_formula<F>(
+        &mut self,
+        input: &str,
+        op: &str,
+        constructor: F,
+    ) -> ParseResult<STLFormula>
     where
         F: FnOnce(TimeInterval, STLFormula) -> STLFormula,
     {
@@ -212,7 +225,7 @@ impl STLParser {
     fn parse_atomic_predicate(&mut self, input: &str) -> ParseResult<STLFormula> {
         // Parse patterns like: variable > threshold, variable < threshold, etc.
         let input = input.trim();
-        
+
         // Find comparison operator
         let operators = [">", ">=", "<", "<=", "==", "!="];
         let mut op_found = None;
@@ -234,10 +247,12 @@ impl STLParser {
         let variable = input[..op_pos].trim().to_string();
         let threshold_str = input[op_pos + op.len()..].trim();
 
-        let threshold = threshold_str.parse::<f64>().map_err(|_| ParseError::InvalidNumber {
-            position: op_pos,
-            message: format!("Invalid number: {}", threshold_str),
-        })?;
+        let threshold = threshold_str
+            .parse::<f64>()
+            .map_err(|_| ParseError::InvalidNumber {
+                position: op_pos,
+                message: format!("Invalid number: {}", threshold_str),
+            })?;
 
         let operator = match op {
             ">" => ComparisonOperator::GreaterThan,
@@ -246,10 +261,12 @@ impl STLParser {
             "<=" => ComparisonOperator::LessEqual,
             "==" => ComparisonOperator::Equal,
             "!=" => ComparisonOperator::NotEqual,
-            _ => return Err(ParseError::SyntaxError {
-                position: op_pos,
-                message: format!("Unknown operator: {}", op),
-            }),
+            _ => {
+                return Err(ParseError::SyntaxError {
+                    position: op_pos,
+                    message: format!("Unknown operator: {}", op),
+                })
+            }
         };
 
         Ok(STLFormula::Atomic(AtomicPredicate {
@@ -276,19 +293,27 @@ impl STLParser {
         let start = if start_str == "0" || start_str.is_empty() {
             None
         } else {
-            Some(start_str.parse::<f64>().map_err(|_| ParseError::InvalidNumber {
-                position: 0,
-                message: format!("Invalid start time: {}", start_str),
-            })?)
+            Some(
+                start_str
+                    .parse::<f64>()
+                    .map_err(|_| ParseError::InvalidNumber {
+                        position: 0,
+                        message: format!("Invalid start time: {}", start_str),
+                    })?,
+            )
         };
 
         let end = if end_str == "inf" || end_str.is_empty() {
             None
         } else {
-            Some(end_str.parse::<f64>().map_err(|_| ParseError::InvalidNumber {
-                position: 0,
-                message: format!("Invalid end time: {}", end_str),
-            })?)
+            Some(
+                end_str
+                    .parse::<f64>()
+                    .map_err(|_| ParseError::InvalidNumber {
+                        position: 0,
+                        message: format!("Invalid end time: {}", end_str),
+                    })?,
+            )
         };
 
         Ok(TimeInterval {
@@ -319,10 +344,12 @@ impl STLParser {
                 "bool" => ParameterType::Boolean,
                 "string" => ParameterType::String,
                 "time" => ParameterType::Time,
-                _ => return Err(ParseError::InvalidParameterType {
-                    expected: "real|int|bool|string|time".to_string(),
-                    actual: parts[1].to_string(),
-                }),
+                _ => {
+                    return Err(ParseError::InvalidParameterType {
+                        expected: "real|int|bool|string|time".to_string(),
+                        actual: parts[1].to_string(),
+                    })
+                }
             }
         } else {
             ParameterType::Real
@@ -349,37 +376,47 @@ impl STLParser {
     }
 
     /// Parse parameter value
-    fn parse_parameter_value(&mut self, value: &str, param_type: &ParameterType) -> ParseResult<crate::ast::ParameterValue> {
+    fn parse_parameter_value(
+        &mut self,
+        value: &str,
+        param_type: &ParameterType,
+    ) -> ParseResult<crate::ast::ParameterValue> {
         match param_type {
             ParameterType::Real => {
-                let val = value.parse::<f64>().map_err(|_| ParseError::InvalidParameterType {
-                    expected: "real number".to_string(),
-                    actual: value.to_string(),
-                })?;
+                let val = value
+                    .parse::<f64>()
+                    .map_err(|_| ParseError::InvalidParameterType {
+                        expected: "real number".to_string(),
+                        actual: value.to_string(),
+                    })?;
                 Ok(crate::ast::ParameterValue::Real(val))
             }
             ParameterType::Integer => {
-                let val = value.parse::<i64>().map_err(|_| ParseError::InvalidParameterType {
-                    expected: "integer".to_string(),
-                    actual: value.to_string(),
-                })?;
+                let val = value
+                    .parse::<i64>()
+                    .map_err(|_| ParseError::InvalidParameterType {
+                        expected: "integer".to_string(),
+                        actual: value.to_string(),
+                    })?;
                 Ok(crate::ast::ParameterValue::Integer(val))
             }
             ParameterType::Boolean => {
-                let val = value.parse::<bool>().map_err(|_| ParseError::InvalidParameterType {
-                    expected: "boolean".to_string(),
-                    actual: value.to_string(),
-                })?;
+                let val = value
+                    .parse::<bool>()
+                    .map_err(|_| ParseError::InvalidParameterType {
+                        expected: "boolean".to_string(),
+                        actual: value.to_string(),
+                    })?;
                 Ok(crate::ast::ParameterValue::Boolean(val))
             }
-            ParameterType::String => {
-                Ok(crate::ast::ParameterValue::String(value.to_string()))
-            }
+            ParameterType::String => Ok(crate::ast::ParameterValue::String(value.to_string())),
             ParameterType::Time => {
-                let val = value.parse::<f64>().map_err(|_| ParseError::InvalidParameterType {
-                    expected: "time value".to_string(),
-                    actual: value.to_string(),
-                })?;
+                let val = value
+                    .parse::<f64>()
+                    .map_err(|_| ParseError::InvalidParameterType {
+                        expected: "time value".to_string(),
+                        actual: value.to_string(),
+                    })?;
                 Ok(crate::ast::ParameterValue::Time(val))
             }
         }
@@ -404,10 +441,12 @@ impl STLParser {
             "linear" => ConstraintType::Linear,
             "nonlinear" => ConstraintType::Nonlinear,
             "temporal" => ConstraintType::Temporal,
-            _ => return Err(ParseError::InvalidParameterType {
-                expected: "bounds|linear|nonlinear|temporal".to_string(),
-                actual: parts[1].to_string(),
-            }),
+            _ => {
+                return Err(ParseError::InvalidParameterType {
+                    expected: "bounds|linear|nonlinear|temporal".to_string(),
+                    actual: parts[1].to_string(),
+                })
+            }
         };
 
         let expression = parts[2].to_string();
@@ -448,14 +487,14 @@ impl STLParser {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::{STLFormula, AtomicPredicate, ComparisonOperator};
+    use crate::ast::{AtomicPredicate, ComparisonOperator, STLFormula};
 
     #[test]
     fn test_parse_atomic_predicate() {
         let mut parser = STLParser::new();
         let result = parser.parse_atomic_predicate("voltage > 220");
         assert!(result.is_ok());
-        
+
         if let Ok(STLFormula::Atomic(pred)) = result {
             assert_eq!(pred.variable, "voltage");
             assert!(matches!(pred.operator, ComparisonOperator::GreaterThan));
@@ -470,7 +509,7 @@ mod tests {
         let mut parser = STLParser::new();
         let result = parser.parse_formula("voltage > 220 && current < 100");
         assert!(result.is_ok());
-        
+
         if let Ok(STLFormula::And(left, right)) = result {
             assert!(matches!(*left, STLFormula::Atomic(_)));
             assert!(matches!(*right, STLFormula::Atomic(_)));
@@ -484,7 +523,7 @@ mod tests {
         let mut parser = STLParser::new();
         let result = parser.parse_formula("G[0,10] voltage > 220");
         assert!(result.is_ok());
-        
+
         if let Ok(STLFormula::Always(interval, formula)) = result {
             // Lower bound `0` is stored as None (open from origin); see `parse_time_interval`.
             assert_eq!(interval.start, None);
@@ -503,11 +542,11 @@ voltage > 220 && current < 100
 param: max_voltage real 240.0 Maximum voltage threshold
 constraint: voltage_bounds bounds voltage <= 250.0
 meta: author Example author";
-        
+
         let mut parser = STLParser::new();
         let result = parser.parse(input);
         assert!(result.is_ok());
-        
+
         if let Ok(spec) = result {
             assert_eq!(spec.name, "voltage_safety");
             assert!(spec.description.is_some());
@@ -519,4 +558,4 @@ meta: author Example author";
             panic!("Expected valid specification");
         }
     }
-} 
+}

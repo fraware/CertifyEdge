@@ -1,0 +1,10 @@
+[package]
+name = "substrate-unit"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dev-dependencies]
+stl-compiler = { path = "../../services/stl-compiler" }
+smt-verifier = { path = "../../services/smt-verifier" }
+tokio = { version = "1.40", features = ["macros", "rt-multi-thread"] }

@@ -46,9 +46,7 @@ impl WasmSandbox {
 
     pub fn validate_module(&self, wasm_bytes: &[u8]) -> Result<(), VerifierError> {
         if wasm_bytes.is_empty() {
-            return Err(VerifierError::SandboxError(
-                "empty wasm module".to_string(),
-            ));
+            return Err(VerifierError::SandboxError("empty wasm module".to_string()));
         }
         Ok(())
     }

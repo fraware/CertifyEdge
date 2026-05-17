@@ -76,9 +76,7 @@ pub enum Commands {
     },
     /// Runbook: `certifyedge explain-counterexample <counterexample.json>`
     #[command(name = CMD_EXPLAIN_COUNTEREXAMPLE, visible_alias = "explain_counterexample")]
-    ExplainCounterexample {
-        counterexample: PathBuf,
-    },
+    ExplainCounterexample { counterexample: PathBuf },
 }
 
 pub fn run(cli: Cli) -> Result<(), String> {
@@ -93,7 +91,13 @@ pub fn run(cli: Cli) -> Result<(), String> {
             trace,
             out,
             counterexample_out,
-        } => cmd_emit_certificate(cli.release_mode, &spec, &trace, &out, counterexample_out.as_deref()),
+        } => cmd_emit_certificate(
+            cli.release_mode,
+            &spec,
+            &trace,
+            &out,
+            counterexample_out.as_deref(),
+        ),
         Commands::VerifyCertificate { certificate, trace } => {
             cmd_verify_certificate(&certificate, trace.as_deref())
         }

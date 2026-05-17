@@ -1,8 +1,8 @@
 //! Configuration for the STL compiler
 
+use crate::error::{ConfigError, ConfigResult};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use crate::error::{ConfigError, ConfigResult};
 
 /// Main configuration for the STL compiler
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -161,7 +161,7 @@ impl Default for Lean4Config {
             skip_validation: false,
             lean4_path: None,
             version: "4.0.0".to_string(),
-            timeout_ms: 30000, // 30 seconds
+            timeout_ms: 30000,     // 30 seconds
             memory_limit_mb: 1024, // 1GB
             enable_native: true,
             additional_flags: vec![],
@@ -221,7 +221,7 @@ impl Default for PerformanceConfig {
     fn default() -> Self {
         Self {
             max_compilation_time_ms: 60000, // 1 minute
-            max_memory_mb: 2048, // 2GB
+            max_memory_mb: 2048,            // 2GB
             parallel: true,
             num_threads: std::thread::available_parallelism()
                 .map(|n| n.get())
@@ -257,24 +257,30 @@ impl CompilerConfig {
 
     /// Load configuration from file
     pub fn from_file(path: &PathBuf) -> ConfigResult<Self> {
-        let content = std::fs::read_to_string(path)
-            .map_err(|e| ConfigError::FileNotFound { path: path.to_string_lossy().to_string() })?;
-        
-        let config: CompilerConfig = serde_json::from_str(&content)
-            .map_err(|e| ConfigError::InvalidFormat { message: e.to_string() })?;
-        
+        let content = std::fs::read_to_string(path).map_err(|e| ConfigError::FileNotFound {
+            path: path.to_string_lossy().to_string(),
+        })?;
+
+        let config: CompilerConfig =
+            serde_json::from_str(&content).map_err(|e| ConfigError::InvalidFormat {
+                message: e.to_string(),
+            })?;
+
         config.validate()?;
         Ok(config)
     }
 
     /// Save configuration to file
     pub fn save_to_file(&self, path: &PathBuf) -> ConfigResult<()> {
-        let content = serde_json::to_string_pretty(self)
-            .map_err(|e| ConfigError::InvalidFormat { message: e.to_string() })?;
-        
-        std::fs::write(path, content)
-            .map_err(|e| ConfigError::InvalidFormat { message: e.to_string() })?;
-        
+        let content =
+            serde_json::to_string_pretty(self).map_err(|e| ConfigError::InvalidFormat {
+                message: e.to_string(),
+            })?;
+
+        std::fs::write(path, content).map_err(|e| ConfigError::InvalidFormat {
+            message: e.to_string(),
+        })?;
+
         Ok(())
     }
 
@@ -319,11 +325,12 @@ impl CompilerConfig {
 
         // Validate output configuration
         if !self.output.output_dir.exists() {
-            std::fs::create_dir_all(&self.output.output_dir)
-                .map_err(|e| ConfigError::InvalidValue {
+            std::fs::create_dir_all(&self.output.output_dir).map_err(|e| {
+                ConfigError::InvalidValue {
                     key: "output.output_dir".to_string(),
                     value: self.output.output_dir.to_string_lossy().to_string(),
-                })?;
+                }
+            })?;
         }
 
         Ok(())
@@ -335,8 +342,9 @@ impl CompilerConfig {
             Ok(path.clone())
         } else {
             // Try to find Lean 4 in PATH
-            which::which("lean")
-                .map_err(|_| ConfigError::MissingKey { key: "lean4.lean4_path".to_string() })
+            which::which("lean").map_err(|_| ConfigError::MissingKey {
+                key: "lean4.lean4_path".to_string(),
+            })
         }
     }
 
@@ -346,8 +354,9 @@ impl CompilerConfig {
             Ok(path.clone())
         } else {
             // Try to find Z3 in PATH
-            which::which("z3")
-                .map_err(|_| ConfigError::MissingKey { key: "smt.z3.z3_path".to_string() })
+            which::which("z3").map_err(|_| ConfigError::MissingKey {
+                key: "smt.z3.z3_path".to_string(),
+            })
         }
     }
 
@@ -357,8 +366,9 @@ impl CompilerConfig {
             Ok(path.clone())
         } else {
             // Try to find CVC5 in PATH
-            which::which("cvc5")
-                .map_err(|_| ConfigError::MissingKey { key: "smt.cvc5.cvc5_path".to_string() })
+            which::which("cvc5").map_err(|_| ConfigError::MissingKey {
+                key: "smt.cvc5.cvc5_path".to_string(),
+            })
         }
     }
 }
@@ -395,11 +405,11 @@ mod tests {
     fn test_config_file_operations() {
         let temp_dir = tempdir().unwrap();
         let config_path = temp_dir.path().join("config.json");
-        
+
         let config = CompilerConfig::default();
         config.save_to_file(&config_path).unwrap();
-        
+
         let loaded_config = CompilerConfig::from_file(&config_path).unwrap();
         assert_eq!(config.lean4.version, loaded_config.lean4.version);
     }
-} 
+}

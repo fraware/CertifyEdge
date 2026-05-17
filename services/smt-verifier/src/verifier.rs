@@ -1,5 +1,5 @@
 //! Verification result types and processing
-//! 
+//!
 //! This module defines the verification result types and processing logic
 //! for the SMT verification service.
 
@@ -145,12 +145,14 @@ impl SolverStats {
         }
 
         // Update averages
-        self.average_execution_time_ms = 
-            (self.average_execution_time_ms * (self.total_verifications - 1) + result.execution_time_ms) 
+        self.average_execution_time_ms = (self.average_execution_time_ms
+            * (self.total_verifications - 1)
+            + result.execution_time_ms)
             / self.total_verifications;
-        
-        self.average_memory_usage_mb = 
-            (self.average_memory_usage_mb * (self.total_verifications - 1) + result.memory_usage_mb) 
+
+        self.average_memory_usage_mb = (self.average_memory_usage_mb
+            * (self.total_verifications - 1)
+            + result.memory_usage_mb)
             / self.total_verifications;
     }
 
@@ -167,14 +169,14 @@ impl SolverStats {
     pub fn result_distribution(&self) -> HashMap<SMTResult, f64> {
         let mut distribution = HashMap::new();
         let total = self.total_verifications as f64;
-        
+
         if total > 0.0 {
             distribution.insert(SMTResult::Sat, self.sat_count as f64 / total);
             distribution.insert(SMTResult::Unsat, self.unsat_count as f64 / total);
             distribution.insert(SMTResult::Unknown, self.unknown_count as f64 / total);
             distribution.insert(SMTResult::Error, self.error_count as f64 / total);
         }
-        
+
         distribution
     }
 }
@@ -203,9 +205,10 @@ impl ResultProcessor {
 
         // Detect anomalies
         let mut anomalies = Vec::new();
-        
+
         // Check for execution time anomalies
-        let avg_time: u64 = results.iter().map(|r| r.execution_time_ms).sum::<u64>() / results.len() as u64;
+        let avg_time: u64 =
+            results.iter().map(|r| r.execution_time_ms).sum::<u64>() / results.len() as u64;
         for result in results {
             if result.execution_time_ms > avg_time * 3 {
                 anomalies.push(Anomaly::ExecutionTimeOutlier {
@@ -217,7 +220,8 @@ impl ResultProcessor {
         }
 
         // Check for memory usage anomalies
-        let avg_memory: u64 = results.iter().map(|r| r.memory_usage_mb).sum::<u64>() / results.len() as u64;
+        let avg_memory: u64 =
+            results.iter().map(|r| r.memory_usage_mb).sum::<u64>() / results.len() as u64;
         for result in results {
             if result.memory_usage_mb > avg_memory * 2 {
                 anomalies.push(Anomaly::MemoryUsageOutlier {
@@ -309,13 +313,13 @@ pub enum Anomaly {
 pub enum ValidationError {
     #[error("Invalid verification ID")]
     InvalidVerificationId,
-    
+
     #[error("Invalid execution time")]
     InvalidExecutionTime,
-    
+
     #[error("Invalid memory usage")]
     InvalidMemoryUsage,
-    
+
     #[error("Missing error details")]
     MissingErrorDetails,
 }
@@ -336,7 +340,7 @@ mod tests {
     #[test]
     fn test_solver_stats() {
         let mut stats = SolverStats::new(SolverType::Z3);
-        
+
         let result = VerificationResult {
             verification_id: "test".to_string(),
             solver_type: SolverType::Z3,
@@ -349,7 +353,7 @@ mod tests {
             errors: vec![],
             metadata: HashMap::new(),
         };
-        
+
         stats.update(&result);
         assert_eq!(stats.total_verifications, 1);
         assert_eq!(stats.successful_verifications, 1);
@@ -385,10 +389,10 @@ mod tests {
                 metadata: HashMap::new(),
             },
         ];
-        
+
         let processing = ResultProcessor::process_results(&results);
         assert_eq!(processing.consensus, Some(SMTResult::Sat));
         assert_eq!(processing.confidence, 1.0);
         assert!(processing.anomalies.is_empty());
     }
-} 
+}

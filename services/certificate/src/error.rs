@@ -1,5 +1,5 @@
 //! Error types for certificate service
-//! 
+//!
 //! This module defines error types used throughout the certificate service.
 
 use thiserror::Error;
@@ -96,4 +96,4 @@ impl From<std::io::Error> for CertificateError {
 }
 
 /// Result type for certificate operations
-pub type CertificateResult<T> = Result<T, CertificateError>; 
+pub type CertificateResult<T> = Result<T, CertificateError>;

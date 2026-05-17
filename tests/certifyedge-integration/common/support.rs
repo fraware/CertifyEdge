@@ -40,6 +40,15 @@ pub fn labtrust_fixture(name: &str) -> PathBuf {
     repo_root().join("tests/labtrust").join(name)
 }
 
+/// `emit-pcs-certificate --release-mode` requires the pcs-core CLI (`pip install -e pcs-core/python`).
+pub fn pcs_cli_available() -> bool {
+    std::process::Command::new("pcs")
+        .arg("--help")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
 /// Resolve `certifyedge` for integration tests (Cargo `cargo_bin` or Bazel `CERTIFYEDGE_BIN` / runfiles).
 pub fn certifyedge_cmd() -> Command {
     if let Some(path) = resolve_certifyedge_bin() {
@@ -70,6 +79,16 @@ fn resolve_certifyedge_bin() -> Option<PathBuf> {
             }
         }
     }
+    for runfile_key in [
+        "_main/cli/certifyedge.exe",
+        "_main/cli/certifyedge",
+        "cli/certifyedge.exe",
+        "cli/certifyedge",
+    ] {
+        if let Some(path) = path_from_runfiles_manifest(runfile_key) {
+            return Some(path);
+        }
+    }
     bazel_certifyedge_bin()
 }
 
@@ -82,7 +101,14 @@ fn resolve_bin_path(path: PathBuf) -> Option<PathBuf> {
             return Some(canonical);
         }
     }
-    if !path.is_relative() {
+    if path.is_relative() {
+        let rel = path.to_string_lossy();
+        for runfile_key in [rel.to_string(), format!("_main/{rel}")] {
+            if let Some(abs) = path_from_runfiles_manifest(&runfile_key) {
+                return Some(abs);
+            }
+        }
+    } else {
         return None;
     }
     for var in ["RUNFILES_DIR", "TEST_SRCDIR"] {
@@ -122,6 +148,35 @@ fn find_certifyedge_under(root: &Path) -> Option<PathBuf> {
         }
     }
     None
+}
+
+/// Manifest-only runfiles (common on Windows): map `_main/cli/certifyedge.exe` → execroot path.
+fn path_from_runfiles_manifest(runfile_key: &str) -> Option<PathBuf> {
+    let manifest = runfiles_manifest_path()?;
+    let content = std::fs::read_to_string(&manifest).ok()?;
+    for line in content.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let (key, value) = line.split_once(' ')?;
+        if key == runfile_key {
+            let path = PathBuf::from(value);
+            if path.is_file() {
+                return Some(path);
+            }
+        }
+    }
+    None
+}
+
+fn runfiles_manifest_path() -> Option<PathBuf> {
+    if let Ok(path) = std::env::var("RUNFILES_MANIFEST_FILE") {
+        return Some(PathBuf::from(path));
+    }
+    let runfiles = std::env::var("RUNFILES_DIR").ok()?;
+    let manifest = PathBuf::from(runfiles).join("MANIFEST");
+    manifest.is_file().then_some(manifest)
 }
 
 fn runfiles_roots(root: &Path) -> Vec<PathBuf> {

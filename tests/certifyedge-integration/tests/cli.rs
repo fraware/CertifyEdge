@@ -9,7 +9,7 @@ use predicates::prelude::*;
 #[path = "../common/support.rs"]
 mod support;
 
-use support::{certifyedge_cmd, env_lock, labtrust_fixture, repo_root, spec_path};
+use support::{certifyedge_cmd, env_lock, labtrust_fixture, pcs_cli_available, repo_root, spec_path};
 
 fn spec_qc_release() -> PathBuf {
     spec_path("qc_release.stl")
@@ -272,6 +272,10 @@ fn test_verify_certificate_rejects_modified_digest() {
 
 #[test]
 fn test_emit_pcs_certificate_release_mode_flag_on_subcommand() {
+    if !pcs_cli_available() {
+        eprintln!("note: skipped — pcs CLI not on PATH (release-mode requires pcs-core)");
+        return;
+    }
     let _guard = env_lock();
     let out = repo_root().join("target/test_cert_release_subcmd.json");
     let commit = "abcdef0123456789abcdef0123456789abcdef01";
@@ -301,6 +305,10 @@ fn test_emit_pcs_certificate_release_mode_flag_on_subcommand() {
 
 #[test]
 fn test_release_mode_never_emits_zero_source_commit() {
+    if !pcs_cli_available() {
+        eprintln!("note: skipped — pcs CLI not on PATH (release-mode requires pcs-core)");
+        return;
+    }
     let _guard = env_lock();
     let out = repo_root().join("target/test_cert_release.json");
     let commit = "abcdef0123456789abcdef0123456789abcdef01";
