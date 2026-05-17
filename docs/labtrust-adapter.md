@@ -36,9 +36,15 @@ Canonical JSON uses sorted object keys and compact separators, matching `labtrus
 
 Malformed traces fail with reason `malformed_trace`.
 
-## Temporal properties
+## Temporal property profile (`.stl` files)
 
-Hospital-lab STL templates under `templates/hospital_lab/` map to property IDs:
+For v0.1, `templates/hospital_lab/*.stl` files are **not** parsed as full STL formulas. They use a small LabTrust temporal-property DSL: a property id line, optional `allowed_release_roles:`, and comments. The checker in `services/labtrust-adapter/src/temporal.rs` implements the semantics directly.
+
+Do not assume general STL operators (e.g. global `G`, bounded `F`, continuous signals) apply to these templates.
+
+## Property templates
+
+Hospital-lab profile files under `templates/hospital_lab/` map to property IDs:
 
 | Template | Property ID |
 |----------|-------------|

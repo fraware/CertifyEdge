@@ -65,10 +65,8 @@ fn write_fixtures() {
     }
 
     let spec = PropertySpec::load(&repo_root().join("templates/hospital_lab/qc_release.stl")).unwrap();
-    let meta = CertifyEdgeMetadata {
-        source_commit: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into(),
-        ..Default::default()
-    };
+    let mut meta = CertifyEdgeMetadata::dev_default();
+    meta.source_commit = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into();
 
     let valid_check = check_property(&TraceView::from(valid.clone()), &spec);
     let valid_cert = build_certificate(&valid.trace_hash, &spec, &valid_check, &meta, None);

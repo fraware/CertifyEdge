@@ -8,6 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  CERTIFYEDGE_SOURCE_COMMIT: ${{ github.sha }}
 
 jobs:
   rust:
@@ -56,9 +57,9 @@ jobs:
       - name: Install pcs-core CLI
         run: pip install -e pcs-core/python
 
-      - name: Emit TraceCertificate and pcs validate
+      - name: Emit TraceCertificate (release mode) and pcs validate
         run: |
-          cargo run -p certifyedge -- emit-pcs-certificate \
+          cargo run -p certifyedge -- --release-mode emit-pcs-certificate \
             --spec templates/hospital_lab/qc_release.stl \
             --trace tests/labtrust/valid_trace.json \
             --out target/trace_certificate.json

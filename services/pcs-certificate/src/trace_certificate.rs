@@ -28,24 +28,7 @@ pub const PRODUCER: &str = "CertifyEdge";
 pub const SCHEMA_VERSION: &str = "v0";
 pub const SOURCE_REPO: &str = "https://github.com/fraware/CertifyEdge";
 
-#[derive(Debug, Clone)]
-pub struct CertifyEdgeMetadata {
-    pub checker_version: String,
-    pub producer_version: String,
-    pub source_commit: String,
-}
-
-impl Default for CertifyEdgeMetadata {
-    fn default() -> Self {
-        Self {
-            checker_version: env!("CARGO_PKG_VERSION").to_string(),
-            producer_version: env!("CARGO_PKG_VERSION").to_string(),
-            source_commit: option_env!("CERTIFYEDGE_SOURCE_COMMIT")
-                .unwrap_or("0000000000000000000000000000000000000000")
-                .to_string(),
-        }
-    }
-}
+pub use crate::metadata::CertifyEdgeMetadata;
 
 #[derive(Debug, Clone)]
 pub struct CertificateOutcome {
