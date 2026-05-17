@@ -4,13 +4,13 @@ use assert_cmd::Command;
 use pcs_certificate::validate_trace_certificate_schema;
 use predicates::prelude::*;
 
-#[path = "support.rs"]
+#[path = "../common/support.rs"]
 mod support;
 
-use support::{labtrust_fixture, repo_root, spec_path};
+use support::{certifyedge_cmd, labtrust_fixture, repo_root, spec_path};
 
 fn certifyedge() -> Command {
-    Command::cargo_bin("certifyedge").expect("certifyedge binary")
+    certifyedge_cmd()
 }
 
 #[test]

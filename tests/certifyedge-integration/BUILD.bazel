@@ -8,21 +8,22 @@ PCS_FIXTURES = [
     "//schemas/pcs:schemas",
 ]
 
-PCS_RUSTC_ENV = {
-    "CARGO_BIN_EXE_certifyedge": "$(location //cli:certifyedge)",
+PCS_TEST_ENV = {
+    # location: path under runfiles; support.rs also scans RUNFILES_DIR/_main/cli/.
+    "CERTIFYEDGE_BIN": "$(rootpath //cli:certifyedge)",
 }
 
 rust_test(
     name = "cli",
     srcs = [
         "tests/cli.rs",
-        "tests/support.rs",
+        "common/support.rs",
     ],
     edition = "2021",
+    rustc_flags = ["--cfg=bazel"],
     data = PCS_FIXTURES + ["//cli:certifyedge"],
-    rustc_env = PCS_RUSTC_ENV,
+    env = PCS_TEST_ENV,
     deps = [
-        "//cli:certifyedge",
         "//services/labtrust-adapter:labtrust_adapter",
         "//services/pcs-certificate:pcs_certificate",
         "@crates//:assert_cmd",
@@ -36,13 +37,14 @@ rust_test(
     name = "pcs_v01",
     srcs = [
         "tests/pcs_v01.rs",
-        "tests/support.rs",
+        "common/support.rs",
     ],
     edition = "2021",
     data = PCS_FIXTURES,
     deps = [
         "//services/labtrust-adapter:labtrust_adapter",
         "//services/pcs-certificate:pcs_certificate",
+        "@crates//:assert_cmd",
         "@crates//:serde_json",
     ],
     tags = ["pcs"],
@@ -52,13 +54,13 @@ rust_test(
     name = "runbook",
     srcs = [
         "tests/runbook.rs",
-        "tests/support.rs",
+        "common/support.rs",
     ],
     edition = "2021",
+    rustc_flags = ["--cfg=bazel"],
     data = PCS_FIXTURES + ["//cli:certifyedge"],
-    rustc_env = PCS_RUSTC_ENV,
+    env = PCS_TEST_ENV,
     deps = [
-        "//cli:certifyedge",
         "//services/labtrust-adapter:labtrust_adapter",
         "//services/pcs-certificate:pcs_certificate",
         "@crates//:assert_cmd",

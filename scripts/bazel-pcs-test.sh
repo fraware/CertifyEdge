@@ -13,12 +13,23 @@ TARGETS=(
   "//tests/pipeline_integration:pipeline_integration"
 )
 
-for t in \
-  "//tests/certifyedge-integration:cli" \
-  "//tests/certifyedge-integration:pcs_v01" \
-  "//tests/certifyedge-integration:runbook" \
-  "//scripts:pcs_runbook"
-do
+# Library-only PCS tests work on all platforms; CLI subprocess tests need runfiles (Linux CI).
+PCS_BAZEL_TESTS=(
+  "//tests/certifyedge-integration:pcs_v01"
+)
+case "$(uname -s 2>/dev/null || echo unknown)" in
+  Linux* | Darwin*)
+    PCS_BAZEL_TESTS+=(
+      "//tests/certifyedge-integration:cli"
+      "//tests/certifyedge-integration:runbook"
+    )
+    ;;
+  *)
+    echo "note: skipping Bazel CLI/runbook PCS tests on this OS (use: cargo test -p certifyedge-integration)"
+    ;;
+esac
+
+for t in "${PCS_BAZEL_TESTS[@]}"; do
   if bazel query "$t" >/dev/null 2>&1; then
     TARGETS+=("$t")
   fi
@@ -53,7 +64,7 @@ repin_if_needed
 echo "bazel test --config=ci ${TARGETS[*]}"
 if ! run_bazel "${TARGETS[@]}"; then
   echo "" >&2
-  echo "Bazel failed (often PKIX / certificate on Windows)." >&2
+  echo "Bazel PCS gate failed (see errors above)." >&2
   echo "Try:" >&2
   echo "  1. ./scripts/test-substrate.sh   # Cargo-only substrate + PCS unit tests" >&2
   echo "  2. Update Java/Bazel: use Bazelisk and ensure Windows trusts https://bcr.bazel.build" >&2

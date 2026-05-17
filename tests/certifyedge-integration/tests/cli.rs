@@ -1,19 +1,15 @@
 //! CLI runbook tests — `certifyedge check-trace`, `emit-pcs-certificate`, etc.
 
 use std::path::PathBuf;
-use std::sync::Mutex;
 
 use assert_cmd::Command;
 use pcs_certificate::{is_zero_source_commit, CertifyEdgeMetadata, ZERO_SOURCE_COMMIT};
 use predicates::prelude::*;
 
-#[path = "support.rs"]
+#[path = "../common/support.rs"]
 mod support;
 
-use support::{labtrust_fixture, repo_root, spec_path};
-
-/// `CERTIFYEDGE_SOURCE_COMMIT` is process-global; serialize env-mutating tests.
-static ENV_LOCK: Mutex<()> = Mutex::new(());
+use support::{certifyedge_cmd, env_lock, labtrust_fixture, repo_root, spec_path};
 
 fn spec_qc_release() -> PathBuf {
     spec_path("qc_release.stl")
@@ -36,7 +32,7 @@ fn unauthorized_trace() -> PathBuf {
 }
 
 fn certifyedge() -> Command {
-    Command::cargo_bin("certifyedge").expect("certifyedge binary")
+    certifyedge_cmd()
 }
 
 #[test]
@@ -276,7 +272,7 @@ fn test_verify_certificate_rejects_modified_digest() {
 
 #[test]
 fn test_emit_pcs_certificate_release_mode_flag_on_subcommand() {
-    let _guard = ENV_LOCK.lock().unwrap();
+    let _guard = env_lock();
     let out = repo_root().join("target/test_cert_release_subcmd.json");
     let commit = "abcdef0123456789abcdef0123456789abcdef01";
     std::env::set_var("CERTIFYEDGE_SOURCE_COMMIT", commit);
@@ -305,7 +301,7 @@ fn test_emit_pcs_certificate_release_mode_flag_on_subcommand() {
 
 #[test]
 fn test_release_mode_never_emits_zero_source_commit() {
-    let _guard = ENV_LOCK.lock().unwrap();
+    let _guard = env_lock();
     let out = repo_root().join("target/test_cert_release.json");
     let commit = "abcdef0123456789abcdef0123456789abcdef01";
     std::env::set_var("CERTIFYEDGE_SOURCE_COMMIT", commit);
@@ -334,7 +330,7 @@ fn test_release_mode_never_emits_zero_source_commit() {
 
 #[test]
 fn test_release_mode_rejects_zero_source_commit() {
-    let _guard = ENV_LOCK.lock().unwrap();
+    let _guard = env_lock();
     std::env::set_var("CERTIFYEDGE_SOURCE_COMMIT", ZERO_SOURCE_COMMIT);
     assert!(CertifyEdgeMetadata::resolve(true).is_err());
 
@@ -359,7 +355,7 @@ fn test_release_mode_rejects_zero_source_commit() {
 
 #[test]
 fn test_release_mode_uses_nonzero_commit() {
-    let _guard = ENV_LOCK.lock().unwrap();
+    let _guard = env_lock();
     let commit = "abcdef0123456789abcdef0123456789abcdef01";
     std::env::set_var("CERTIFYEDGE_SOURCE_COMMIT", commit);
     let meta = CertifyEdgeMetadata::resolve(true).unwrap();

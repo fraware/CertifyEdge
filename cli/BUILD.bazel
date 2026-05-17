@@ -5,6 +5,7 @@ package(default_visibility = ["//visibility:public"])
 rust_library(
     name = "certifyedge_lib",
     srcs = ["src/lib.rs"],
+    crate_name = "certifyedge",
     edition = "2021",
     proc_macro_deps = [
         "@crates__clap_derive-4.6.1//:clap_derive",

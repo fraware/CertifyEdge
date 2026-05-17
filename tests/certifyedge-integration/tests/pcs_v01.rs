@@ -6,7 +6,7 @@ use labtrust_adapter::{
 use pcs_certificate::{build_certificate, verify_certificate_document, CertifyEdgeMetadata};
 use std::path::PathBuf;
 
-#[path = "support.rs"]
+#[path = "../common/support.rs"]
 mod support;
 
 use support::{labtrust_fixture, repo_root, spec_path};
