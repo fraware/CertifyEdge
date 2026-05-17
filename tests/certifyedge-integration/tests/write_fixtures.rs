@@ -12,15 +12,15 @@ use labtrust_adapter::{
     workflow_sim::{run_workflow, WorkflowStep},
     PropertySpec, TraceView,
 };
-use pcs_certificate::{build_certificate, counterexample_to_json, CertifyEdgeMetadata};
+use pcs_certificate::{
+    build_certificate, counterexample_to_json, CertifyEdgeMetadata, SOURCE_REPO,
+};
 use serde_json::to_string_pretty;
 use std::path::PathBuf;
 
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
-
-const RELEASE_FIXTURE_SOURCE_COMMIT: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 
 fn certifyedge_bin() -> PathBuf {
     if let Ok(path) = std::env::var("CARGO_BIN_EXE_certifyedge") {
@@ -38,6 +38,7 @@ fn certifyedge_bin() -> PathBuf {
 
 fn run_certifyedge(args: &[&str]) {
     let status = Command::new(certifyedge_bin())
+        .current_dir(repo_root())
         .args(args)
         .status()
         .expect("spawn certifyedge");
@@ -46,10 +47,20 @@ fn run_certifyedge(args: &[&str]) {
 
 fn run_certifyedge_expect_fail(args: &[&str]) {
     let status = Command::new(certifyedge_bin())
+        .current_dir(repo_root())
         .args(args)
         .status()
         .expect("spawn certifyedge");
     assert!(!status.success(), "certifyedge {:?} should fail", args);
+}
+
+fn git_head_commit(root: &PathBuf) -> String {
+    let output = Command::new("git")
+        .args(["-C", root.to_str().unwrap(), "rev-parse", "HEAD"])
+        .output()
+        .expect("git rev-parse HEAD");
+    assert!(output.status.success(), "git rev-parse HEAD failed");
+    String::from_utf8_lossy(&output.stdout).trim().to_string()
 }
 
 fn write_labtrust_release_fixtures(
@@ -57,10 +68,26 @@ fn write_labtrust_release_fixtures(
     missing_qc: &labtrust_adapter::LabTrustTrace,
     unauthorized: &labtrust_adapter::LabTrustTrace,
 ) {
-    let release_dir = repo_root().join("tests/fixtures/labtrust-release");
+    let root = repo_root();
+    let release_dir = root.join("tests/fixtures/labtrust-release");
     std::fs::create_dir_all(&release_dir).unwrap();
 
-    let spec = repo_root()
+    let head = git_head_commit(&root);
+    let manifest_path = release_dir.join("release_manifest.json");
+    let manifest = serde_json::json!({
+        "schema_version": "v0",
+        "certifyedge": {
+            "source_repo": SOURCE_REPO,
+            "source_commit": head
+        }
+    });
+    std::fs::write(
+        &manifest_path,
+        format!("{}\n", serde_json::to_string_pretty(&manifest).unwrap()),
+    )
+    .unwrap();
+
+    let spec = root
         .join("templates/hospital_lab/qc_release.stl")
         .to_string_lossy()
         .into_owned();
@@ -88,9 +115,10 @@ fn write_labtrust_release_fixtures(
     )
     .unwrap();
 
-    std::env::set_var("CERTIFYEDGE_SOURCE_COMMIT", RELEASE_FIXTURE_SOURCE_COMMIT);
+    std::env::remove_var("CERTIFYEDGE_SOURCE_COMMIT");
 
     run_certifyedge(&[
+        "--release-mode",
         "emit-pcs-certificate",
         "--spec",
         &spec,
@@ -99,6 +127,11 @@ fn write_labtrust_release_fixtures(
         "--out",
         cert_path.to_str().unwrap(),
     ]);
+
+    let cert: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&cert_path).unwrap()).unwrap();
+    assert_eq!(cert["source_commit"].as_str().unwrap(), head.as_str());
+    assert_eq!(cert["source_repo"].as_str().unwrap(), SOURCE_REPO);
 
     run_certifyedge_expect_fail(&[
         "check-trace",
@@ -120,10 +153,9 @@ fn write_labtrust_release_fixtures(
         unauthorized_cx_path.to_str().unwrap(),
     ]);
 
-    std::env::remove_var("CERTIFYEDGE_SOURCE_COMMIT");
-
     println!(
-        "wrote labtrust-release fixtures under {}",
+        "wrote labtrust-release fixtures (source_commit={}) under {}",
+        &head[..12.min(head.len())],
         release_dir.display()
     );
 }
@@ -233,8 +265,7 @@ fn write_fixtures() {
 
     let spec =
         PropertySpec::load(&repo_root().join("templates/hospital_lab/qc_release.stl")).unwrap();
-    let mut meta = CertifyEdgeMetadata::dev_default();
-    meta.source_commit = RELEASE_FIXTURE_SOURCE_COMMIT.into();
+    let meta = CertifyEdgeMetadata::dev_default();
 
     let valid_check = check_property(&TraceView::from(valid.clone()), &spec);
     let valid_cert = build_certificate(&valid.trace_hash, &spec, &valid_check, &meta, None);

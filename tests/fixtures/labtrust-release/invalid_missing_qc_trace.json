@@ -15,14 +15,14 @@
       "pre_state": {
         "released": false,
         "lifecycle": "registered",
-        "analysis_complete": false,
-        "qc_complete": false
+        "qc_complete": false,
+        "analysis_complete": false
       },
       "post_state": {
+        "released": false,
         "qc_complete": false,
         "lifecycle": "accessioned",
-        "analysis_complete": false,
-        "released": false
+        "analysis_complete": false
       },
       "policy_decision": "allow",
       "reason_code": "ok",
@@ -38,16 +38,16 @@
       "actor_role": "release_manager",
       "action": "release_sample",
       "pre_state": {
-        "qc_complete": false,
-        "analysis_complete": false,
         "lifecycle": "accessioned",
-        "released": false
+        "released": false,
+        "analysis_complete": false,
+        "qc_complete": false
       },
       "post_state": {
         "lifecycle": "accessioned",
+        "analysis_complete": false,
         "qc_complete": false,
-        "released": false,
-        "analysis_complete": false
+        "released": false
       },
       "policy_decision": "deny",
       "reason_code": "missing_qc",

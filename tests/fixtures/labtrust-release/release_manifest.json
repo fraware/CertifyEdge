@@ -1,0 +1,7 @@
+{
+  "certifyedge": {
+    "source_commit": "68b79aa47bd1cdcc02b2605aaa988078cc41952f",
+    "source_repo": "https://github.com/fraware/CertifyEdge"
+  },
+  "schema_version": "v0"
+}

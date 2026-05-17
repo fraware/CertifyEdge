@@ -64,8 +64,37 @@ pub fn runbook_labtrust_release_trace() -> PathBuf {
     labtrust_release_fixture("trace.json")
 }
 
-/// Pinned provenance for regenerating `tests/fixtures/labtrust-release/trace_certificate.json`.
-pub const RELEASE_FIXTURE_SOURCE_COMMIT: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+/// Committed release manifest (`tests/fixtures/labtrust-release/release_manifest.json`).
+pub fn labtrust_release_manifest_path() -> PathBuf {
+    labtrust_release_fixture("release_manifest.json")
+}
+
+/// CertifyEdge `source_commit` recorded in the release manifest (must match `trace_certificate.json`).
+pub fn release_manifest_certifyedge_commit() -> String {
+    let text =
+        std::fs::read_to_string(labtrust_release_manifest_path()).expect("release_manifest.json");
+    let value: serde_json::Value =
+        serde_json::from_str(&text).expect("parse release_manifest.json");
+    value["certifyedge"]["source_commit"]
+        .as_str()
+        .expect("certifyedge.source_commit")
+        .to_string()
+}
+
+/// `git rev-parse HEAD` in the CertifyEdge repository root.
+pub fn git_head_commit() -> Option<String> {
+    let root = repo_root();
+    let root_str = root.to_str()?;
+    let output = std::process::Command::new("git")
+        .args(["-C", root_str, "rev-parse", "HEAD"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let commit = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    (commit.len() >= 7).then_some(commit)
+}
 
 /// Run `f` with `CERTIFYEDGE_SOURCE_COMMIT` set to `commit`, restoring the prior value afterward.
 pub fn with_source_commit<R>(commit: &str, f: impl FnOnce() -> R) -> R {
@@ -83,6 +112,7 @@ pub fn with_source_commit<R>(commit: &str, f: impl FnOnce() -> R) -> R {
 
 /// All committed JSON artifacts under `tests/fixtures/labtrust-release/`.
 pub const LABTRUST_RELEASE_FIXTURES: &[&str] = &[
+    "release_manifest.json",
     "trace.json",
     "trace_certificate.json",
     "invalid_missing_qc_trace.json",
@@ -109,6 +139,21 @@ pub fn validate_labtrust_release_fixture_tree() {
     )
     .unwrap();
     assert_eq!(cert["trace_hash"], trace["trace_hash"]);
+
+    let manifest_commit = release_manifest_certifyedge_commit();
+    assert_eq!(
+        cert["source_commit"].as_str().unwrap(),
+        manifest_commit.as_str(),
+        "trace_certificate source_commit must match release_manifest.json"
+    );
+    assert!(
+        !pcs_certificate::is_placeholder_source_commit(&manifest_commit),
+        "release manifest must not use a placeholder commit"
+    );
+    assert_eq!(
+        cert["source_repo"].as_str().unwrap(),
+        "https://github.com/fraware/CertifyEdge"
+    );
 }
 
 /// Compare certificate fields that must be stable for a given trace, spec, and pinned `source_commit`.

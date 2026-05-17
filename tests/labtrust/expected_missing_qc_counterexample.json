@@ -1,5 +1,5 @@
 {
-  "counterexample_id": "cx-46f050d6-133e-42e5-877d-cc39c252168f",
+  "counterexample_id": "cx-0b8cbdfc-5190-4cd5-bf66-628c6a3a485e",
   "property_id": "hospital_lab.no_release_before_qc",
   "sample_id": "PCS-SAMPLE-002",
   "violating_event_id": "qc-release-invalid-missing-qc-evt-001",

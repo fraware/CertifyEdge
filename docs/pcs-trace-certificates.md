@@ -35,15 +35,17 @@ The canonical **v0.1 release certificate** for the hospital-lab demo is checked 
 
 `tests/fixtures/labtrust-release/trace_certificate.json`
 
-It is produced by the CertifyEdge CLI (not maintained by hand):
+It is produced by the CertifyEdge CLI in **release mode** (not maintained by hand). Provenance is recorded in `tests/fixtures/labtrust-release/release_manifest.json` (`certifyedge.source_commit` must equal the certificate `source_commit`).
 
 ```bash
 cargo build -p certifyedge
-CERTIFYEDGE_SOURCE_COMMIT=<pinned-commit> certifyedge emit-pcs-certificate \
+certifyedge --release-mode emit-pcs-certificate \
   --spec templates/hospital_lab/qc_release.stl \
   --trace tests/fixtures/labtrust-release/trace.json \
   --out tests/fixtures/labtrust-release/trace_certificate.json
 ```
+
+The CLI prints `source_commit_resolution=env|git|local_dev` (diagnostics only; not stored in the certificate).
 
 Regenerate traces and this fixture together:
 
@@ -149,8 +151,11 @@ Use pcs-core status strings only: `CertificateChecked`, `Rejected`, `Certificate
 
 Use `--release-mode` (or `CERTIFYEDGE_RELEASE_MODE=1`) when emitting artifacts for CI or handoff:
 
-- `source_commit` must resolve from `CERTIFYEDGE_SOURCE_COMMIT` or `git rev-parse HEAD` (never the all-zero placeholder).
+- `source_commit` must resolve from `CERTIFYEDGE_SOURCE_COMMIT` or `git rev-parse HEAD` inside the CertifyEdge repository.
+- Placeholder commits are rejected: `local-dev`, all-zero SHAs, and the pinned test patterns `aaaa…`, `bbbb…`, `cccc…` (40 hex digits).
+- If LabTrust-Gym is discoverable (`LABTRUST_GYM_ROOT`, `LABTRUST_ROOT`, or `../LabTrust-Gym`), release mode rejects a `CERTIFYEDGE_SOURCE_COMMIT` that equals LabTrust-Gym `HEAD` but not CertifyEdge `HEAD`.
 - `emit-pcs-certificate` runs `pcs validate` on the output and fails if validation fails or `pcs` is missing.
+- Stdout includes `source_commit_resolution=env|git|local_dev` for operator visibility.
 
 Local development without `--release-mode` may use the zero `source_commit` placeholder when no git commit is available.
 

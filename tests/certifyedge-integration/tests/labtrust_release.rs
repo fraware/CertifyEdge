@@ -5,21 +5,42 @@
 //! (certificate and counterexamples are produced by the `certifyedge` CLI).
 
 use assert_cmd::Command;
-use pcs_certificate::{is_zero_source_commit, ZERO_SOURCE_COMMIT};
+use pcs_certificate::{
+    is_placeholder_source_commit, is_zero_source_commit, labtrust_gym_root, ZERO_SOURCE_COMMIT,
+};
+
 use predicates::prelude::*;
 
 #[path = "../common/support.rs"]
 mod support;
 
 use support::{
-    assert_certificate_semantics_equal, certifyedge_cmd, labtrust_fixture,
-    labtrust_release_certificate_fixture, labtrust_release_fixture, pcs_cli_available, repo_root,
-    runbook_labtrust_release_trace, runbook_spec_qc_release, validate_certificate_against_pcs_core,
-    validate_labtrust_release_fixture_tree, with_source_commit, RELEASE_FIXTURE_SOURCE_COMMIT,
+    assert_certificate_semantics_equal, certifyedge_cmd, env_lock, git_head_commit,
+    labtrust_fixture, labtrust_release_certificate_fixture, labtrust_release_fixture,
+    release_manifest_certifyedge_commit, repo_root, runbook_labtrust_release_trace,
+    runbook_spec_qc_release, validate_certificate_against_pcs_core,
+    validate_labtrust_release_fixture_tree, with_source_commit,
 };
+
+const ENV_OVERRIDE_COMMIT: &str = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
 
 fn certifyedge() -> Command {
     certifyedge_cmd()
+}
+
+fn emit_release_args(out: &std::path::Path) -> Vec<String> {
+    vec![
+        "--release-mode".into(),
+        "emit-pcs-certificate".into(),
+        "--spec".into(),
+        runbook_spec_qc_release().to_string_lossy().into_owned(),
+        "--trace".into(),
+        runbook_labtrust_release_trace()
+            .to_string_lossy()
+            .into_owned(),
+        "--out".into(),
+        out.to_string_lossy().into_owned(),
+    ]
 }
 
 /// Exact runbook: check-trace → emit-pcs-certificate → verify-certificate --trace
@@ -41,19 +62,12 @@ fn test_cli_labtrust_release_runbook_smoke() {
         .success()
         .stdout(predicate::str::contains("PASS"));
 
-    with_source_commit(RELEASE_FIXTURE_SOURCE_COMMIT, || {
+    with_source_commit(&release_manifest_certifyedge_commit(), || {
         certifyedge()
-            .args([
-                "emit-pcs-certificate",
-                "--spec",
-                spec.to_str().unwrap(),
-                "--trace",
-                trace.to_str().unwrap(),
-                "--out",
-                cert_out.to_str().unwrap(),
-            ])
+            .args(emit_release_args(&cert_out))
             .assert()
             .success()
+            .stdout(predicate::str::contains("source_commit_resolution=env"))
             .stdout(predicate::str::contains("CertificateChecked"));
     });
 
@@ -98,7 +112,7 @@ fn test_labtrust_release_certificate_fixture_is_cli_generated() {
         serde_json::from_str(&std::fs::read_to_string(&fixture).unwrap()).unwrap();
     assert_eq!(
         fixture_value["source_commit"].as_str().unwrap(),
-        RELEASE_FIXTURE_SOURCE_COMMIT
+        release_manifest_certifyedge_commit()
     );
 
     certifyedge()
@@ -112,17 +126,9 @@ fn test_labtrust_release_certificate_fixture_is_cli_generated() {
         .success();
 
     let out = repo_root().join("target/labtrust_release_reemit.json");
-    with_source_commit(RELEASE_FIXTURE_SOURCE_COMMIT, || {
+    with_source_commit(&release_manifest_certifyedge_commit(), || {
         certifyedge()
-            .args([
-                "emit-pcs-certificate",
-                "--spec",
-                runbook_spec_qc_release().to_str().unwrap(),
-                "--trace",
-                runbook_labtrust_release_trace().to_str().unwrap(),
-                "--out",
-                out.to_str().unwrap(),
-            ])
+            .args(emit_release_args(&out))
             .assert()
             .success();
     });
@@ -193,56 +199,129 @@ fn test_labtrust_release_invalid_traces_emit_rejected() {
 }
 
 #[test]
-fn test_release_mode_rejects_zero_source_commit_on_labtrust_release_trace() {
-    let out = repo_root().join("target/release_zero_labtrust_release.json");
-    with_source_commit(ZERO_SOURCE_COMMIT, || {
+fn test_release_mode_uses_certifyedge_git_commit() {
+    let out = repo_root().join("target/release_git_labtrust_release.json");
+    let head = git_head_commit().expect("CertifyEdge git HEAD required for this test");
+
+    let _guard = env_lock();
+    std::env::remove_var("CERTIFYEDGE_SOURCE_COMMIT");
+
+    certifyedge()
+        .args(emit_release_args(&out))
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("source_commit_resolution=git"));
+
+    let cert: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&out).unwrap()).unwrap();
+    assert_eq!(cert["source_commit"].as_str().unwrap(), head);
+}
+
+#[test]
+fn test_release_mode_env_commit_overrides_git_commit() {
+    let out = repo_root().join("target/release_env_override_labtrust_release.json");
+    let head = git_head_commit().expect("CertifyEdge git HEAD");
+    if head == ENV_OVERRIDE_COMMIT {
+        eprintln!("skip: git HEAD equals override test commit");
+        return;
+    }
+
+    with_source_commit(ENV_OVERRIDE_COMMIT, || {
         certifyedge()
-            .arg("--release-mode")
-            .args([
-                "emit-pcs-certificate",
-                "--spec",
-                runbook_spec_qc_release().to_str().unwrap(),
-                "--trace",
-                runbook_labtrust_release_trace().to_str().unwrap(),
-                "--out",
-                out.to_str().unwrap(),
-            ])
+            .args(emit_release_args(&out))
             .assert()
-            .failure();
+            .success()
+            .stdout(predicate::str::contains("source_commit_resolution=env"));
+    });
+
+    let cert: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&out).unwrap()).unwrap();
+    assert_eq!(cert["source_commit"].as_str().unwrap(), ENV_OVERRIDE_COMMIT);
+}
+
+#[test]
+fn test_release_mode_rejects_labtrust_commit_if_explicit_repo_check_available() {
+    let lt_root = match labtrust_gym_root() {
+        Some(root) => root,
+        None => {
+            eprintln!("skip: LabTrust-Gym checkout not available for foreign-commit check");
+            return;
+        }
+    };
+    let lt_head = git_head_commit_in(&lt_root).expect("LabTrust-Gym git HEAD");
+    let ce_head = git_head_commit().expect("CertifyEdge git HEAD");
+    if lt_head == ce_head {
+        eprintln!("skip: LabTrust-Gym HEAD equals CertifyEdge HEAD");
+        return;
+    }
+
+    let out = repo_root().join("target/release_labtrust_head_rejected.json");
+    with_source_commit(&lt_head, || {
+        certifyedge()
+            .args(emit_release_args(&out))
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains("LabTrust-Gym HEAD"));
     });
 }
 
 #[test]
-fn test_release_mode_accepts_real_commit_on_labtrust_release_trace() {
-    let out = repo_root().join("target/release_real_labtrust_release.json");
-    let real_commit = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
-
-    with_source_commit(real_commit, || {
-        certifyedge()
-            .arg("--release-mode")
-            .args([
-                "emit-pcs-certificate",
-                "--spec",
-                runbook_spec_qc_release().to_str().unwrap(),
-                "--trace",
-                runbook_labtrust_release_trace().to_str().unwrap(),
-                "--out",
-                out.to_str().unwrap(),
-            ])
-            .assert()
-            .success();
-    });
-
-    if pcs_cli_available() {
-        validate_certificate_against_pcs_core(&out);
+fn test_release_mode_rejects_placeholder_commit() {
+    let out = repo_root().join("target/release_placeholder_labtrust_release.json");
+    for placeholder in [
+        "local-dev",
+        ZERO_SOURCE_COMMIT,
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "cccccccccccccccccccccccccccccccccccccccc",
+    ] {
+        let path = out.with_file_name(format!(
+            "release_placeholder_{}.json",
+            placeholder.chars().take(8).collect::<String>()
+        ));
+        with_source_commit(placeholder, || {
+            certifyedge()
+                .args(emit_release_args(&path))
+                .assert()
+                .failure();
+        });
     }
+}
 
-    let cert: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(&out).unwrap()).unwrap();
-    assert_eq!(cert["source_commit"].as_str().unwrap(), real_commit);
-    assert!(!is_zero_source_commit(
-        &cert["source_commit"].as_str().unwrap()
-    ));
+#[test]
+fn test_trace_certificate_source_repo_is_certifyedge() {
+    let cert: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(labtrust_release_certificate_fixture()).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        cert["source_repo"].as_str().unwrap(),
+        "https://github.com/fraware/CertifyEdge"
+    );
+}
+
+#[test]
+fn test_trace_certificate_source_commit_is_not_placeholder() {
+    let cert: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(labtrust_release_certificate_fixture()).unwrap(),
+    )
+    .unwrap();
+    let commit = cert["source_commit"].as_str().unwrap();
+    assert!(!is_placeholder_source_commit(commit));
+    assert!(!is_zero_source_commit(commit));
+    assert_eq!(commit, release_manifest_certifyedge_commit().as_str());
+}
+
+fn git_head_commit_in(root: &std::path::Path) -> Option<String> {
+    let output = std::process::Command::new("git")
+        .args(["-C", root.to_str()?, "rev-parse", "HEAD"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let commit = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    (commit.len() >= 7).then_some(commit)
 }
 
 fn assert_check_trace_counterexample(trace_file: &str, fixture_cx_file: &str, reason: &str) {

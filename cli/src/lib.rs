@@ -175,6 +175,10 @@ pub fn cmd_emit_certificate(
     };
 
     let meta = CertifyEdgeMetadata::resolve(release_mode)?;
+    println!(
+        "source_commit_resolution={}",
+        meta.source_commit_resolution.as_str()
+    );
     let cx_ref = cx_path.as_ref().map(|p| p.to_string_lossy().to_string());
     let outcome = build_certificate(&trace_hash, &spec, &check, &meta, cx_ref);
 

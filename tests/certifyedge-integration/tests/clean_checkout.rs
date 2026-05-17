@@ -8,8 +8,8 @@ mod support;
 
 use support::{
     assert_certificate_semantics_equal, certifyedge_cmd, labtrust_release_certificate_fixture,
-    repo_root, runbook_labtrust_release_trace, runbook_spec_qc_release,
-    validate_certificate_against_pcs_core, with_source_commit, RELEASE_FIXTURE_SOURCE_COMMIT,
+    release_manifest_certifyedge_commit, repo_root, runbook_labtrust_release_trace,
+    runbook_spec_qc_release, validate_certificate_against_pcs_core, with_source_commit,
 };
 
 fn spec_qc_release() -> std::path::PathBuf {
@@ -56,9 +56,10 @@ fn test_pcs_v01_clean_checkout_certifyedge_segment() {
     let cert_path = work.join("trace_certificate.json");
     let trace = runbook_labtrust_release_trace();
 
-    with_source_commit(RELEASE_FIXTURE_SOURCE_COMMIT, || {
+    with_source_commit(&release_manifest_certifyedge_commit(), || {
         certifyedge()
             .args([
+                "--release-mode",
                 "emit-pcs-certificate",
                 "--spec",
                 spec_qc_release().to_str().unwrap(),
