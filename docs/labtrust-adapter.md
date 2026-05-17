@@ -38,9 +38,15 @@ Malformed traces fail with reason `malformed_trace`.
 
 ## Temporal property profile (`.stl` files)
 
-For v0.1, `templates/hospital_lab/*.stl` files are **not** parsed as full STL formulas. They use a small LabTrust temporal-property DSL: a property id line, optional `allowed_release_roles:`, and comments. The checker in `services/labtrust-adapter/src/temporal.rs` implements the semantics directly.
+PCS v0.1 uses `templates/hospital_lab/*.stl` as the **LabTrust temporal-property profile** (v0.1), not as general STL:
 
-Do not assume general STL operators (e.g. global `G`, bounded `F`, continuous signals) apply to these templates.
+| Supported in profile | Not implemented |
+|---------------------|-----------------|
+| Property id (`property: hospital_lab.*`) | STL formula grammar (`G`, `F`, until, etc.) |
+| `allowed_release_roles:` | Continuous-time or signal semantics |
+| Comments | Arbitrary compositional specs beyond the three hospital-lab properties |
+
+The checker in `services/labtrust-adapter/src/temporal.rs` encodes the three properties directly (`no_release_before_qc`, `authorized_release_only`, `qc_release`). Do not document or depend on full STL semantics unless a future version adds a real parser.
 
 ## Property templates
 

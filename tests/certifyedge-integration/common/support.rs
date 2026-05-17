@@ -40,6 +40,21 @@ pub fn labtrust_fixture(name: &str) -> PathBuf {
     repo_root().join("tests/labtrust").join(name)
 }
 
+/// Validate emitted certificate: vendored pcs-core schema always; `pcs validate` when CLI is on PATH.
+pub fn validate_certificate_against_pcs_core(path: &Path) {
+    let text = std::fs::read_to_string(path).expect("read certificate");
+    let value: serde_json::Value = serde_json::from_str(&text).expect("parse certificate JSON");
+    pcs_certificate::validate_trace_certificate_schema(&value)
+        .expect("TraceCertificate.v0 vendored schema (pcs-core)");
+    if pcs_cli_available() {
+        Command::new("pcs")
+            .arg("validate")
+            .arg(path)
+            .assert()
+            .success();
+    }
+}
+
 /// `emit-pcs-certificate --release-mode` requires the pcs-core CLI (`pip install -e pcs-core/python`).
 pub fn pcs_cli_available() -> bool {
     std::process::Command::new("pcs")

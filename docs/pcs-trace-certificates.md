@@ -2,9 +2,32 @@
 
 CertifyEdge v0.1 emits **TraceCertificate.v0** artifacts defined in [pcs-core](https://github.com/SentinelOps-CI/pcs-core). Certificates bind a LabTrust trace hash to a temporal property spec hash and record whether the checker accepted or rejected the trace.
 
-## Property templates (not general STL)
+## Property templates (v0.1 LabTrust temporal-property profile)
 
-For v0.1, files under `templates/hospital_lab/*.stl` are parsed as a **constrained LabTrust temporal-property profile** (property id, allowed release roles, comments). They are **not** a full general-purpose signal temporal logic (STL) implementation. The historical `.stl` suffix marks the hospital-lab profile only.
+For PCS v0.1 / LabTrust handoff, files under `templates/hospital_lab/*.stl` implement the **hospital-lab temporal-property profile** only:
+
+- A `property:` id line (e.g. `hospital_lab.qc_release`)
+- Optional `allowed_release_roles:` for authorized release
+- Comments
+
+CertifyEdge does **not** parse or evaluate general signal temporal logic (STL): no `G`/`F` operators, no continuous signals, no arbitrary formula grammar. The `.stl` filename is historical naming for this profile; do not treat these files as full STL specs.
+
+Required runbook commands (exact names):
+
+```bash
+certifyedge check-trace --spec templates/hospital_lab/qc_release.stl --trace trace.json
+certifyedge emit-pcs-certificate --spec templates/hospital_lab/qc_release.stl --trace trace.json --out trace_certificate.json
+certifyedge verify-certificate trace_certificate.json
+certifyedge explain-counterexample counterexample.json
+```
+
+After emission, validate with pcs-core:
+
+```bash
+pcs validate trace_certificate.json
+```
+
+Integration tests in `tests/certifyedge-integration/tests/cli.rs` exercise these commands and assert vendored-schema validation (plus `pcs validate` when the `pcs` CLI is on `PATH`).
 
 ## CLI
 
