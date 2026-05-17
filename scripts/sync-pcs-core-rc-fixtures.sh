@@ -4,13 +4,13 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PARENT="$(dirname "$ROOT")"
-PCS_CORE="${PCS_CORE_ROOT:-$PARENT/pcs-core}"
+PCS_CORE="${PCS_CORE_PATH:-${PCS_CORE_ROOT:-$PARENT/pcs-core}}"
 SRC="$PCS_CORE/examples/labtrust-release"
 DEST="$ROOT/tests/fixtures/labtrust-release"
 
 if [[ ! -d "$SRC" ]]; then
   echo "error: canonical RC directory not found: $SRC" >&2
-  echo "Set PCS_CORE_ROOT to your pcs-core checkout." >&2
+  echo "Set PCS_CORE_PATH or PCS_CORE_ROOT to your pcs-core checkout." >&2
   exit 1
 fi
 

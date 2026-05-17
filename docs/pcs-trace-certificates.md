@@ -51,7 +51,8 @@ The CLI prints `source_commit_resolution=env|git|local_dev` (diagnostics only; n
 **Canonical PCS RC** (`trace.json`, `trace_certificate.json`) must be copied from `pcs-core/examples/labtrust-release/` — do not regenerate independently:
 
 ```bash
-make sync-pcs-core-rc
+make sync-pcs-core-rc      # copy from pcs-core (PCS_CORE_PATH or ../pcs-core)
+make check-pcs-core-rc     # fail if committed fixtures drift
 ```
 
 Regenerate negative traces only:

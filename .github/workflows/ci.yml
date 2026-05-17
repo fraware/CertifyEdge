@@ -69,6 +69,9 @@ jobs:
       - name: Validate PCS RC fixtures (pcs-core canonical)
         run: pcs validate tests/fixtures/labtrust-release/trace_certificate.json
 
+      - name: Assert PCS RC fixtures match pcs-core (no drift)
+        run: bash ./scripts/check-pcs-core-rc-drift.sh
+
       - name: Checkout LabTrust-Gym
         uses: actions/checkout@v4
         with:
