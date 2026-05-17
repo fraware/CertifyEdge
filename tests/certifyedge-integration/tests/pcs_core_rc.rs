@@ -3,10 +3,14 @@
 #[path = "../common/support.rs"]
 mod support;
 
+use predicates::prelude::*;
+
 use support::{
     certifyedge_cmd, labtrust_release_fixture, pcs_core_rc_constants, repo_root,
     validate_certificate_against_pcs_core,
 };
+
+const WRONG_SOURCE_REPO: &str = "https://github.com/example/wrong-repo";
 
 const TAMPERED_DIGEST: &str =
     "sha256:0000000000000000000000000000000000000000000000000000000000000000";
@@ -57,6 +61,22 @@ fn test_trace_certificate_matches_pcs_core_rc() {
 #[test]
 fn test_verify_canonical_rc_certificate_against_trace() {
     certifyedge_cmd()
+        .args([
+            "verify-certificate",
+            labtrust_release_fixture("trace_certificate.json")
+                .to_str()
+                .unwrap(),
+            "--trace",
+            labtrust_release_fixture("trace.json").to_str().unwrap(),
+        ])
+        .assert()
+        .success();
+}
+
+#[test]
+fn test_verify_canonical_rc_certificate_in_release_mode() {
+    certifyedge_cmd()
+        .arg("--release-mode")
         .args([
             "verify-certificate",
             labtrust_release_fixture("trace_certificate.json")
@@ -144,6 +164,29 @@ fn test_verify_certificate_rejects_modified_certificate_id() {
         ])
         .assert()
         .failure();
+}
+
+#[test]
+fn test_verify_certificate_rejects_wrong_source_repo_in_release_mode() {
+    let out = tampered_rc_certificate_path("source_repo");
+    let mut cert: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(labtrust_release_fixture("trace_certificate.json")).unwrap(),
+    )
+    .unwrap();
+    cert["source_repo"] = serde_json::json!(WRONG_SOURCE_REPO);
+    std::fs::write(&out, serde_json::to_string_pretty(&cert).unwrap()).unwrap();
+
+    certifyedge_cmd()
+        .arg("--release-mode")
+        .args([
+            "verify-certificate",
+            out.to_str().unwrap(),
+            "--trace",
+            labtrust_release_fixture("trace.json").to_str().unwrap(),
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("source_repo"));
 }
 
 #[test]

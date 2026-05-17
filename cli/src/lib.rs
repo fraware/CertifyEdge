@@ -104,7 +104,7 @@ pub fn run(cli: Cli) -> Result<(), String> {
             summary_out.as_deref(),
         ),
         Commands::VerifyCertificate { certificate, trace } => {
-            cmd_verify_certificate(&certificate, trace.as_deref())
+            cmd_verify_certificate(cli.release_mode, &certificate, trace.as_deref())
         }
         Commands::ExplainCounterexample { counterexample } => {
             cmd_explain_counterexample(&counterexample)
@@ -234,7 +234,11 @@ pub fn cmd_emit_certificate(
     Ok(())
 }
 
-pub fn cmd_verify_certificate(cert_path: &Path, trace_path: Option<&Path>) -> Result<(), String> {
+pub fn cmd_verify_certificate(
+    release_mode: bool,
+    cert_path: &Path,
+    trace_path: Option<&Path>,
+) -> Result<(), String> {
     let cert_text = fs::read_to_string(cert_path).map_err(|e| e.to_string())?;
     let expected_trace_hash = if let Some(trace_path) = trace_path {
         let trace = load_trace(trace_path)?;
@@ -243,8 +247,12 @@ pub fn cmd_verify_certificate(cert_path: &Path, trace_path: Option<&Path>) -> Re
         None
     };
 
-    let cert = verify_certificate_document(&cert_text, expected_trace_hash.as_deref())
-        .map_err(|e| e.to_string())?;
+    let cert = verify_certificate_document(
+        &cert_text,
+        expected_trace_hash.as_deref(),
+        release_mode,
+    )
+    .map_err(|e| e.to_string())?;
 
     println!(
         "valid TraceCertificate.v0: {} status={}",

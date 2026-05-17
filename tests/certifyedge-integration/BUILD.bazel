@@ -65,6 +65,7 @@ rust_test(
     deps = [
         "//services/pcs-certificate:pcs_certificate",
         "@crates//:assert_cmd",
+        "@crates//:predicates",
         "@crates//:serde_json",
     ],
     tags = ["pcs", "integration"],

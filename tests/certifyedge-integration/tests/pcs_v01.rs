@@ -178,7 +178,7 @@ fn certificate_digest_verifies() {
         None,
     );
     let json = serde_json::to_string_pretty(&outcome.certificate).unwrap();
-    verify_certificate_document(&json, Some(&trace.trace_hash)).unwrap();
+    verify_certificate_document(&json, Some(&trace.trace_hash), false).unwrap();
 }
 
 #[test]

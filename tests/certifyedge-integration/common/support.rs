@@ -222,6 +222,7 @@ pub fn assert_certificate_semantics_equal(
     pcs_certificate::verify_certificate_document(
         &serde_json::to_string(emitted).unwrap(),
         Some(emitted["trace_hash"].as_str().unwrap()),
+        false,
     )
     .expect("emitted certificate digest");
 }

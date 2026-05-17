@@ -132,6 +132,7 @@ fn test_golden_expected_certificate_validates() {
     pcs_certificate::verify_certificate_document(
         &text,
         Some("sha256:c3e8a3dc4ad86d533de1dfa4ae7fe2a338c2cff3c945404c96a75216524d58cd"),
+        false,
     )
     .unwrap();
     assert_eq!(value["schema_version"], "v0");
