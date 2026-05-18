@@ -22,7 +22,7 @@ Phase 2 protocol profile for the CertifyEdge producer. Copy `pcs_registry/TraceC
 | LabTrust-Gym → CertifyEdge | `labtrust_to_certifyedge_handoff.json` | `runtime_to_certificate` |
 | CertifyEdge → LabTrust-Gym | `certifyedge_to_labtrust_handoff.json` | `certificate_to_bundle` |
 
-Property spec template: `templates/hospital_lab/qc_release.stl`.
+Property profile registry: `templates/profiles/hospital_lab.qc_release.json` → `templates/hospital_lab/qc_release.stl`.
 
 ## Counterexample behavior
 
@@ -59,4 +59,11 @@ Legacy path (no handoff): `--spec`, `--trace`, `--out`.
 
 ## Registry
 
-See `pcs_registry/TraceCertificate.v0.registry.json`. CI runs `pcs registry check-artifact` on emitted certificates when pcs-core is available.
+See `pcs_registry/TraceCertificate.v0.registry.json` (pcs-core `ArtifactRegistry.v0` entry shape):
+
+- `schema_owner`: pcs-core
+- `runtime_producer`: CertifyEdge
+- `consumer_repos`: CertifyEdge, LabTrust-Gym, Provability Fabric, Scientific Memory
+- `canonical_hash_required` / `release_mode_required`: true
+
+Release-mode emit runs vendored schema validation, then `pcs registry check-artifact` when the pcs CLI is installed (warning and skip in local dev without pcs).

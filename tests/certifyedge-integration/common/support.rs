@@ -247,13 +247,7 @@ pub fn validate_certificate_against_pcs_core(path: &Path) {
 
 /// `pcs registry check-artifact` when pcs-core CLI is on PATH (optional local gate).
 pub fn pcs_registry_check_artifact(path: &Path) {
-    if pcs_cli_available() {
-        Command::new("pcs")
-            .args(["registry", "check-artifact"])
-            .arg(path)
-            .assert()
-            .success();
-    }
+    pcs_certificate::registry_check_artifact(path, true).expect("pcs registry check-artifact");
 }
 
 /// `emit-pcs-certificate --release-mode` requires the pcs-core CLI (`pip install -e pcs-core/python`).

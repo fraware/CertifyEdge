@@ -11,6 +11,7 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use crate::pcs_schema::validate_handoff_manifest_schema;
+use crate::property_profile::load_property_profile;
 use crate::source_commit::is_placeholder_source_commit;
 use crate::status_policy::STATUS_REJECTED;
 use crate::trace_certificate::TraceCertificateV0;
@@ -102,19 +103,7 @@ pub fn spec_path_for_property_id(
     property_id: &str,
     certifyedge_root: &Path,
 ) -> Result<PathBuf, String> {
-    let rel = match property_id {
-        "hospital_lab.qc_release" => "templates/hospital_lab/qc_release.stl",
-        _ => {
-            return Err(format!(
-                "unknown property profile {property_id}; add mapping in handoff.rs"
-            ));
-        }
-    };
-    let path = certifyedge_root.join(rel);
-    if !path.is_file() {
-        return Err(format!("property spec not found: {}", path.display()));
-    }
-    Ok(path)
+    crate::property_profile::spec_path_for_property_id(property_id, certifyedge_root)
 }
 
 pub fn plan_emit_from_handoff(
@@ -151,15 +140,22 @@ pub fn plan_emit_from_handoff(
         ));
     }
 
+    let property_id = handoff
+        .invariants
+        .get("property_id")
+        .ok_or_else(|| "invariants must include property_id".to_string())?;
+    let profile = load_property_profile(property_id, certifyedge_root)?;
+
     let trace_entry = handoff
         .input_artifacts
         .get(TRACE_ARTIFACT_NAME)
         .ok_or_else(|| format!("input_artifacts must include {TRACE_ARTIFACT_NAME}"))?;
     if trace_entry.artifact_type != ARTIFACT_TYPE_TRACE
-        && trace_entry.artifact_type != "LabTrust.Trace.v0"
+        && trace_entry.artifact_type != profile.input_trace_artifact
     {
         return Err(format!(
-            "{TRACE_ARTIFACT_NAME} artifact_type must be {ARTIFACT_TYPE_TRACE}"
+            "{TRACE_ARTIFACT_NAME} artifact_type must be {} or {ARTIFACT_TYPE_TRACE}",
+            profile.input_trace_artifact
         ));
     }
     let expected_sha = trace_entry
@@ -173,9 +169,12 @@ pub fn plan_emit_from_handoff(
         .ok_or_else(|| {
             format!("expected_outputs must include {TRACE_CERTIFICATE_ARTIFACT_NAME}")
         })?;
-    if cert_output.artifact_type != ARTIFACT_TYPE_TRACE_CERTIFICATE {
+    if cert_output.artifact_type != ARTIFACT_TYPE_TRACE_CERTIFICATE
+        && cert_output.artifact_type != profile.output_certificate_artifact
+    {
         return Err(format!(
-            "expected_outputs[{TRACE_CERTIFICATE_ARTIFACT_NAME}] must be {ARTIFACT_TYPE_TRACE_CERTIFICATE}"
+            "expected_outputs[{TRACE_CERTIFICATE_ARTIFACT_NAME}] must be {}",
+            profile.output_certificate_artifact
         ));
     }
 
@@ -183,10 +182,6 @@ pub fn plan_emit_from_handoff(
         .invariants
         .get("trace_hash")
         .ok_or_else(|| "invariants must include trace_hash".to_string())?;
-    let property_id = handoff
-        .invariants
-        .get("property_id")
-        .ok_or_else(|| "invariants must include property_id".to_string())?;
 
     let handoff_dir = handoff_path
         .parent()
@@ -223,7 +218,7 @@ pub fn plan_emit_from_handoff(
         .map_err(|e| format!("load spec {}: {e}", spec_path.display()))?;
     if spec.property_id.as_str() != property_id {
         return Err(format!(
-            "property_id mismatch: handoff {property_id}, spec {}",
+            "property profile mismatch: handoff {property_id}, spec {}",
             spec.property_id.as_str()
         ));
     }
@@ -251,6 +246,10 @@ pub fn build_certificate_to_bundle_handoff(
         .and_then(|n| n.to_str())
         .unwrap_or(TRACE_CERTIFICATE_ARTIFACT_NAME);
 
+    let certifyedge_root = crate::source_commit::certifyedge_repo_root()
+        .or_else(|| std::env::var("CERTIFYEDGE_ROOT").ok().map(PathBuf::from))
+        .ok_or_else(|| "CERTIFYEDGE_ROOT not set for outbound handoff".to_string())?;
+    let profile = load_property_profile(&cert.property_id, &certifyedge_root)?;
     let rejected = cert.status == STATUS_REJECTED;
     let expected_outputs = if rejected {
         let mut out = BTreeMap::new();
@@ -258,7 +257,7 @@ pub fn build_certificate_to_bundle_handoff(
             out.insert(
                 "counterexample.json".to_string(),
                 HandoffArtifactRef {
-                    artifact_type: "LabTrust.Counterexample.v0".to_string(),
+                    artifact_type: profile.counterexample_artifact.clone(),
                     sha256: None,
                 },
             );
@@ -323,8 +322,6 @@ pub fn validate_handoff_artifact(path: &Path, require_pcs_cli: bool) -> Result<(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
-
     #[test]
     fn file_digest_is_raw_bytes() {
         assert_eq!(
@@ -363,6 +360,56 @@ mod tests {
         assert_eq!(handoff.handoff_kind, HANDOFF_KIND_CERTIFICATE_TO_BUNDLE);
         assert_eq!(handoff.invariants["certificate_id"], cert.certificate_id);
         assert_eq!(handoff.invariants["status"], "CertificateChecked");
+    }
+
+    #[test]
+    fn certificate_to_bundle_handoff_hash_vector_is_stable() {
+        let mut handoff = HandoffManifestV0 {
+            schema_version: "v0".into(),
+            handoff_id: "handoff-certifyedge-to-labtrust-hash-vector".into(),
+            handoff_kind: HANDOFF_KIND_CERTIFICATE_TO_BUNDLE.into(),
+            from_component: COMPONENT_CERTIFYEDGE.into(),
+            to_component: COMPONENT_LABTRUST.into(),
+            created_at: "2026-05-17T17:01:22Z".into(),
+            source_repo: crate::trace_certificate::SOURCE_REPO.to_string(),
+            source_commit: "cb6848001e2e60a484e04eba5ad6be3fe2e4eccc".into(),
+            input_artifacts: BTreeMap::from([(
+                TRACE_CERTIFICATE_ARTIFACT_NAME.into(),
+                HandoffArtifactRef {
+                    artifact_type: ARTIFACT_TYPE_TRACE_CERTIFICATE.into(),
+                    sha256: Some(
+                        "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+                            .into(),
+                    ),
+                },
+            )]),
+            expected_outputs: BTreeMap::from([(
+                "science_claim_bundle.certified.json".into(),
+                HandoffArtifactRef {
+                    artifact_type: "ScienceClaimBundle.v0".into(),
+                    sha256: None,
+                },
+            )]),
+            invariants: BTreeMap::from([
+                ("certificate_id".into(), "cert-trace-hash-vector".into()),
+                (
+                    "trace_hash".into(),
+                    "sha256:c3e8a3dc4ad86d533de1dfa4ae7fe2a338c2cff3c945404c96a75216524d58cd"
+                        .into(),
+                ),
+                ("status".into(), "CertificateChecked".into()),
+            ]),
+            status: "Validated".into(),
+            signature_or_digest: String::new(),
+        };
+        finalize_handoff_digest(&mut handoff);
+        let value = serde_json::to_value(&handoff).unwrap();
+        let digest = pcs_digest(&value);
+        let expected = include_str!(
+            "../../../tests/fixtures/pcs-hash-vectors/HandoffManifest.certificate_to_bundle/digest.txt"
+        )
+        .trim();
+        assert_eq!(digest, expected);
     }
 
     #[test]

@@ -40,6 +40,13 @@ fn run_handoff_emit(work: &std::path::Path) -> std::path::PathBuf {
 }
 
 #[test]
+fn test_outbound_handoff_digest_valid() {
+    let work = handoff_workdir("handoff_out_digest");
+    let handoff_out = run_handoff_emit(&work);
+    load_handoff_manifest(&handoff_out).expect("outbound handoff digest verifies");
+}
+
+#[test]
 fn test_emit_certificate_writes_handoff_out() {
     let work = handoff_workdir("handoff_out_writes");
     let handoff_out = run_handoff_emit(&work);

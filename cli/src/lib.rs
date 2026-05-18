@@ -16,9 +16,10 @@ use labtrust_adapter::{
 use pcs_certificate::{
     build_certificate, build_certificate_to_bundle_handoff, certificate_to_json,
     counterexample_from_json, counterexample_to_json, explain_counterexample,
-    finalize_handoff_digest, load_handoff_manifest, plan_emit_from_handoff, summary_to_json,
-    validate_certificate_artifact, validate_handoff_artifact, verify_certificate_document,
-    write_handoff_manifest, CertificateEmitSummary, CertifyEdgeMetadata,
+    finalize_handoff_digest, load_handoff_manifest, plan_emit_from_handoff,
+    registry_check_artifact, summary_to_json, validate_certificate_artifact,
+    validate_handoff_artifact, verify_certificate_document, write_handoff_manifest,
+    CertificateEmitSummary, CertifyEdgeMetadata,
 };
 
 /// Runbook: `certifyedge check-trace`
@@ -256,6 +257,7 @@ pub fn cmd_emit_certificate(opts: EmitCertificateOptions<'_>) -> Result<(), Stri
     fs::write(&out_path, cert_json).map_err(|e| e.to_string())?;
 
     validate_certificate_artifact(&out_path, opts.release_mode)?;
+    registry_check_artifact(&out_path, opts.release_mode)?;
 
     let summary = CertificateEmitSummary::from_certificate(&outcome.certificate);
     let summary_json = summary_to_json(&summary).map_err(|e| e.to_string())?;

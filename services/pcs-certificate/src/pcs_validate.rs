@@ -44,6 +44,38 @@ pub fn validate_with_pcs_cli(path: &Path, required: bool) -> Result<(), String> 
     ))
 }
 
+/// Run `pcs registry check-artifact` in release mode; warn and skip when pcs is absent in dev.
+pub fn registry_check_artifact(path: &Path, release_mode: bool) -> Result<(), String> {
+    let output = match Command::new("pcs")
+        .args(["registry", "check-artifact"])
+        .arg(path)
+        .output()
+    {
+        Ok(o) => o,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            if release_mode {
+                return Err(
+                    "pcs CLI not found; install pcs-core (pip install -e pcs-core/python)".into(),
+                );
+            }
+            eprintln!("warning: pcs-core registry check skipped because pcs CLI unavailable");
+            return Ok(());
+        }
+        Err(e) => return Err(format!("failed to run pcs registry check-artifact: {e}")),
+    };
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    Err(format!(
+        "pcs registry check-artifact failed for {}:\n{stdout}{stderr}",
+        path.display()
+    ))
+}
+
 /// Full artifact validation: embedded pcs-core JSON Schema + optional `pcs` CLI cross-check.
 pub fn validate_certificate_artifact(path: &Path, require_pcs_cli: bool) -> Result<(), String> {
     let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;

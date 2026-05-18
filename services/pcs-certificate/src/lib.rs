@@ -6,6 +6,7 @@ pub mod hash;
 pub mod metadata;
 pub mod pcs_schema;
 pub mod pcs_validate;
+pub mod property_profile;
 pub mod signing;
 pub mod source_commit;
 pub mod status_policy;
@@ -23,7 +24,8 @@ pub use handoff::{
 pub use metadata::CertifyEdgeMetadata;
 pub use pcs_schema::validate_handoff_manifest_schema;
 pub use pcs_schema::validate_trace_certificate_schema;
-pub use pcs_validate::validate_certificate_artifact;
+pub use pcs_validate::{registry_check_artifact, validate_certificate_artifact};
+pub use property_profile::{load_property_profile, PropertyProfile};
 pub use source_commit::{
     certifyedge_repo_root, is_placeholder_source_commit, is_zero_source_commit, labtrust_gym_root,
     SourceCommitResolution, ZERO_SOURCE_COMMIT,

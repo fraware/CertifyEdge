@@ -4,6 +4,7 @@ package(default_visibility = ["//visibility:public"])
 
 PCS_FIXTURES = [
     "//templates/hospital_lab:specs",
+    "//templates/profiles:profiles",
     "//tests/labtrust:fixtures",
     "//tests/fixtures/release-run:release_run_fixtures",
     "//tests/fixtures/labtrust-release:release_fixtures",
@@ -157,6 +158,42 @@ rust_test(
     data = ["//tests/fixtures/pcs-hash-vectors:hash_vectors"],
     deps = [
         "//services/labtrust-adapter:labtrust_adapter",
+        "//services/pcs-certificate:pcs_certificate",
+        "@crates//:serde_json",
+    ],
+    tags = ["pcs", "phase2"],
+)
+
+rust_test(
+    name = "handoff_rejected",
+    srcs = [
+        "tests/handoff_rejected.rs",
+        "common/support.rs",
+        "common/handoff_fixtures.rs",
+    ],
+    edition = "2021",
+    rustc_flags = ["--cfg=bazel"],
+    data = PCS_FIXTURES + ["//cli:certifyedge"],
+    env = PCS_TEST_ENV,
+    deps = [
+        "//services/pcs-certificate:pcs_certificate",
+        "@crates//:assert_cmd",
+        "@crates//:serde_json",
+    ],
+    tags = ["pcs", "integration", "phase2"],
+)
+
+rust_test(
+    name = "phase2_registry",
+    srcs = [
+        "tests/phase2_registry.rs",
+        "common/support.rs",
+    ],
+    edition = "2021",
+    rustc_flags = ["--cfg=bazel"],
+    data = PCS_FIXTURES + ["//tests/fixtures/labtrust-release:release_fixtures"],
+    env = PCS_TEST_ENV,
+    deps = [
         "//services/pcs-certificate:pcs_certificate",
         "@crates//:serde_json",
     ],

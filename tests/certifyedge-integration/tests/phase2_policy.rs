@@ -20,6 +20,19 @@ fn test_trace_certificate_hash_matches_pcs_core_vector() {
 }
 
 #[test]
+fn test_certificate_to_bundle_handoff_hash_matches_pcs_core_vector() {
+    let input: Value = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/pcs-hash-vectors/HandoffManifest.certificate_to_bundle/input.json"
+    ))
+    .unwrap();
+    let expected = include_str!(
+        "../../../tests/fixtures/pcs-hash-vectors/HandoffManifest.certificate_to_bundle/digest.txt"
+    )
+    .trim();
+    assert_eq!(pcs_digest(&input), expected);
+}
+
+#[test]
 fn test_handoff_manifest_hash_matches_pcs_core_vector() {
     let input: Value = serde_json::from_str(include_str!(
         "../../../tests/fixtures/pcs-hash-vectors/HandoffManifest.v0/input.json"
@@ -47,6 +60,53 @@ fn test_hash_ignores_signature_or_digest() {
         "status": "Validated",
     });
     assert_eq!(pcs_digest(&with_placeholder), pcs_digest(&without));
+}
+
+#[test]
+fn test_hash_vector_parity_with_pcs_core() {
+    let trace: Value = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/pcs-hash-vectors/TraceCertificate.v0/input.json"
+    ))
+    .unwrap();
+    assert_eq!(
+        pcs_digest(&trace),
+        include_str!("../../../tests/fixtures/pcs-hash-vectors/TraceCertificate.v0/digest.txt")
+            .trim()
+    );
+    let cert_bundle: Value = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/pcs-hash-vectors/HandoffManifest.certificate_to_bundle/input.json"
+    ))
+    .unwrap();
+    assert_eq!(
+        pcs_digest(&cert_bundle),
+        include_str!(
+            "../../../tests/fixtures/pcs-hash-vectors/HandoffManifest.certificate_to_bundle/digest.txt"
+        )
+        .trim()
+    );
+    let handoff: Value = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/pcs-hash-vectors/HandoffManifest.v0/input.json"
+    ))
+    .unwrap();
+    assert_eq!(
+        pcs_digest(&handoff),
+        include_str!("../../../tests/fixtures/pcs-hash-vectors/HandoffManifest.v0/digest.txt")
+            .trim()
+    );
+    let with_sig = json!({
+        "schema_version": "v0",
+        "handoff_id": "handoff-parity",
+        "handoff_kind": "runtime_to_certificate",
+        "status": "Validated",
+        "signature_or_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    });
+    let without_sig = json!({
+        "schema_version": "v0",
+        "handoff_id": "handoff-parity",
+        "handoff_kind": "runtime_to_certificate",
+        "status": "Validated"
+    });
+    assert_eq!(pcs_digest(&with_sig), pcs_digest(&without_sig));
 }
 
 #[test]
@@ -98,6 +158,12 @@ fn test_hash_vectors_match_pcs_core_when_path_set() {
         let local_bytes = std::fs::read(&local_input).unwrap();
         assert_eq!(upstream_bytes, local_bytes, "{artifact} input drift");
     }
+    let cert_bundle_digest_path = repo_root
+        .join("tests/fixtures/pcs-hash-vectors/HandoffManifest.certificate_to_bundle/digest.txt");
+    assert!(
+        cert_bundle_digest_path.is_file(),
+        "committed certificate_to_bundle vector required"
+    );
 }
 
 #[test]

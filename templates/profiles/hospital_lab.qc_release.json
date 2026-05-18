@@ -1,0 +1,7 @@
+{
+  "property_id": "hospital_lab.qc_release",
+  "template": "templates/hospital_lab/qc_release.stl",
+  "input_trace_artifact": "LabTrust.Trace.v0",
+  "output_certificate_artifact": "TraceCertificate.v0",
+  "counterexample_artifact": "LabTrust.Counterexample.v0"
+}

@@ -26,7 +26,9 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
       "//tests/certifyedge-integration:pcs_core_rc"
       "//tests/certifyedge-integration:handoff_emit"
       "//tests/certifyedge-integration:handoff_output"
+      "//tests/certifyedge-integration:handoff_rejected"
       "//tests/certifyedge-integration:phase2_policy"
+      "//tests/certifyedge-integration:phase2_registry"
       "//tests/certifyedge-integration:runbook"
     )
     ;;

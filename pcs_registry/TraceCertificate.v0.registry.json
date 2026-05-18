@@ -1,8 +1,15 @@
 {
   "artifact_type": "TraceCertificate.v0",
   "schema": "schemas/TraceCertificate.v0.schema.json",
+  "schema_owner": "pcs-core",
   "producer": "CertifyEdge",
-  "allowed_statuses": ["CertificateChecked", "Rejected", "Stale"],
+  "runtime_producer": "CertifyEdge",
+  "allowed_statuses": [
+    "CertificatePending",
+    "CertificateChecked",
+    "Rejected",
+    "Stale"
+  ],
   "required_release_fields": [
     "schema_version",
     "certificate_id",
@@ -20,5 +27,13 @@
     "trace_hash_matches_runtime_receipt",
     "status_is_certificate_checked_for_release",
     "source_commit_matches_release_manifest"
-  ]
+  ],
+  "consumer_repos": [
+    "CertifyEdge",
+    "LabTrust-Gym",
+    "Provability Fabric",
+    "Scientific Memory"
+  ],
+  "canonical_hash_required": true,
+  "release_mode_required": true
 }
