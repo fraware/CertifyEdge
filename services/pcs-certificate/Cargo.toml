@@ -15,3 +15,6 @@ thiserror = "2"
 uuid = { version = "1", features = ["v4"] }
 jsonschema = "0.29"
 sha2 = "0.10"
+
+[dev-dependencies]
+tempfile = "3"

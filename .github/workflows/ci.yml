@@ -107,9 +107,12 @@ jobs:
 
       - name: Phase 2 rejected handoff gate
         run: |
-          cargo test -p certifyedge-integration \
-            test_emit_rejected_certificate_and_handoff_from_invalid_trace \
-            -- --nocapture
+          cargo test -p certifyedge-integration --test handoff_rejected -- --nocapture
+
+      - name: Assert PCS registry contribution matches pcs-core (no drift)
+        env:
+          PCS_CORE_PATH: ${{ github.workspace }}/pcs-core
+        run: bash ./scripts/check-pcs-registry-contribution-drift.sh
 
       - name: PCS integration tests with pcs-core path (drift + registry)
         env:

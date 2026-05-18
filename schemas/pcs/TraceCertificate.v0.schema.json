@@ -23,21 +23,21 @@
   "additionalProperties": false,
   "properties": {
     "certificate_id": { "type": "string", "minLength": 1 },
-    "schema_version": { "$ref": "#/$defs/schema_version" },
-    "trace_hash": { "$ref": "#/$defs/hex_digest" },
-    "spec_hash": { "$ref": "#/$defs/hex_digest" },
+    "schema_version": { "$ref": "common.defs.json#/$defs/schema_version" },
+    "trace_hash": { "$ref": "common.defs.json#/$defs/hex_digest" },
+    "spec_hash": { "$ref": "common.defs.json#/$defs/hex_digest" },
     "property_id": { "type": "string", "minLength": 1 },
     "checker": { "type": "string", "minLength": 1 },
     "checker_version": { "type": "string", "minLength": 1 },
-    "status": { "$ref": "#/$defs/trace_certificate_status" },
+    "status": { "$ref": "common.defs.json#/$defs/trace_certificate_status" },
     "counterexample_ref": {
       "oneOf": [{ "type": "null" }, { "type": "string", "minLength": 1 }]
     },
-    "created_at": { "$ref": "#/$defs/iso8601_datetime" },
+    "created_at": { "$ref": "common.defs.json#/$defs/iso8601_datetime" },
     "producer": { "type": "string", "minLength": 1 },
     "producer_version": { "type": "string", "minLength": 1 },
     "source_repo": { "type": "string", "format": "uri" },
     "source_commit": { "type": "string", "minLength": 7 },
-    "signature_or_digest": { "$ref": "#/$defs/hex_digest" }
+    "signature_or_digest": { "$ref": "common.defs.json#/$defs/hex_digest" }
   }
 }

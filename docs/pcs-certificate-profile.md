@@ -59,11 +59,14 @@ Legacy path (no handoff): `--spec`, `--trace`, `--out`.
 
 ## Registry
 
-See `pcs_registry/TraceCertificate.v0.registry.json` (pcs-core `ArtifactRegistry.v0` entry shape):
+See `pcs_registry/TraceCertificate.v0.registry.json` (pcs-core `ArtifactRegistry.v0` `registry_entry` shape):
 
 - `schema_owner`: pcs-core
-- `runtime_producer`: CertifyEdge
-- `consumer_repos`: CertifyEdge, LabTrust-Gym, Provability Fabric, Scientific Memory
+- `runtime_producer` / `allowed_runtime_producers`: CertifyEdge
+- `semantic_checks`: structured objects (`check_id`, `severity`, `responsible_component`) aligned with pcs-core
+- `consumer_repos`: CertifyEdge, LabTrust-Gym, Provability Fabric, Scientific Memory (promoted into pcs-core)
 - `canonical_hash_required` / `release_mode_required`: true
+
+Validate locally: `make check-pcs-registry` (requires `PCS_CORE_PATH` or sibling `pcs-core` checkout).
 
 Release-mode emit runs vendored schema validation, then `pcs registry check-artifact` when the pcs CLI is installed (warning and skip in local dev without pcs).

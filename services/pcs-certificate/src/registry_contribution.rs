@@ -1,0 +1,111 @@
+//! Validate CertifyEdge `ArtifactRegistry.v0` contribution entries in-process.
+
+use jsonschema::Validator;
+use serde_json::Value;
+use std::path::Path;
+use std::sync::OnceLock;
+
+static REGISTRY_ENTRY_VALIDATOR: OnceLock<Validator> = OnceLock::new();
+
+fn rewrite_common_defs_refs(value: &mut Value) {
+    match value {
+        Value::Object(map) => {
+            if let Some(Value::String(reference)) = map.get("$ref") {
+                if let Some(suffix) = reference.strip_prefix("common.defs.json#/") {
+                    map.insert("$ref".to_string(), Value::String(format!("#/{suffix}")));
+                }
+            }
+            for child in map.values_mut() {
+                rewrite_common_defs_refs(child);
+            }
+        }
+        Value::Array(items) => {
+            for child in items {
+                rewrite_common_defs_refs(child);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn merged_registry_entry_schema() -> Value {
+    let common: Value = serde_json::from_str(include_str!("../../../schemas/pcs/common.defs.json"))
+        .expect("common.defs.json");
+    let registry: Value = serde_json::from_str(include_str!(
+        "../../../schemas/pcs/ArtifactRegistry.v0.schema.json"
+    ))
+    .expect("ArtifactRegistry.v0.schema.json");
+
+    let entry = registry
+        .pointer("/$defs/registry_entry")
+        .expect("registry_entry def")
+        .clone();
+
+    let mut schema = serde_json::json!({
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$defs": {}
+    });
+    if let Some(common_defs) = common.get("$defs") {
+        schema["$defs"] = common_defs.clone();
+    }
+    if let Some(entry_defs) = registry.pointer("/$defs") {
+        if let (Some(target), Some(source)) = (schema["$defs"].as_object_mut(), entry_defs.as_object())
+        {
+            for (key, value) in source {
+                if key != "registry_entry" {
+                    target.insert(key.clone(), value.clone());
+                }
+            }
+        }
+    }
+    schema["allOf"] = serde_json::json!([entry]);
+    rewrite_common_defs_refs(&mut schema);
+    schema
+}
+
+fn registry_entry_validator() -> &'static Validator {
+    REGISTRY_ENTRY_VALIDATOR.get_or_init(|| {
+        let schema = merged_registry_entry_schema();
+        Validator::new(&schema).expect("ArtifactRegistry registry_entry schema compiles")
+    })
+}
+
+/// Validate a single registry contribution object against vendored `registry_entry` schema.
+pub fn validate_registry_contribution_entry(value: &Value) -> Result<(), String> {
+    let validator = registry_entry_validator();
+    let errors: Vec<String> = validator
+        .iter_errors(value)
+        .map(|e| e.to_string())
+        .collect();
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors.join("; "))
+    }
+}
+
+/// Load and validate `pcs_registry/TraceCertificate.v0.registry.json` under `repo_root`.
+pub fn validate_default_trace_certificate_registry_contribution(
+    repo_root: &Path,
+) -> Result<(), String> {
+    let path = repo_root.join("pcs_registry/TraceCertificate.v0.registry.json");
+    let text = std::fs::read_to_string(&path)
+        .map_err(|e| format!("read {}: {e}", path.display()))?;
+    let value: Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+    validate_registry_contribution_entry(&value)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn repo_root() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+    }
+
+    #[test]
+    fn default_contribution_validates() {
+        validate_default_trace_certificate_registry_contribution(&repo_root()).unwrap();
+    }
+}

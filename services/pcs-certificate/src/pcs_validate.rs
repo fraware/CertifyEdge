@@ -76,6 +76,34 @@ pub fn registry_check_artifact(path: &Path, release_mode: bool) -> Result<(), St
     ))
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn dev_registry_check_skips_when_pcs_missing() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let cert = dir.path().join("trace_certificate.json");
+        std::fs::File::create(&cert)
+            .and_then(|mut f| f.write_all(b"{}"))
+            .expect("write cert stub");
+
+        let old_path = std::env::var("PATH").ok();
+        // Isolate PATH so `pcs` cannot be resolved.
+        std::env::set_var("PATH", dir.path().as_os_str());
+
+        let result = registry_check_artifact(&cert, false);
+        if let Some(path) = old_path {
+            std::env::set_var("PATH", path);
+        } else {
+            std::env::remove_var("PATH");
+        }
+
+        assert!(result.is_ok(), "dev mode should skip registry check when pcs missing");
+    }
+}
+
 /// Full artifact validation: embedded pcs-core JSON Schema + optional `pcs` CLI cross-check.
 pub fn validate_certificate_artifact(path: &Path, require_pcs_cli: bool) -> Result<(), String> {
     let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;

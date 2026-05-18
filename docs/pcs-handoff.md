@@ -41,7 +41,16 @@ labtrust export-trace --run runs/qc-release --out trace.json
 labtrust export-runtime-receipt --run runs/qc-release --out runtime_receipt.json
 labtrust export-pcs --run runs/qc-release --out science_claim_bundle.pending.json
 pcs validate science_claim_bundle.pending.json
+
+labtrust emit-handoff-to-certifyedge \
+  --trace trace.json \
+  --runtime-receipt runtime_receipt.json \
+  --out labtrust_to_certifyedge_handoff.json \
+  --release-mode
+pcs validate labtrust_to_certifyedge_handoff.json
 ```
+
+Clean-chain scripts (`run_pcs_v01_clean_chain.sh`, `make release-run`) write `labtrust_to_certifyedge_handoff.json` into the staging workdir automatically (and mirror `handoff_to_certifyedge.json` for release fixtures).
 
 **CertifyEdge** (from `CERTIFYEDGE_ROOT` or set `CERTIFYEDGE_SPEC` to an absolute path)
 

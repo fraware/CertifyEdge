@@ -112,9 +112,20 @@ if [[ "$MODE" == "certified" ]]; then
   labtrust export-pcs --run "$RUN_DIR" --out "$PENDING_JSON"
   pcs validate "$PENDING_JSON"
 
-  pcs_step "CertifyEdge: emit and verify TraceCertificate"
-  "$CERTIFYEDGE_BIN" emit-pcs-certificate \
-    --spec "$CERTIFYEDGE_SPEC" --trace "$TRACE_JSON" --out "$TRACE_CERT_JSON"
+  HANDOFF_CE_JSON="${WORK}/labtrust_to_certifyedge_handoff.json"
+  pcs_step "LabTrust-Gym: HandoffManifest.v0 (runtime_to_certificate) for CertifyEdge"
+  labtrust emit-handoff-to-certifyedge \
+    --trace "$TRACE_JSON" \
+    --runtime-receipt "$RUNTIME_RECEIPT_JSON" \
+    --out "$HANDOFF_CE_JSON" \
+    --release-mode
+  pcs validate "$HANDOFF_CE_JSON"
+  cp -f "$HANDOFF_CE_JSON" "${WORK}/handoff_to_certifyedge.json"
+
+  pcs_step "CertifyEdge: emit and verify TraceCertificate (HandoffManifest input)"
+  "$CERTIFYEDGE_BIN" --release-mode emit-pcs-certificate \
+    --handoff "$HANDOFF_CE_JSON" \
+    --out "$TRACE_CERT_JSON"
   pcs validate "$TRACE_CERT_JSON"
   "$CERTIFYEDGE_BIN" verify-certificate "$TRACE_CERT_JSON" --trace "$TRACE_JSON"
 

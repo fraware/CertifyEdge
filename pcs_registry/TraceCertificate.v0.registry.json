@@ -2,8 +2,11 @@
   "artifact_type": "TraceCertificate.v0",
   "schema": "schemas/TraceCertificate.v0.schema.json",
   "schema_owner": "pcs-core",
-  "producer": "CertifyEdge",
   "runtime_producer": "CertifyEdge",
+  "allowed_runtime_producers": [
+    "CertifyEdge"
+  ],
+  "producer": "CertifyEdge",
   "allowed_statuses": [
     "CertificatePending",
     "CertificateChecked",
@@ -15,18 +18,27 @@
     "certificate_id",
     "trace_hash",
     "spec_hash",
-    "property_id",
-    "checker",
-    "checker_version",
     "status",
     "source_repo",
     "source_commit",
     "signature_or_digest"
   ],
   "semantic_checks": [
-    "trace_hash_matches_runtime_receipt",
-    "status_is_certificate_checked_for_release",
-    "source_commit_matches_release_manifest"
+    {
+      "check_id": "trace_hash_matches_runtime_receipt",
+      "severity": "release_blocking",
+      "responsible_component": "CertifyEdge"
+    },
+    {
+      "check_id": "status_is_certificate_checked_for_release",
+      "severity": "release_blocking",
+      "responsible_component": "CertifyEdge"
+    },
+    {
+      "check_id": "source_commit_matches_release_manifest",
+      "severity": "release_blocking",
+      "responsible_component": "CertifyEdge"
+    }
   ],
   "consumer_repos": [
     "CertifyEdge",

@@ -82,7 +82,7 @@ fi
 echo "==> LabTrust-Gym: export handoff artifacts -> $STAGING"
 bash "$CHAIN" --labtrust-only
 
-for required in trace.json runtime_receipt.json science_claim_bundle.pending.json; do
+for required in trace.json runtime_receipt.json science_claim_bundle.pending.json labtrust_to_certifyedge_handoff.json; do
   if [[ ! -f "$STAGING/$required" ]]; then
     echo "error: staging missing $required after LabTrust export" >&2
     exit 1
@@ -92,21 +92,13 @@ done
 SUMMARY="$STAGING/certificate_summary.json"
 HANDOFF_IN="$STAGING/labtrust_to_certifyedge_handoff.json"
 HANDOFF_OUT="$STAGING/certifyedge_to_labtrust_handoff.json"
-echo "==> CertifyEdge: release-mode emit + summary"
-if [[ -f "$HANDOFF_IN" ]]; then
-  echo "    using HandoffManifest.v0 input: $HANDOFF_IN"
-  "$CERTIFYEDGE_BIN" --release-mode emit-pcs-certificate \
-    --handoff "$HANDOFF_IN" \
-    --out "$STAGING/trace_certificate.json" \
-    --handoff-out "$HANDOFF_OUT" \
-    --summary-out "$SUMMARY" >/dev/null
-else
-  "$CERTIFYEDGE_BIN" --release-mode emit-pcs-certificate \
-    --spec "$CERTIFYEDGE_SPEC" \
-    --trace "$STAGING/trace.json" \
-    --out "$STAGING/trace_certificate.json" \
-    --summary-out "$SUMMARY" >/dev/null
-fi
+echo "==> CertifyEdge: release-mode emit + summary (HandoffManifest input)"
+echo "    using HandoffManifest.v0 input: $HANDOFF_IN"
+"$CERTIFYEDGE_BIN" --release-mode emit-pcs-certificate \
+  --handoff "$HANDOFF_IN" \
+  --out "$STAGING/trace_certificate.json" \
+  --handoff-out "$HANDOFF_OUT" \
+  --summary-out "$SUMMARY" >/dev/null
 pcs validate "$STAGING/trace_certificate.json"
 "$CERTIFYEDGE_BIN" verify-certificate "$STAGING/trace_certificate.json" \
   --trace "$STAGING/trace.json" >/dev/null

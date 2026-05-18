@@ -13,5 +13,6 @@ fi
 mkdir -p "$DEST"
 cp -f "$PCS_CORE/schemas/TraceCertificate.v0.schema.json" "$DEST/"
 cp -f "$PCS_CORE/schemas/HandoffManifest.v0.schema.json" "$DEST/"
+cp -f "$PCS_CORE/schemas/ArtifactRegistry.v0.schema.json" "$DEST/"
 cp -f "$PCS_CORE/schemas/common.defs.json" "$DEST/"
 echo "Synced pcs-core schemas -> $DEST"
