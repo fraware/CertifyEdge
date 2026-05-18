@@ -5,12 +5,14 @@ package(default_visibility = ["//visibility:public"])
 PCS_FIXTURES = [
     "//templates/hospital_lab:specs",
     "//templates/tool_use:tool_use_specs",
+    "//templates/computation:computation_specs",
     "//templates/profiles:profiles",
     "//tests/labtrust:fixtures",
     "//tests/fixtures/release-run:release_run_fixtures",
     "//tests/fixtures/labtrust-release:release_fixtures",
     "//tests/fixtures/pcs-hash-vectors:hash_vectors",
     "//tests/fixtures/handoff:handoff_fixtures",
+    "//tests/computation:computation_fixtures",
     "//schemas/pcs:schemas",
 ]
 
@@ -181,6 +183,42 @@ rust_test(
         "@crates//:serde_json",
     ],
     tags = ["pcs", "integration", "tool_use"],
+)
+
+rust_test(
+    name = "computation_emit",
+    srcs = [
+        "tests/computation_emit.rs",
+        "common/support.rs",
+    ],
+    edition = "2021",
+    rustc_flags = ["--cfg=bazel"],
+    data = PCS_FIXTURES + ["//cli:certifyedge", "//tests/computation:computation_fixtures"],
+    env = PCS_TEST_ENV,
+    deps = [
+        "//services/pcs-certificate:pcs_certificate",
+        "@crates//:serde_json",
+    ],
+    tags = ["pcs", "integration", "computation"],
+)
+
+rust_test(
+    name = "handoff_computation",
+    srcs = [
+        "tests/handoff_computation.rs",
+        "common/support.rs",
+        "common/handoff_fixtures.rs",
+    ],
+    edition = "2021",
+    rustc_flags = ["--cfg=bazel"],
+    data = PCS_FIXTURES + ["//cli:certifyedge", "//tests/computation:computation_fixtures"],
+    env = PCS_TEST_ENV,
+    deps = [
+        "//services/pcs-certificate:pcs_certificate",
+        "@crates//:assert_cmd",
+        "@crates//:serde_json",
+    ],
+    tags = ["pcs", "integration", "computation", "handoff"],
 )
 
 rust_test(

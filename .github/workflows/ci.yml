@@ -112,6 +112,15 @@ jobs:
         run: |
           cargo test -p certifyedge-integration --test handoff_rejected -- --nocapture
 
+      - name: Computation witness handoff gate
+        env:
+          CERTIFYEDGE_SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          cargo test -p certifyedge-integration \
+            --test handoff_computation \
+            --test computation_emit \
+            -- --nocapture
+
       - name: Assert PCS registry contribution matches pcs-core (no drift)
         env:
           PCS_CORE_PATH: ${{ github.workspace }}/pcs-core

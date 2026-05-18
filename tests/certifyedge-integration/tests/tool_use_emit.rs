@@ -193,6 +193,7 @@ fn test_tool_use_certificate_in_process() {
         &trace_bytes,
         &meta,
         None,
+        None,
     )
     .unwrap();
     let value = outcome.certificate.as_value();

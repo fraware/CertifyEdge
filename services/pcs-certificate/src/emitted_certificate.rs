@@ -1,12 +1,15 @@
-//! Profile-selected certificate artifacts (`TraceCertificate.v0` | `ToolUseCertificate.v0`).
+//! Profile-selected certificate artifacts (`TraceCertificate.v0` | `ToolUseCertificate.v0` | `ComputationWitness.v0`).
 
 use labtrust_adapter::{Counterexample, PropertySpec, TemporalCheckResult};
 use serde_json::Value;
 
+use crate::computation_check::{check_computation_reproducibility, ComputationCheckResult};
+use crate::computation_receipt::{ComputationEmitInputs, ARTIFACT_COMPUTATION_RUN_RECEIPT};
+use crate::computation_witness::{build_computation_witness, ComputationWitnessV0};
 use crate::metadata::CertifyEdgeMetadata;
 use crate::property_profile::{
-    PropertyProfile, PropertyProfileRegistry, ARTIFACT_TOOL_USE_CERTIFICATE,
-    ARTIFACT_TOOL_USE_TRACE, ARTIFACT_TRACE_CERTIFICATE,
+    PropertyProfile, PropertyProfileRegistry, ARTIFACT_COMPUTATION_WITNESS,
+    ARTIFACT_TOOL_USE_CERTIFICATE, ARTIFACT_TOOL_USE_TRACE, ARTIFACT_TRACE_CERTIFICATE,
 };
 use crate::repair_hint::emit_certificate_failure;
 use crate::tool_use_certificate::{build_tool_use_certificate, ToolUseCertificateV0};
@@ -18,6 +21,7 @@ use crate::trace_certificate::{build_certificate_with_profile, TraceCertificateV
 pub enum EmittedCertificate {
     Trace(TraceCertificateV0),
     ToolUse(ToolUseCertificateV0),
+    Computation(ComputationWitnessV0),
 }
 
 #[derive(Debug, Clone)]
@@ -25,6 +29,7 @@ pub struct CertificateEmitOutcome {
     pub certificate: EmittedCertificate,
     pub labtrust_counterexample: Option<Counterexample>,
     pub tool_use_counterexample: Option<Value>,
+    pub computation_counterexample: Option<Value>,
     pub failure_code: Option<String>,
 }
 
@@ -33,6 +38,7 @@ impl EmittedCertificate {
         match self {
             Self::Trace(_) => ARTIFACT_TRACE_CERTIFICATE,
             Self::ToolUse(_) => ARTIFACT_TOOL_USE_CERTIFICATE,
+            Self::Computation(_) => ARTIFACT_COMPUTATION_WITNESS,
         }
     }
 
@@ -40,13 +46,16 @@ impl EmittedCertificate {
         match self {
             Self::Trace(c) => &c.certificate_id,
             Self::ToolUse(c) => &c.certificate_id,
+            Self::Computation(c) => &c.certificate_id,
         }
     }
 
+    /// Primary receipt hash (`trace_hash` for LabTrust/tool-use, `run_hash` for computation).
     pub fn trace_hash(&self) -> &str {
         match self {
             Self::Trace(c) => &c.trace_hash,
             Self::ToolUse(c) => &c.trace_hash,
+            Self::Computation(c) => &c.run_hash,
         }
     }
 
@@ -54,6 +63,7 @@ impl EmittedCertificate {
         match self {
             Self::Trace(c) => &c.property_id,
             Self::ToolUse(c) => &c.property_id,
+            Self::Computation(c) => &c.property_id,
         }
     }
 
@@ -61,6 +71,7 @@ impl EmittedCertificate {
         match self {
             Self::Trace(c) => &c.status,
             Self::ToolUse(c) => &c.status,
+            Self::Computation(c) => &c.status,
         }
     }
 
@@ -68,6 +79,7 @@ impl EmittedCertificate {
         match self {
             Self::Trace(c) => &c.source_commit,
             Self::ToolUse(c) => &c.source_commit,
+            Self::Computation(c) => &c.source_commit,
         }
     }
 
@@ -75,6 +87,7 @@ impl EmittedCertificate {
         match self {
             Self::Trace(c) => c.counterexample_ref.as_deref(),
             Self::ToolUse(c) => c.counterexample_ref.as_deref(),
+            Self::Computation(c) => c.counterexample_ref.as_deref(),
         }
     }
 
@@ -86,6 +99,9 @@ impl EmittedCertificate {
             Self::ToolUse(c) => {
                 crate::tool_use_certificate::certificate_to_json(c).map_err(|e| e.to_string())
             }
+            Self::Computation(c) => {
+                crate::computation_witness::witness_to_json(c).map_err(|e| e.to_string())
+            }
         }
     }
 
@@ -93,6 +109,9 @@ impl EmittedCertificate {
         match self {
             Self::Trace(c) => serde_json::to_value(c).expect("trace certificate serializes"),
             Self::ToolUse(c) => serde_json::to_value(c).expect("tool-use certificate serializes"),
+            Self::Computation(c) => {
+                serde_json::to_value(c).expect("computation witness serializes")
+            }
         }
     }
 }
@@ -117,6 +136,7 @@ pub fn emit_from_labtrust(
         certificate: EmittedCertificate::Trace(outcome.certificate),
         labtrust_counterexample: outcome.counterexample,
         tool_use_counterexample: None,
+        computation_counterexample: None,
         failure_code: if check.passed {
             None
         } else {
@@ -152,6 +172,24 @@ pub fn emit_from_tool_use(
         certificate: EmittedCertificate::ToolUse(certificate),
         labtrust_counterexample: None,
         tool_use_counterexample: check.counterexample.clone(),
+        computation_counterexample: None,
+        failure_code: check.failure_code.clone(),
+    })
+}
+
+pub fn emit_from_computation(
+    inputs: &ComputationEmitInputs,
+    profile: &PropertyProfile,
+    check: &ComputationCheckResult,
+    meta: &CertifyEdgeMetadata,
+    counterexample_ref: Option<String>,
+) -> Result<CertificateEmitOutcome, String> {
+    let witness = build_computation_witness(inputs, profile, check, meta, counterexample_ref)?;
+    Ok(CertificateEmitOutcome {
+        certificate: EmittedCertificate::Computation(witness),
+        labtrust_counterexample: None,
+        tool_use_counterexample: None,
+        computation_counterexample: check.counterexample.clone(),
         failure_code: check.failure_code.clone(),
     })
 }
@@ -160,13 +198,31 @@ pub fn emit_certificate_for_profile(
     profile: &PropertyProfile,
     registry: &PropertyProfileRegistry,
     spec_path: &std::path::Path,
-    trace_bytes: &[u8],
+    primary_bytes: &[u8],
     meta: &CertifyEdgeMetadata,
     counterexample_path: Option<String>,
+    computation_inputs: Option<ComputationEmitInputs>,
 ) -> Result<CertificateEmitOutcome, String> {
+    if let Some(inputs) = computation_inputs {
+        let check = check_computation_reproducibility(&inputs);
+        return emit_from_computation(&inputs, profile, &check, meta, counterexample_path);
+    }
+
+    if profile.input_trace_artifact == ARTIFACT_COMPUTATION_RUN_RECEIPT {
+        let parent = spec_path
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .ok_or_else(|| {
+                "computation emit requires handoff directory with receipt JSON files".to_string()
+            })?;
+        let inputs = crate::computation_receipt::load_computation_inputs_from_dir(parent)?;
+        let check = check_computation_reproducibility(&inputs);
+        return emit_from_computation(&inputs, profile, &check, meta, counterexample_path);
+    }
+
     match profile.input_trace_artifact.as_str() {
         ARTIFACT_TOOL_USE_TRACE => {
-            let text = std::str::from_utf8(trace_bytes)
+            let text = std::str::from_utf8(primary_bytes)
                 .map_err(|e| format!("tool-use trace must be UTF-8 JSON: {e}"))?;
             let trace = crate::tool_use_trace::parse_tool_use_trace_json(text)?;
             let trace_value: Value =
@@ -177,7 +233,7 @@ pub fn emit_certificate_for_profile(
             emit_from_tool_use(&trace, &spec, profile, &check, meta, counterexample_path)
         }
         _ => {
-            let text = std::str::from_utf8(trace_bytes)
+            let text = std::str::from_utf8(primary_bytes)
                 .map_err(|e| format!("trace must be UTF-8 JSON: {e}"))?;
             let trace =
                 labtrust_adapter::parse_and_validate_json(text).map_err(|e| e.to_string())?;
@@ -211,12 +267,22 @@ pub fn emit_check_failure_stderr(
     emit_certificate_failure(profile, failure_code, artifact, message)
 }
 
-pub const DEFAULT_TOOL_USE_CERT_FILENAME: &str = "certificate.json";
+pub const DEFAULT_CERTIFICATE_FILENAME: &str = "certificate.json";
 
 pub fn default_certificate_output_name(profile: &PropertyProfile) -> &'static str {
-    if profile.output_certificate_artifact == ARTIFACT_TOOL_USE_CERTIFICATE {
-        DEFAULT_TOOL_USE_CERT_FILENAME
+    if profile.output_certificate_artifact == ARTIFACT_TOOL_USE_CERTIFICATE
+        || profile.output_certificate_artifact == ARTIFACT_COMPUTATION_WITNESS
+    {
+        DEFAULT_CERTIFICATE_FILENAME
     } else {
         crate::handoff::TRACE_CERTIFICATE_ARTIFACT_NAME
+    }
+}
+
+pub fn default_counterexample_filename(profile: &PropertyProfile) -> &'static str {
+    if profile.is_computation_profile() {
+        "computation_counterexample.json"
+    } else {
+        "counterexample.json"
     }
 }

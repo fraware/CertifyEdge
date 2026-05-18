@@ -68,6 +68,20 @@ impl CertificateEmitSummary {
                 responsible_component,
                 repair_hint,
             },
+            EmittedCertificate::Computation(c) => Self {
+                certificate_id: c.certificate_id.clone(),
+                trace_hash: c.run_hash.clone(),
+                spec_hash: None,
+                policy_hash: None,
+                property_id: c.property_id.clone(),
+                status: c.status.clone(),
+                output_certificate_artifact: cert.output_artifact_type().to_string(),
+                source_commit: c.source_commit.clone(),
+                counterexample_ref: c.counterexample_ref.clone(),
+                failure_code,
+                responsible_component,
+                repair_hint,
+            },
         }
     }
 }
@@ -121,6 +135,7 @@ mod tests {
                     responsible_component: Some("runtime_producer".into()),
                 },
             )]),
+            supporting_artifacts: vec![],
         };
         let summary = CertificateEmitSummary::from_emitted_with_rejection(
             &EmittedCertificate::ToolUse(crate::tool_use_certificate::ToolUseCertificateV0 {

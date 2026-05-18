@@ -25,7 +25,15 @@ CertifyEdge is a **Rust** workspace for **signal temporal logic (STL)** specific
 
 ## PCS v0.1 (LabTrust QC-release)
 
-CertifyEdge v0.1 is the **profile-driven certificate engine** for [Proof-Carrying Science](https://github.com/SentinelOps-CI/pcs-core) v0.1. Property profiles under `templates/profiles/` map runtime traces to STL checks and PCS certificate types (`TraceCertificate.v0` for LabTrust-Gym, `ToolUseCertificate.v0` for agent tool-use). Add a workflow by adding a profile JSON file and template—no emit logic changes.
+CertifyEdge v0.1 is the **profile-driven certificate engine** for [Proof-Carrying Science](https://github.com/SentinelOps-CI/pcs-core) v0.1. Property profiles under `templates/profiles/` map runtime inputs to STL checks and PCS certificate types:
+
+| Profile | Output artifact |
+|---------|-----------------|
+| `hospital_lab.qc_release` | `TraceCertificate.v0` |
+| `agent_tool_use.safety_v0` | `ToolUseCertificate.v0` |
+| `scientific_computation.reproducibility_v0` | `ComputationWitness.v0` |
+
+Add a workflow by adding a profile JSON file and template—no emit logic changes.
 
 Runbook commands are implemented in the **`certifyedge`** binary (`cli/`). Search the repo for `emit-pcs-certificate`, `check-trace`, or constants like `CMD_EMIT_PCS_CERTIFICATE` in `cli/src/lib.rs`.
 
@@ -60,9 +68,11 @@ cargo run -p certifyedge -- explain-counterexample counterexample.json
 | `services/labtrust-adapter/` | Parse LabTrust traces, hash chain, temporal checks |
 | `services/pcs-certificate/` | Profile registry, certificate emit, handoffs, repair hints |
 | `cli/` | `certifyedge` command-line tool (`profiles`, `emit-pcs-certificate`, …) |
-| `templates/profiles/` | Property profile registry (`hospital_lab.qc_release`, `agent_tool_use.safety_v0`, …) |
+| `templates/profiles/` | Property profile registry (LabTrust, tool-use, computation) |
 | `templates/hospital_lab/` | LabTrust STL property specs |
 | `templates/tool_use/` | Tool-use STL property specs |
+| `templates/computation/` | Computation reproducibility STL checks |
+| `pcs_registry/` | PCS `ArtifactRegistry.v0` contribution entries |
 | `tests/labtrust/` | Golden traces and expected outputs |
 | `tests/fixtures/labtrust-release/` | CLI-generated release trace, certificate, and counterexamples |
 

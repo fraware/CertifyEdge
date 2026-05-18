@@ -126,14 +126,39 @@ certifyedge --release-mode emit-pcs-certificate \
 
 Inbound handoff expects `input_artifacts.trace.json` with `artifact_type: ToolUseTrace.v0` and `expected_outputs.certificate.json` with `artifact_type: ToolUseCertificate.v0`.
 
+### Computation profile (`scientific_computation.reproducibility_v0`)
+
+Scientific computation workflows emit **`ComputationWitness.v0`** from a multi-input handoff. The profile declares supporting artifacts (`DatasetReceipt.v0`, `EnvironmentReceipt.v0`, `ResultArtifact.v0`) in addition to the primary `ComputationRunReceipt.v0`.
+
+Handoff directory layout (all files hashed in `input_artifacts`):
+
+| File | Artifact type |
+|------|-----------------|
+| `computation_run_receipt.json` | `ComputationRunReceipt.v0` |
+| `dataset_receipt.json` | `DatasetReceipt.v0` |
+| `environment_receipt.json` | `EnvironmentReceipt.v0` |
+| `result_artifact.json` | `ResultArtifact.v0` |
+
+Handoff `invariants` use `run_hash` (not `trace_hash`) and `property_id: scientific_computation.reproducibility_v0`. `expected_outputs.certificate.json` must reference `ComputationWitness.v0`.
+
+```bash
+certifyedge --release-mode emit-pcs-certificate \
+  --handoff runtime_to_certifyedge_handoff.json \
+  --profile-registry templates/profiles \
+  --out certificate.json \
+  --handoff-out certifyedge_handoff.json
+```
+
+Rejected runs still emit a protocol-valid `ComputationWitness.v0` (`status = Rejected`), `computation_counterexample.json`, and outbound handoff with repair invariants (`failure_code`, `repair_hint_kind`, `no_bundle_admissible`).
+
 ### Rejected certificate protocol
 
 Invalid traces still produce protocol-valid artifacts (all profiles):
 
 | Artifact | Content |
 |----------|---------|
-| `trace_certificate.json` or `certificate.json` | `TraceCertificate.v0` or `ToolUseCertificate.v0`, `status = Rejected` |
-| `counterexample.json` | profile counterexample artifact when available |
+| `trace_certificate.json` or `certificate.json` | `TraceCertificate.v0`, `ToolUseCertificate.v0`, or `ComputationWitness.v0`, `status = Rejected` |
+| `counterexample.json` or `computation_counterexample.json` | profile counterexample artifact when available |
 | `certificate_summary.json` | emit summary (`output_certificate_artifact`, `counterexample_ref` when applicable) |
 | `certifyedge_to_labtrust_handoff.json` | `certificate_to_bundle`, `invariants.status = Rejected`, empty `expected_outputs` |
 

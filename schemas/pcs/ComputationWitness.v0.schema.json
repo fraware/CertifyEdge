@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pcs.sentinelops.ci/schemas/ComputationWitness.v0.schema.json",
+  "title": "ComputationWitness.v0",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "certificate_id",
+    "run_hash",
+    "dataset_receipt_hash",
+    "environment_receipt_hash",
+    "code_commit",
+    "property_id",
+    "checker",
+    "checker_version",
+    "status",
+    "violations",
+    "result_artifact_hashes",
+    "source_repo",
+    "source_commit",
+    "signature_or_digest"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "$ref": "common.defs.json#/$defs/schema_version" },
+    "certificate_id": { "type": "string", "minLength": 1 },
+    "run_hash": { "$ref": "common.defs.json#/$defs/hex_digest" },
+    "dataset_receipt_hash": { "$ref": "common.defs.json#/$defs/hex_digest" },
+    "environment_receipt_hash": { "$ref": "common.defs.json#/$defs/hex_digest" },
+    "code_commit": { "$ref": "common.defs.json#/$defs/git_commit" },
+    "property_id": { "type": "string", "minLength": 1 },
+    "checker": { "type": "string", "minLength": 1 },
+    "checker_version": { "type": "string", "minLength": 1 },
+    "status": { "$ref": "#/$defs/computation_witness_status" },
+    "violations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/computation_violation" }
+    },
+    "result_artifact_hashes": {
+      "type": "array",
+      "items": { "$ref": "common.defs.json#/$defs/hex_digest" }
+    },
+    "counterexample_ref": { "type": ["string", "null"] },
+    "source_repo": { "type": "string", "format": "uri" },
+    "source_commit": { "$ref": "common.defs.json#/$defs/git_commit" },
+    "signature_or_digest": { "$ref": "common.defs.json#/$defs/hex_digest" }
+  },
+  "$defs": {
+    "computation_witness_status": {
+      "type": "string",
+      "enum": ["CertificateChecked", "Rejected", "Stale"]
+    },
+    "computation_violation": {
+      "type": "object",
+      "required": ["failure_code", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "failure_code": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

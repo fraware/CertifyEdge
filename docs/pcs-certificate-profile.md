@@ -32,10 +32,13 @@ Property profile registry (`templates/profiles/`):
 | `hospital_lab.qc_release.json` | `LabTrust.Trace.v0` | `TraceCertificate.v0` | `templates/hospital_lab/qc_release.stl` |
 | `hospital_lab.no_release_before_qc.json` | `LabTrust.Trace.v0` | `TraceCertificate.v0` | `templates/hospital_lab/no_release_before_qc.stl` |
 | `agent_tool_use.safety_v0.json` | `ToolUseTrace.v0` | `ToolUseCertificate.v0` | `templates/tool_use/no_unauthorized_tool.stl` |
+| `scientific_computation.reproducibility_v0.json` | `ComputationRunReceipt.v0` (+ supporting receipts) | `ComputationWitness.v0` | `templates/computation/result_hashes_match.stl` |
+
+Computation profiles declare `supporting_artifacts` (`DatasetReceipt.v0`, `EnvironmentReceipt.v0`, `ResultArtifact.v0`). Handoff directories include four hashed input files; invariants use `run_hash` instead of `trace_hash`.
 
 Each profile JSON defines:
 
-- `property_id`, `template`, `input_trace_artifact`, `output_certificate_artifact`, `counterexample_artifact`
+- `property_id`, `template`, `input_trace_artifact`, `output_certificate_artifact`, `counterexample_artifact`, optional `supporting_artifacts`
 - `valid_success_status`, `valid_failure_status`
 - `release_mode_required_fields` (release-mode certificate field gate; alias `required_release_fields`)
 - `repair_hints` — map of `failure_code` → `{ kind, command, responsible_component? }` for PF explain mode
@@ -92,7 +95,15 @@ Failed checks print JSON repair hints on stderr (for PF explain mode); rejected 
 
 ## Registry
 
-See `pcs_registry/TraceCertificate.v0.registry.json` and `pcs_registry/ToolUseCertificate.v0.registry.json` (pcs-core `ArtifactRegistry.v0` `registry_entry` shape):
+Registry contributions (pcs-core `ArtifactRegistry.v0` `registry_entry` shape):
+
+| File | Output artifact |
+|------|-----------------|
+| `pcs_registry/TraceCertificate.v0.registry.json` | `TraceCertificate.v0` |
+| `pcs_registry/ToolUseCertificate.v0.registry.json` | `ToolUseCertificate.v0` |
+| `pcs_registry/ComputationWitness.v0.registry.json` | `ComputationWitness.v0` |
+
+Shared fields:
 
 - `schema_owner`: pcs-core
 - `runtime_producer` / `allowed_runtime_producers`: CertifyEdge

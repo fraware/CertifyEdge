@@ -209,7 +209,8 @@ fn test_profiles_list_includes_qc_release() {
         .stdout(predicate::str::contains(
             "hospital_lab.no_release_before_qc",
         ))
-        .stdout(predicate::str::contains("agent_tool_use.safety_v0"));
+        .stdout(predicate::str::contains("agent_tool_use.safety_v0"))
+        .stdout(predicate::str::contains("scientific_computation.reproducibility_v0"));
 }
 
 #[test]
@@ -234,6 +235,23 @@ fn test_profiles_explain_agent_tool_use() {
 }
 
 #[test]
+fn test_profiles_explain_scientific_computation() {
+    certifyedge()
+        .args([
+            "profiles",
+            "explain",
+            "scientific_computation.reproducibility_v0",
+        ])
+        .env("CERTIFYEDGE_ROOT", repo_root())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("ComputationWitness.v0"))
+        .stdout(predicate::str::contains("ComputationRunReceipt.v0"))
+        .stdout(predicate::str::contains("DatasetReceipt.v0"))
+        .stdout(predicate::str::contains("supporting_artifacts"));
+}
+
+#[test]
 fn test_profiles_validate_qc_release_profile() {
     let path = repo_root().join("templates/profiles/hospital_lab.qc_release.json");
     certifyedge()
@@ -253,6 +271,17 @@ fn test_profiles_validate_agent_tool_use_profile() {
         .assert()
         .success()
         .stdout(predicate::str::contains("agent_tool_use.safety_v0"));
+}
+
+#[test]
+fn test_profiles_validate_scientific_computation_profile() {
+    let path = repo_root().join("templates/profiles/scientific_computation.reproducibility_v0.json");
+    certifyedge()
+        .args(["profiles", "validate", path.to_str().unwrap()])
+        .env("CERTIFYEDGE_ROOT", repo_root())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("scientific_computation.reproducibility_v0"));
 }
 
 #[test]

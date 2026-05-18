@@ -1,0 +1,3 @@
+environment_digest_present
+property: scientific_computation.reproducibility_v0
+check: environment_digest_present

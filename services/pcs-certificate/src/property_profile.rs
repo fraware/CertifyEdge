@@ -17,12 +17,17 @@ pub const ARTIFACT_TRACE_CERTIFICATE: &str = "TraceCertificate.v0";
 pub const ARTIFACT_TOOL_USE_CERTIFICATE: &str = "ToolUseCertificate.v0";
 pub const ARTIFACT_LABTRUST_TRACE: &str = "LabTrust.Trace.v0";
 pub const ARTIFACT_TOOL_USE_TRACE: &str = "ToolUseTrace.v0";
+pub const ARTIFACT_COMPUTATION_WITNESS: &str = "ComputationWitness.v0";
+pub const ARTIFACT_COMPUTATION_RUN_RECEIPT: &str = "ComputationRunReceipt.v0";
 
 /// Legacy alias for the default LabTrust output artifact.
 pub const RUNTIME_TO_CERTIFICATE_OUTPUT_ARTIFACT: &str = ARTIFACT_TRACE_CERTIFICATE;
 
-pub const SUPPORTED_OUTPUT_ARTIFACTS: &[&str] =
-    &[ARTIFACT_TRACE_CERTIFICATE, ARTIFACT_TOOL_USE_CERTIFICATE];
+pub const SUPPORTED_OUTPUT_ARTIFACTS: &[&str] = &[
+    ARTIFACT_TRACE_CERTIFICATE,
+    ARTIFACT_TOOL_USE_CERTIFICATE,
+    ARTIFACT_COMPUTATION_WITNESS,
+];
 
 static PROFILE_SCHEMA_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 
@@ -49,6 +54,8 @@ pub struct PropertyProfile {
     )]
     pub required_release_fields: Vec<String>,
     pub repair_hints: BTreeMap<String, ProfileRepairHint>,
+    #[serde(default)]
+    pub supporting_artifacts: Vec<String>,
 }
 
 impl PropertyProfile {
@@ -58,6 +65,18 @@ impl PropertyProfile {
 
     pub fn repair_hint_for(&self, failure_code: &str) -> Option<&ProfileRepairHint> {
         self.repair_hints.get(failure_code)
+    }
+
+    pub fn is_computation_profile(&self) -> bool {
+        self.input_trace_artifact == ARTIFACT_COMPUTATION_RUN_RECEIPT
+    }
+
+    pub fn primary_hash_invariant_key(&self) -> &'static str {
+        if self.is_computation_profile() {
+            "run_hash"
+        } else {
+            "trace_hash"
+        }
     }
 }
 
@@ -248,6 +267,7 @@ pub fn profile_document_value(profile: &PropertyProfile) -> Value {
         "valid_success_status": profile.valid_success_status,
         "valid_failure_status": profile.valid_failure_status,
         "release_mode_required_fields": profile.required_release_fields,
+        "supporting_artifacts": profile.supporting_artifacts,
         "repair_hints": profile.repair_hints,
     })
 }
@@ -264,6 +284,21 @@ pub fn validate_property_profile_value(value: &Value) -> Result<(), String> {
         Err(errors.join("; "))
     }
 }
+
+const COMPUTATION_SUPPORTING_ARTIFACTS: &[&str] = &[
+    "DatasetReceipt.v0",
+    "EnvironmentReceipt.v0",
+    "ResultArtifact.v0",
+];
+
+const COMPUTATION_REPAIR_HINT_CODES: &[&str] = &[
+    "dataset_hash_mismatch",
+    "environment_digest_mismatch",
+    "result_hash_mismatch",
+    "missing_code_commit",
+    "nonzero_exit_code",
+    "missing_result_artifact",
+];
 
 pub fn validate_runtime_to_certificate_profile(profile: &PropertyProfile) -> Result<(), String> {
     if !SUPPORTED_OUTPUT_ARTIFACTS.contains(&profile.output_certificate_artifact.as_str()) {
@@ -284,6 +319,47 @@ pub fn validate_runtime_to_certificate_profile(profile: &PropertyProfile) -> Res
             profile.property_id, profile.valid_failure_status
         ));
     }
+
+    if profile.is_computation_profile() {
+        if profile.output_certificate_artifact != ARTIFACT_COMPUTATION_WITNESS {
+            return Err(format!(
+                "property profile {}: ComputationRunReceipt.v0 input requires output {}",
+                profile.property_id, ARTIFACT_COMPUTATION_WITNESS
+            ));
+        }
+        for artifact in COMPUTATION_SUPPORTING_ARTIFACTS {
+            if !profile.supporting_artifacts.iter().any(|a| a == artifact) {
+                return Err(format!(
+                    "property profile {}: supporting_artifacts must include {artifact}",
+                    profile.property_id
+                ));
+            }
+        }
+        if !profile
+            .required_release_fields
+            .iter()
+            .any(|f| f == "run_hash")
+        {
+            return Err(format!(
+                "property profile {}: release_mode_required_fields must include run_hash",
+                profile.property_id
+            ));
+        }
+        for code in COMPUTATION_REPAIR_HINT_CODES {
+            if !profile.repair_hints.contains_key(*code) {
+                return Err(format!(
+                    "property profile {}: repair_hints missing failure_code {code}",
+                    profile.property_id
+                ));
+            }
+        }
+    } else if !profile.supporting_artifacts.is_empty() {
+        return Err(format!(
+            "property profile {}: supporting_artifacts is only valid for computation profiles",
+            profile.property_id
+        ));
+    }
+
     Ok(())
 }
 
@@ -390,12 +466,43 @@ mod tests {
     }
 
     #[test]
+    fn computation_profile_loads_with_supporting_artifacts() {
+        let root = repo_root();
+        let registry = PropertyProfileRegistry::from_certifyedge_root(&root);
+        let profile = registry
+            .load("scientific_computation.reproducibility_v0")
+            .expect("computation profile loads");
+        assert!(profile.is_computation_profile());
+        assert_eq!(
+            profile.output_certificate_artifact,
+            ARTIFACT_COMPUTATION_WITNESS
+        );
+        assert_eq!(profile.supporting_artifacts.len(), 3);
+        assert!(profile.repair_hints.contains_key("dataset_hash_mismatch"));
+    }
+
+    #[test]
     fn unknown_property_id_is_rejected() {
         let root = repo_root();
         let err = PropertyProfileRegistry::from_certifyedge_root(&root)
             .load("hospital_lab.unknown_property")
             .unwrap_err();
         assert!(err.contains("unknown_property_id"));
+    }
+
+    #[test]
+    fn computation_explain_json_includes_supporting_artifacts() {
+        let root = repo_root();
+        let registry = PropertyProfileRegistry::from_certifyedge_root(&root);
+        let text = registry
+            .explain_json("scientific_computation.reproducibility_v0")
+            .unwrap();
+        let value: Value = serde_json::from_str(&text).unwrap();
+        let supporting = value["supporting_artifacts"].as_array().unwrap();
+        assert_eq!(supporting.len(), 3);
+        assert!(supporting
+            .iter()
+            .any(|v| v.as_str() == Some("DatasetReceipt.v0")));
     }
 
     #[test]

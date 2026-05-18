@@ -7,6 +7,7 @@ static TRACE_CERTIFICATE_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 static TOOL_USE_CERTIFICATE_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 static HANDOFF_MANIFEST_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 static TOOL_USE_TRACE_VALIDATOR: OnceLock<Validator> = OnceLock::new();
+static COMPUTATION_WITNESS_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 
 /// Merged TraceCertificate.v0 + common defs for self-contained JSON Schema validation.
 fn merged_trace_certificate_schema() -> Value {
@@ -190,8 +191,56 @@ pub fn validate_tool_use_certificate_schema(value: &Value) -> Result<(), String>
     }
 }
 
+fn merged_computation_witness_schema() -> Value {
+    let common: Value = serde_json::from_str(include_str!("../../../schemas/pcs/common.defs.json"))
+        .expect("common.defs.json");
+    let mut cert: Value = serde_json::from_str(include_str!(
+        "../../../schemas/pcs/ComputationWitness.v0.schema.json"
+    ))
+    .expect("ComputationWitness.v0.schema.json");
+
+    if let Some(cert_obj) = cert.as_object_mut() {
+        let mut merged_defs = serde_json::Map::new();
+        if let Some(common_defs) = common.get("$defs").and_then(|v| v.as_object()) {
+            for (k, v) in common_defs {
+                merged_defs.insert(k.clone(), v.clone());
+            }
+        }
+        if let Some(local_defs) = cert_obj.get("$defs").and_then(|v| v.as_object()) {
+            for (k, v) in local_defs {
+                merged_defs.insert(k.clone(), v.clone());
+            }
+        }
+        cert_obj.insert("$defs".to_string(), Value::Object(merged_defs));
+    }
+    rewrite_common_defs_refs(&mut cert);
+    cert
+}
+
+fn computation_witness_validator() -> &'static Validator {
+    COMPUTATION_WITNESS_VALIDATOR.get_or_init(|| {
+        let schema = merged_computation_witness_schema();
+        Validator::new(&schema).expect("ComputationWitness.v0 schema compiles")
+    })
+}
+
+pub fn validate_computation_witness_schema(value: &Value) -> Result<(), String> {
+    let validator = computation_witness_validator();
+    let errors: Vec<String> = validator
+        .iter_errors(value)
+        .map(|e| e.to_string())
+        .collect();
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors.join("; "))
+    }
+}
+
 pub fn detect_certificate_artifact_type(value: &Value) -> Option<&'static str> {
-    if value.get("violations").is_some() && value.get("policy_hash").is_some() {
+    if value.get("run_hash").is_some() && value.get("dataset_receipt_hash").is_some() {
+        Some(crate::property_profile::ARTIFACT_COMPUTATION_WITNESS)
+    } else if value.get("violations").is_some() && value.get("policy_hash").is_some() {
         Some(crate::property_profile::ARTIFACT_TOOL_USE_CERTIFICATE)
     } else if value.get("spec_hash").is_some() && value.get("counterexample_ref").is_some() {
         Some(crate::property_profile::ARTIFACT_TRACE_CERTIFICATE)
@@ -214,6 +263,9 @@ pub fn validate_certificate_schema_for_type(
         }
         crate::property_profile::ARTIFACT_TOOL_USE_CERTIFICATE => {
             validate_tool_use_certificate_schema(value)
+        }
+        crate::property_profile::ARTIFACT_COMPUTATION_WITNESS => {
+            validate_computation_witness_schema(value)
         }
         other => Err(format!("unsupported certificate artifact type: {other}")),
     }

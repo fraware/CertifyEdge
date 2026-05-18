@@ -1,5 +1,9 @@
 //! PCS certificate construction, profile registry, and handoff emit for CertifyEdge.
 
+pub mod computation_check;
+pub mod computation_receipt;
+pub mod computation_violation;
+pub mod computation_witness;
 pub mod emit_summary;
 pub mod emitted_certificate;
 pub mod handoff;
@@ -20,10 +24,20 @@ pub mod tool_use_violation;
 pub mod trace_certificate;
 pub mod validation;
 
+pub use computation_check::{
+    check_computation_reproducibility, ComputationCheckResult, ComputationPropertySpec,
+};
+pub use computation_receipt::{
+    load_computation_inputs_from_dir, ComputationEmitInputs, ARTIFACT_COMPUTATION_RUN_RECEIPT,
+    ARTIFACT_DATASET_RECEIPT, ARTIFACT_ENVIRONMENT_RECEIPT, ARTIFACT_RESULT_ARTIFACT,
+    COMPUTATION_RUN_RECEIPT_FILE, DATASET_RECEIPT_FILE, ENVIRONMENT_RECEIPT_FILE,
+    RESULT_ARTIFACT_FILE,
+};
+pub use computation_witness::{build_computation_witness, ComputationWitnessV0};
 pub use emit_summary::{summary_to_json, CertificateEmitSummary};
 pub use emitted_certificate::{
-    default_certificate_output_name, emit_certificate_for_profile, emit_check_failure_stderr,
-    CertificateEmitOutcome, EmittedCertificate,
+    default_certificate_output_name, default_counterexample_filename, emit_certificate_for_profile,
+    emit_check_failure_stderr, CertificateEmitOutcome, EmittedCertificate,
 };
 pub use handoff::{
     build_certificate_to_bundle_handoff, file_digest, finalize_handoff_digest,
@@ -35,8 +49,9 @@ pub use handoff::{
 pub use metadata::CertifyEdgeMetadata;
 pub use pcs_schema::{
     detect_certificate_artifact_type, validate_certificate_schema_for_type,
-    validate_handoff_manifest_schema, validate_tool_use_certificate_schema,
-    validate_tool_use_trace_schema, validate_trace_certificate_schema,
+    validate_computation_witness_schema, validate_handoff_manifest_schema,
+    validate_tool_use_certificate_schema, validate_tool_use_trace_schema,
+    validate_trace_certificate_schema,
 };
 pub use pcs_validate::{
     registry_check_artifact, validate_certificate_artifact, validate_certificate_json,
@@ -46,11 +61,12 @@ pub use property_profile::{
     list_registered_property_ids, load_property_profile, resolve_property_profile,
     spec_path_for_property_id, validate_property_profile_value,
     validate_runtime_to_certificate_profile, ProfileRepairHint, PropertyProfile,
-    PropertyProfileRegistry, ARTIFACT_LABTRUST_TRACE, ARTIFACT_TOOL_USE_CERTIFICATE,
-    ARTIFACT_TOOL_USE_TRACE, ARTIFACT_TRACE_CERTIFICATE, RUNTIME_TO_CERTIFICATE_OUTPUT_ARTIFACT,
-    SUPPORTED_OUTPUT_ARTIFACTS,
+    PropertyProfileRegistry, ARTIFACT_COMPUTATION_WITNESS, ARTIFACT_LABTRUST_TRACE,
+    ARTIFACT_TOOL_USE_CERTIFICATE, ARTIFACT_TOOL_USE_TRACE, ARTIFACT_TRACE_CERTIFICATE,
+    RUNTIME_TO_CERTIFICATE_OUTPUT_ARTIFACT, SUPPORTED_OUTPUT_ARTIFACTS,
 };
 pub use registry_contribution::{
+    validate_default_computation_witness_registry_contribution,
     validate_default_tool_use_certificate_registry_contribution,
     validate_default_trace_certificate_registry_contribution, validate_registry_contribution_entry,
 };

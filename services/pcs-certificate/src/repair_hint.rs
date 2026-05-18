@@ -288,6 +288,7 @@ mod tests {
                     responsible_component: Some("runtime_producer".into()),
                 },
             )]),
+            supporting_artifacts: vec![],
         }
     }
 

@@ -1,0 +1,3 @@
+result_hashes_match
+property: scientific_computation.reproducibility_v0
+check: result_hashes_match

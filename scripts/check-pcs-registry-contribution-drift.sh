@@ -70,4 +70,21 @@ if os.path.isfile(tool_local) and "ToolUseCertificate.v0" in upstream.get("entri
             print(f"error: {err}", file=sys.stderr)
         sys.exit(1)
     print("OK ToolUseCertificate.v0 registry contribution matches pcs-core entry")
+
+comp_local = os.path.join(os.path.dirname(local_path), "ComputationWitness.v0.registry.json")
+if os.path.isfile(comp_local) and "ComputationWitness.v0" in upstream.get("entries", {}):
+    comp_entry = upstream["entries"]["ComputationWitness.v0"]
+    with open(comp_local, encoding="utf-8") as f:
+        comp_doc = json.load(f)
+    comp_errors: list[str] = []
+    for key in COMPARE_KEYS:
+        if comp_entry.get(key) != comp_doc.get(key):
+            comp_errors.append(f"ComputationWitness field drift: {key}")
+    if comp_errors:
+        for err in comp_errors:
+            print(f"error: {err}", file=sys.stderr)
+        sys.exit(1)
+    print("OK ComputationWitness.v0 registry contribution matches pcs-core entry")
+elif os.path.isfile(comp_local):
+    print("note: ComputationWitness.v0 not yet in pcs-core artifact_registry.valid.json (local-only)")
 PY

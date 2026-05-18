@@ -30,6 +30,10 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
       "//tests/certifyedge-integration:phase2_policy"
       "//tests/certifyedge-integration:phase2_registry"
       "//tests/certifyedge-integration:runbook"
+      "//tests/certifyedge-integration:handoff_tool_use"
+      "//tests/certifyedge-integration:tool_use_emit"
+      "//tests/certifyedge-integration:handoff_computation"
+      "//tests/certifyedge-integration:computation_emit"
     )
     ;;
   *)

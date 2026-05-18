@@ -72,8 +72,42 @@ fn test_trace_certificate_registry_contribution_matches_pcs_core_shape() {
 }
 
 #[test]
+fn test_computation_witness_registry_contribution_shape() {
+    let entry = load_registry_contribution("ComputationWitness.v0");
+    for key in REGISTRY_ENTRY_REQUIRED {
+        assert!(
+            entry.get(key).is_some(),
+            "ComputationWitness registry missing {key}"
+        );
+    }
+    assert_eq!(entry["artifact_type"], "ComputationWitness.v0");
+    assert_eq!(entry["schema_owner"], "pcs-core");
+    assert_eq!(entry["runtime_producer"], "CertifyEdge");
+    assert!(entry["canonical_hash_required"].as_bool().unwrap());
+    assert!(entry["release_mode_required"].as_bool().unwrap());
+    let consumers = entry["consumer_repos"].as_array().unwrap();
+    assert!(consumers
+        .iter()
+        .any(|v| v.as_str() == Some("Provability Fabric")));
+    assert!(consumers
+        .iter()
+        .any(|v| v.as_str() == Some("Scientific Memory")));
+    let checks = entry["semantic_checks"].as_array().unwrap();
+    assert!(checks
+        .iter()
+        .any(|c| c["check_id"] == "dataset_hash_matches_receipt"));
+    assert!(checks
+        .iter()
+        .any(|c| c["check_id"] == "computation_status_checked_for_release"));
+}
+
+#[test]
 fn test_registry_contribution_validates_against_vendored_schema() {
-    for artifact in ["TraceCertificate.v0", "ToolUseCertificate.v0"] {
+    for artifact in [
+        "TraceCertificate.v0",
+        "ToolUseCertificate.v0",
+        "ComputationWitness.v0",
+    ] {
         let entry = load_registry_contribution(artifact);
         validate_registry_contribution_entry(&entry)
             .unwrap_or_else(|e| panic!("{artifact} registry contribution schema: {e}"));

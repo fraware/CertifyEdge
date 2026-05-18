@@ -110,6 +110,16 @@ pub fn validate_default_tool_use_certificate_registry_contribution(
     )
 }
 
+/// Load and validate `pcs_registry/ComputationWitness.v0.registry.json` under `repo_root`.
+pub fn validate_default_computation_witness_registry_contribution(
+    repo_root: &Path,
+) -> Result<(), String> {
+    validate_registry_contribution_file(
+        repo_root,
+        "pcs_registry/ComputationWitness.v0.registry.json",
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -127,5 +137,10 @@ mod tests {
     #[test]
     fn tool_use_certificate_contribution_validates() {
         validate_default_tool_use_certificate_registry_contribution(&repo_root()).unwrap();
+    }
+
+    #[test]
+    fn computation_witness_contribution_validates() {
+        validate_default_computation_witness_registry_contribution(&repo_root()).unwrap();
     }
 }

@@ -1,0 +1,6 @@
+package(default_visibility = ["//visibility:public"])
+
+filegroup(
+    name = "computation_fixtures",
+    srcs = glob(["*.json"]),
+)

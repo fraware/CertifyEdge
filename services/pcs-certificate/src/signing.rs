@@ -1,3 +1,4 @@
+use crate::computation_witness::ComputationWitnessV0;
 use crate::hash::canonical_hash;
 use crate::tool_use_certificate::ToolUseCertificateV0;
 use crate::trace_certificate::TraceCertificateV0;
@@ -10,6 +11,11 @@ pub fn digest_certificate(cert: &TraceCertificateV0) -> String {
 
 pub fn digest_tool_use_certificate(cert: &ToolUseCertificateV0) -> String {
     let value = serde_json::to_value(cert).expect("tool-use certificate serializes");
+    canonical_hash(&value)
+}
+
+pub fn digest_computation_witness(witness: &ComputationWitnessV0) -> String {
+    let value = serde_json::to_value(witness).expect("computation witness serializes");
     canonical_hash(&value)
 }
 

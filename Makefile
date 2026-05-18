@@ -64,6 +64,7 @@ validate-profiles: build
 	$(CARGO) run -p certifyedge -- profiles validate templates/profiles/hospital_lab.qc_release.json
 	$(CARGO) run -p certifyedge -- profiles validate templates/profiles/hospital_lab.no_release_before_qc.json
 	$(CARGO) run -p certifyedge -- profiles validate templates/profiles/agent_tool_use.safety_v0.json
+	$(CARGO) run -p certifyedge -- profiles validate templates/profiles/scientific_computation.reproducibility_v0.json
 
 check-pcs-core-rc:
 	bash ./scripts/check-pcs-core-rc-drift.sh

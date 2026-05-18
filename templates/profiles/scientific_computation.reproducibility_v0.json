@@ -1,0 +1,56 @@
+{
+  "property_id": "scientific_computation.reproducibility_v0",
+  "template": "templates/computation/result_hashes_match.stl",
+  "input_trace_artifact": "ComputationRunReceipt.v0",
+  "supporting_artifacts": [
+    "DatasetReceipt.v0",
+    "EnvironmentReceipt.v0",
+    "ResultArtifact.v0"
+  ],
+  "output_certificate_artifact": "ComputationWitness.v0",
+  "counterexample_artifact": "ComputationCounterexample.v0",
+  "valid_success_status": "CertificateChecked",
+  "valid_failure_status": "Rejected",
+  "release_mode_required_fields": [
+    "run_hash",
+    "dataset_receipt_hash",
+    "environment_receipt_hash",
+    "code_commit",
+    "property_id",
+    "source_repo",
+    "source_commit",
+    "signature_or_digest"
+  ],
+  "repair_hints": {
+    "dataset_hash_mismatch": {
+      "kind": "fix_computation_receipts",
+      "command": "regenerate dataset receipt and computation run receipt with matching dataset_receipt_hash",
+      "responsible_component": "runtime_producer"
+    },
+    "environment_digest_mismatch": {
+      "kind": "fix_computation_receipts",
+      "command": "regenerate environment receipt and computation run receipt with matching environment_receipt_hash",
+      "responsible_component": "runtime_producer"
+    },
+    "result_hash_mismatch": {
+      "kind": "fix_result_artifact",
+      "command": "recompute result artifact and update computation_run_receipt.result_artifact_hashes",
+      "responsible_component": "runtime_producer"
+    },
+    "missing_code_commit": {
+      "kind": "fix_run_receipt",
+      "command": "set code_commit on computation_run_receipt.json before certification",
+      "responsible_component": "runtime_producer"
+    },
+    "nonzero_exit_code": {
+      "kind": "fix_computation_run",
+      "command": "rerun computation with exit_code 0 or emit a failure witness only after run completes",
+      "responsible_component": "runtime_producer"
+    },
+    "missing_result_artifact": {
+      "kind": "fix_handoff_inputs",
+      "command": "include result_artifact.json in handoff input_artifacts with matching artifact_hash",
+      "responsible_component": "runtime_producer"
+    }
+  }
+}

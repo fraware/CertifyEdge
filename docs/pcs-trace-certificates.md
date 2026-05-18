@@ -1,6 +1,8 @@
 # PCS Trace Certificates
 
-CertifyEdge v0.1 emits **TraceCertificate.v0** artifacts defined in [pcs-core](https://github.com/SentinelOps-CI/pcs-core). Certificates bind a LabTrust trace hash to a temporal property spec hash and record whether the checker accepted or rejected the trace.
+CertifyEdge v0.1 is a **profile-driven** PCS producer. Depending on `templates/profiles/<property_id>.json`, emit produces **TraceCertificate.v0** (LabTrust), **ToolUseCertificate.v0** (agent tool-use), or **ComputationWitness.v0** (scientific computation reproducibility). This document focuses on the LabTrust trace certificate path; see [pcs-certificate-profile.md](pcs-certificate-profile.md) and [pcs-handoff.md](pcs-handoff.md) for tool-use and computation workflows.
+
+**TraceCertificate.v0** artifacts are defined in [pcs-core](https://github.com/SentinelOps-CI/pcs-core). Certificates bind a LabTrust trace hash to a temporal property spec hash and record whether the checker accepted or rejected the trace.
 
 ## Property templates (v0.1 LabTrust temporal-property profile)
 

@@ -263,51 +263,55 @@ pub fn cmd_profiles(command: ProfilesCommands) -> Result<(), String> {
 pub fn cmd_emit_certificate(opts: EmitCertificateOptions<'_>) -> Result<(), String> {
     let root = certifyedge_root();
     let registry = resolve_profile_registry(&root, opts.profile_registry)?;
-    let (spec_path, trace_path, out_path, handoff_profile) = if let Some(handoff_path) =
-        opts.handoff_path
-    {
-        if opts.release_mode {
-            validate_handoff_artifact(handoff_path, true)?;
-        }
-        let handoff = load_handoff_manifest(handoff_path)?;
-        let plan = plan_emit_from_handoff(
-            handoff_path,
-            &handoff,
-            &registry,
-            opts.spec_path,
-            opts.trace_path,
-            opts.out_path,
-            opts.release_mode,
-        )?;
-        (
-            plan.spec_path,
-            plan.trace_path,
-            plan.out_path,
-            Some(plan.property_profile),
-        )
-    } else {
-        let spec = opts.spec_path.ok_or_else(|| {
-            "emit-pcs-certificate requires --spec and --trace, or --handoff".to_string()
-        })?;
-        let trace = opts.trace_path.ok_or_else(|| {
-            "emit-pcs-certificate requires --spec and --trace, or --handoff".to_string()
-        })?;
-        let out = opts.out_path.ok_or_else(|| {
-            "emit-pcs-certificate requires --out (or --handoff with expected_outputs)".to_string()
-        })?;
-        (
-            spec.to_path_buf(),
-            trace.to_path_buf(),
-            out.to_path_buf(),
-            None,
-        )
-    };
+    let (spec_path, trace_path, out_path, handoff_profile, computation_inputs) =
+        if let Some(handoff_path) = opts.handoff_path {
+            if opts.release_mode {
+                validate_handoff_artifact(handoff_path, true)?;
+            }
+            let handoff = load_handoff_manifest(handoff_path)?;
+            let plan = plan_emit_from_handoff(
+                handoff_path,
+                &handoff,
+                &registry,
+                opts.spec_path,
+                opts.trace_path,
+                opts.out_path,
+                opts.release_mode,
+            )?;
+            (
+                plan.spec_path,
+                plan.trace_path,
+                plan.out_path,
+                Some(plan.property_profile),
+                plan.computation_inputs,
+            )
+        } else {
+            let spec = opts.spec_path.ok_or_else(|| {
+                "emit-pcs-certificate requires --spec and --trace, or --handoff".to_string()
+            })?;
+            let trace = opts.trace_path.ok_or_else(|| {
+                "emit-pcs-certificate requires --spec and --trace, or --handoff".to_string()
+            })?;
+            let out = opts.out_path.ok_or_else(|| {
+                "emit-pcs-certificate requires --out (or --handoff with expected_outputs)"
+                    .to_string()
+            })?;
+            (
+                spec.to_path_buf(),
+                trace.to_path_buf(),
+                out.to_path_buf(),
+                None,
+                None,
+            )
+        };
 
     let trace_bytes = fs::read(&trace_path).map_err(|e| e.to_string())?;
     let profile = if let Some(p) = handoff_profile.as_ref() {
         p.clone()
     } else if let Ok(tool_spec) = pcs_certificate::ToolUsePropertySpec::load(&spec_path) {
         registry.load(&tool_spec.property_id)?
+    } else if let Ok(comp_spec) = pcs_certificate::ComputationPropertySpec::load(&spec_path) {
+        registry.load(&comp_spec.property_id)?
     } else {
         let spec = load_spec(&spec_path)?;
         registry.load(spec.property_id.as_str())?
@@ -316,7 +320,9 @@ pub fn cmd_emit_certificate(opts: EmitCertificateOptions<'_>) -> Result<(), Stri
     let cx_path = opts
         .counterexample_out
         .map(PathBuf::from)
-        .unwrap_or_else(|| out_path.with_file_name("counterexample.json"));
+        .unwrap_or_else(|| {
+            out_path.with_file_name(pcs_certificate::default_counterexample_filename(&profile))
+        });
     let cx_ref = cx_path
         .file_name()
         .map(|name| name.to_string_lossy().into_owned());
@@ -334,6 +340,7 @@ pub fn cmd_emit_certificate(opts: EmitCertificateOptions<'_>) -> Result<(), Stri
         &trace_bytes,
         &meta,
         cx_ref.clone(),
+        computation_inputs,
     )?;
 
     let failure_code = emit_outcome.failure_code.as_deref();
@@ -359,6 +366,16 @@ pub fn cmd_emit_certificate(opts: EmitCertificateOptions<'_>) -> Result<(), Stri
             )
         } else if emit_outcome.tool_use_counterexample.is_some() {
             repair_tool_use_check_failed(&profile, failure_code, &trace_path.display().to_string())
+        } else if emit_outcome.computation_counterexample.is_some() {
+            emit_check_failure_stderr(
+                &profile,
+                failure_code,
+                &trace_path.display().to_string(),
+                format!(
+                    "computation reproducibility check failed for property_id={}",
+                    profile.property_id
+                ),
+            )
         } else {
             emit_check_failure_stderr(
                 &profile,
@@ -375,6 +392,15 @@ pub fn cmd_emit_certificate(opts: EmitCertificateOptions<'_>) -> Result<(), Stri
         if let Some(cx) = &emit_outcome.labtrust_counterexample {
             write_counterexample(&cx_path, cx)?;
         } else if let Some(cx) = &emit_outcome.tool_use_counterexample {
+            fs::write(
+                &cx_path,
+                format!(
+                    "{}\n",
+                    serde_json::to_string_pretty(cx).map_err(|e| e.to_string())?
+                ),
+            )
+            .map_err(|e| e.to_string())?;
+        } else if let Some(cx) = &emit_outcome.computation_counterexample {
             fs::write(
                 &cx_path,
                 format!(

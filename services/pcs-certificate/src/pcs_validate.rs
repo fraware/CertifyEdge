@@ -7,12 +7,14 @@ use crate::pcs_schema::{
     detect_certificate_artifact_type, validate_certificate_schema_for_type,
     validate_trace_certificate_schema,
 };
-use crate::property_profile::PropertyProfile;
+use crate::property_profile::{PropertyProfile, ARTIFACT_COMPUTATION_WITNESS};
+use crate::registry_contribution::validate_default_computation_witness_registry_contribution;
+use crate::source_commit::certifyedge_repo_root;
 
 /// Validate JSON against vendored pcs-core certificate schema (in-process).
 pub fn validate_certificate_json(value: &Value) -> Result<(), String> {
     let artifact_type = detect_certificate_artifact_type(value).ok_or_else(|| {
-        "cannot detect certificate artifact type (expected TraceCertificate.v0 or ToolUseCertificate.v0 fields)".to_string()
+        "cannot detect certificate artifact type (expected TraceCertificate.v0, ToolUseCertificate.v0, or ComputationWitness.v0 fields)".to_string()
     })?;
     validate_certificate_schema_for_type(value, artifact_type)
 }
@@ -68,6 +70,14 @@ pub fn registry_check_artifact(path: &Path, release_mode: bool) -> Result<(), St
     if !release_mode {
         return Ok(());
     }
+    let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+    let value: Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+    if detect_certificate_artifact_type(&value) == Some(ARTIFACT_COMPUTATION_WITNESS) {
+        let root = certifyedge_repo_root().ok_or_else(|| {
+            "cannot locate CertifyEdge repo root for registry contribution check".to_string()
+        })?;
+        return validate_default_computation_witness_registry_contribution(&root);
+    }
     let output = match Command::new("pcs")
         .args(["registry", "check-artifact"])
         .arg(path)
@@ -101,7 +111,9 @@ pub fn registry_check_artifact(path: &Path, release_mode: bool) -> Result<(), St
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::property_profile::{ARTIFACT_TOOL_USE_CERTIFICATE, ARTIFACT_TRACE_CERTIFICATE};
+    use crate::property_profile::{
+        ARTIFACT_COMPUTATION_WITNESS, ARTIFACT_TOOL_USE_CERTIFICATE, ARTIFACT_TRACE_CERTIFICATE,
+    };
     use std::io::Write;
 
     #[test]
@@ -151,6 +163,31 @@ mod tests {
     }
 
     #[test]
+    fn detects_computation_witness_type() {
+        let value = serde_json::json!({
+            "schema_version": "v0",
+            "certificate_id": "cert-computation-test",
+            "run_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "dataset_receipt_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+            "environment_receipt_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+            "code_commit": "abcdef0123456789abcdef0123456789abcdef01",
+            "property_id": "scientific_computation.reproducibility_v0",
+            "checker": "CertifyEdge",
+            "checker_version": "0.1.0",
+            "status": "CertificateChecked",
+            "violations": [],
+            "result_artifact_hashes": ["sha256:4444444444444444444444444444444444444444444444444444444444444444"],
+            "source_repo": "https://github.com/fraware/CertifyEdge",
+            "source_commit": "abcdef0123456789abcdef0123456789abcdef01",
+            "signature_or_digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+        });
+        assert_eq!(
+            detect_certificate_artifact_type(&value),
+            Some(ARTIFACT_COMPUTATION_WITNESS)
+        );
+    }
+
+    #[test]
     fn detects_trace_certificate_type() {
         let value = serde_json::json!({
             "certificate_id": "cert-trace-test",
@@ -170,6 +207,13 @@ mod tests {
 pub fn validate_certificate_artifact(path: &Path, require_pcs_cli: bool) -> Result<(), String> {
     let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
     let value: Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
-    validate_certificate_json(&value)?;
+    let artifact_type = detect_certificate_artifact_type(&value).ok_or_else(|| {
+        "cannot detect certificate artifact type (expected TraceCertificate.v0, ToolUseCertificate.v0, or ComputationWitness.v0 fields)".to_string()
+    })?;
+    validate_certificate_schema_for_type(&value, artifact_type)?;
+    if artifact_type == ARTIFACT_COMPUTATION_WITNESS {
+        // pcs-core CLI may not yet ship ComputationWitness.v0; vendored schema is authoritative.
+        return Ok(());
+    }
     validate_with_pcs_cli(path, require_pcs_cli)
 }
