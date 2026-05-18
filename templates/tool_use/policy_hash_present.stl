@@ -1,0 +1,4 @@
+policy_hash_present
+// Enforced in release mode via trace policy_hash field (see check_policy_hash_present).
+property: agent_tool_use.safety_v0
+check: policy_hash_present

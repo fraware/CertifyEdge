@@ -17,7 +17,8 @@ extract_digest() {
 }
 
 extract_input() {
-  sed -n 's/.*"input"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$1" | head -n1
+  sed -n 's/.*"input_file"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$1" | head -n1 \
+    || sed -n 's/.*"input"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$1" | head -n1
 }
 
 extract_canonical() {

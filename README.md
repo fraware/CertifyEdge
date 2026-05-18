@@ -25,7 +25,7 @@ CertifyEdge is a **Rust** workspace for **signal temporal logic (STL)** specific
 
 ## PCS v0.1 (LabTrust QC-release)
 
-CertifyEdge v0.1 is the **temporal trace certification engine** for [Proof-Carrying Science](https://github.com/SentinelOps-CI/pcs-core) v0.1. It consumes LabTrust-Gym `trace.json`, checks hospital-lab temporal properties, and emits **TraceCertificate.v0** artifacts for Provability Fabric.
+CertifyEdge v0.1 is the **profile-driven certificate engine** for [Proof-Carrying Science](https://github.com/SentinelOps-CI/pcs-core) v0.1. Property profiles under `templates/profiles/` map runtime traces to STL checks and PCS certificate types (`TraceCertificate.v0` for LabTrust-Gym, `ToolUseCertificate.v0` for agent tool-use). Add a workflow by adding a profile JSON file and template—no emit logic changes.
 
 Runbook commands are implemented in the **`certifyedge`** binary (`cli/`). Search the repo for `emit-pcs-certificate`, `check-trace`, or constants like `CMD_EMIT_PCS_CERTIFICATE` in `cli/src/lib.rs`.
 
@@ -58,9 +58,11 @@ cargo run -p certifyedge -- explain-counterexample counterexample.json
 | Crate / path | Role |
 |--------------|------|
 | `services/labtrust-adapter/` | Parse LabTrust traces, hash chain, temporal checks |
-| `services/pcs-certificate/` | `TraceCertificate.v0` export and digest |
-| `cli/` | `certifyedge` command-line tool |
-| `templates/hospital_lab/` | STL property specs (`qc_release`, etc.) |
+| `services/pcs-certificate/` | Profile registry, certificate emit, handoffs, repair hints |
+| `cli/` | `certifyedge` command-line tool (`profiles`, `emit-pcs-certificate`, …) |
+| `templates/profiles/` | Property profile registry (`hospital_lab.qc_release`, `agent_tool_use.safety_v0`, …) |
+| `templates/hospital_lab/` | LabTrust STL property specs |
+| `templates/tool_use/` | Tool-use STL property specs |
 | `tests/labtrust/` | Golden traces and expected outputs |
 | `tests/fixtures/labtrust-release/` | CLI-generated release trace, certificate, and counterexamples |
 

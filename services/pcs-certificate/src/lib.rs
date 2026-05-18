@@ -1,20 +1,30 @@
-//! PCS `TraceCertificate.v0` construction, digest signing, and validation.
+//! PCS certificate construction, profile registry, and handoff emit for CertifyEdge.
 
 pub mod emit_summary;
+pub mod emitted_certificate;
 pub mod handoff;
 pub mod hash;
 pub mod metadata;
 pub mod pcs_schema;
 pub mod pcs_validate;
-pub mod registry_contribution;
 pub mod property_profile;
+pub mod registry_contribution;
+pub mod repair_hint;
 pub mod signing;
 pub mod source_commit;
 pub mod status_policy;
+pub mod tool_use_certificate;
+pub mod tool_use_check;
+pub mod tool_use_trace;
+pub mod tool_use_violation;
 pub mod trace_certificate;
 pub mod validation;
 
 pub use emit_summary::{summary_to_json, CertificateEmitSummary};
+pub use emitted_certificate::{
+    default_certificate_output_name, emit_certificate_for_profile, emit_check_failure_stderr,
+    CertificateEmitOutcome, EmittedCertificate,
+};
 pub use handoff::{
     build_certificate_to_bundle_handoff, file_digest, finalize_handoff_digest,
     load_handoff_manifest, plan_emit_from_handoff, validate_handoff_artifact,
@@ -23,14 +33,31 @@ pub use handoff::{
     HANDOFF_KIND_RUNTIME_TO_CERTIFICATE,
 };
 pub use metadata::CertifyEdgeMetadata;
-pub use pcs_schema::validate_handoff_manifest_schema;
-pub use pcs_schema::validate_trace_certificate_schema;
-pub use pcs_validate::{registry_check_artifact, validate_certificate_artifact};
-pub use registry_contribution::{
-    validate_default_trace_certificate_registry_contribution,
-    validate_registry_contribution_entry,
+pub use pcs_schema::{
+    detect_certificate_artifact_type, validate_certificate_schema_for_type,
+    validate_handoff_manifest_schema, validate_tool_use_certificate_schema,
+    validate_tool_use_trace_schema, validate_trace_certificate_schema,
 };
-pub use property_profile::{load_property_profile, PropertyProfile};
+pub use pcs_validate::{
+    registry_check_artifact, validate_certificate_artifact, validate_certificate_json,
+    validate_certificate_json_for_profile,
+};
+pub use property_profile::{
+    list_registered_property_ids, load_property_profile, resolve_property_profile,
+    spec_path_for_property_id, validate_property_profile_value,
+    validate_runtime_to_certificate_profile, ProfileRepairHint, PropertyProfile,
+    PropertyProfileRegistry, ARTIFACT_LABTRUST_TRACE, ARTIFACT_TOOL_USE_CERTIFICATE,
+    ARTIFACT_TOOL_USE_TRACE, ARTIFACT_TRACE_CERTIFICATE, RUNTIME_TO_CERTIFICATE_OUTPUT_ARTIFACT,
+    SUPPORTED_OUTPUT_ARTIFACTS,
+};
+pub use registry_contribution::{
+    validate_default_tool_use_certificate_registry_contribution,
+    validate_default_trace_certificate_registry_contribution, validate_registry_contribution_entry,
+};
+pub use repair_hint::{
+    emit_certificate_failure, repair_temporal_check_failed, repair_tool_use_check_failed,
+    validate_release_mode_fields, CertificateFailure, RepairHint,
+};
 pub use source_commit::{
     certifyedge_repo_root, is_placeholder_source_commit, is_zero_source_commit, labtrust_gym_root,
     SourceCommitResolution, ZERO_SOURCE_COMMIT,
@@ -39,8 +66,12 @@ pub use status_policy::{
     is_terminal_certificate_status, validate_certificate_status_transition,
     STATUS_CERTIFICATE_CHECKED, STATUS_CERTIFICATE_PENDING, STATUS_REJECTED,
 };
+pub use tool_use_certificate::{build_tool_use_certificate, ToolUseCertificateV0};
+pub use tool_use_check::{check_tool_use_property, ToolUseCheckResult, ToolUsePropertySpec};
+pub use tool_use_trace::{parse_tool_use_trace_json, ToolUseTraceV0};
 pub use trace_certificate::{
     build_certificate, certificate_from_json, certificate_to_json, counterexample_from_json,
     counterexample_to_json, explain_counterexample, CertificateOutcome, SOURCE_REPO,
 };
+pub use trace_certificate::{build_certificate_with_profile, resolve_profile_registry};
 pub use validation::verify_certificate_document;

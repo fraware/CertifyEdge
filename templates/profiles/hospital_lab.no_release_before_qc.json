@@ -1,6 +1,6 @@
 {
-  "property_id": "hospital_lab.qc_release",
-  "template": "templates/hospital_lab/qc_release.stl",
+  "property_id": "hospital_lab.no_release_before_qc",
+  "template": "templates/hospital_lab/no_release_before_qc.stl",
   "input_trace_artifact": "LabTrust.Trace.v0",
   "output_certificate_artifact": "TraceCertificate.v0",
   "counterexample_artifact": "LabTrust.Counterexample.v0",
@@ -16,12 +16,7 @@
   "repair_hints": {
     "temporal_check_failed": {
       "kind": "fix_trace_or_property",
-      "command": "certifyedge check-trace --spec templates/hospital_lab/qc_release.stl --trace <trace.json>",
-      "responsible_component": "runtime_producer"
-    },
-    "trace_hash_mismatch": {
-      "kind": "regenerate_trace_or_handoff",
-      "command": "labtrust emit-handoff-to-certifyedge --trace <trace.json> --runtime-receipt <receipt.json> --out <handoff.json> --release-mode",
+      "command": "certifyedge check-trace --spec templates/hospital_lab/no_release_before_qc.stl --trace <trace.json>",
       "responsible_component": "runtime_producer"
     }
   }

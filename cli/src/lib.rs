@@ -14,13 +14,16 @@ use labtrust_adapter::{
     check_property, parse_and_validate_json, Counterexample, PropertySpec, TraceView,
 };
 use pcs_certificate::{
-    build_certificate, build_certificate_to_bundle_handoff, certificate_to_json,
-    counterexample_from_json, counterexample_to_json, explain_counterexample,
+    build_certificate_to_bundle_handoff, counterexample_from_json, counterexample_to_json,
+    emit_certificate_for_profile, emit_check_failure_stderr, explain_counterexample,
     finalize_handoff_digest, load_handoff_manifest, plan_emit_from_handoff,
-    registry_check_artifact, summary_to_json, validate_certificate_artifact,
-    validate_handoff_artifact, verify_certificate_document, write_handoff_manifest,
-    CertificateEmitSummary, CertifyEdgeMetadata,
+    registry_check_artifact, repair_temporal_check_failed, repair_tool_use_check_failed,
+    resolve_profile_registry, summary_to_json, validate_certificate_artifact,
+    validate_certificate_json_for_profile, validate_handoff_artifact, validate_release_mode_fields,
+    verify_certificate_document, write_handoff_manifest, CertificateEmitSummary,
+    CertifyEdgeMetadata, PropertyProfileRegistry,
 };
+use serde_json::Value;
 
 /// Runbook: `certifyedge check-trace`
 pub const CMD_CHECK_TRACE: &str = "check-trace";
@@ -78,6 +81,9 @@ pub enum Commands {
         /// Write outbound `HandoffManifest.v0` after certificate emission.
         #[arg(long)]
         handoff_out: Option<PathBuf>,
+        /// Property profile registry directory (default: `<CERTIFYEDGE_ROOT>/templates/profiles`).
+        #[arg(long, value_name = "DIR")]
+        profile_registry: Option<PathBuf>,
     },
     /// Runbook: `certifyedge verify-certificate <trace_certificate.json>`
     #[command(name = CMD_VERIFY_CERTIFICATE, visible_alias = "verify_certificate")]
@@ -89,6 +95,32 @@ pub enum Commands {
     /// Runbook: `certifyedge explain-counterexample <counterexample.json>`
     #[command(name = CMD_EXPLAIN_COUNTEREXAMPLE, visible_alias = "explain_counterexample")]
     ExplainCounterexample { counterexample: PathBuf },
+    /// Property profile registry commands (`list`, `explain`, `validate`).
+    Profiles {
+        #[command(subcommand)]
+        command: ProfilesCommands,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum ProfilesCommands {
+    /// List registered property profile IDs.
+    List {
+        #[arg(long, value_name = "DIR")]
+        profile_registry: Option<PathBuf>,
+    },
+    /// Show a property profile document (JSON).
+    Explain {
+        property_id: String,
+        #[arg(long, value_name = "DIR")]
+        profile_registry: Option<PathBuf>,
+    },
+    /// Validate a property profile file against `schema.json`.
+    Validate {
+        path: PathBuf,
+        #[arg(long, value_name = "DIR")]
+        profile_registry: Option<PathBuf>,
+    },
 }
 
 pub fn run(cli: Cli) -> Result<(), String> {
@@ -106,6 +138,7 @@ pub fn run(cli: Cli) -> Result<(), String> {
             counterexample_out,
             summary_out,
             handoff_out,
+            profile_registry,
         } => cmd_emit_certificate(EmitCertificateOptions {
             release_mode: cli.release_mode,
             handoff_path: handoff.as_deref(),
@@ -115,7 +148,9 @@ pub fn run(cli: Cli) -> Result<(), String> {
             counterexample_out: counterexample_out.as_deref(),
             summary_out: summary_out.as_deref(),
             handoff_out: handoff_out.as_deref(),
+            profile_registry: profile_registry.as_deref(),
         }),
+        Commands::Profiles { command } => cmd_profiles(command),
         Commands::VerifyCertificate { certificate, trace } => {
             cmd_verify_certificate(cli.release_mode, &certificate, trace.as_deref())
         }
@@ -182,11 +217,55 @@ pub struct EmitCertificateOptions<'a> {
     pub counterexample_out: Option<&'a Path>,
     pub summary_out: Option<&'a Path>,
     pub handoff_out: Option<&'a Path>,
+    pub profile_registry: Option<&'a Path>,
+}
+
+fn profile_registry_for_cli(
+    registry_override: Option<&Path>,
+) -> Result<PropertyProfileRegistry, String> {
+    let root = certifyedge_root();
+    resolve_profile_registry(&root, registry_override)
+}
+
+pub fn cmd_profiles(command: ProfilesCommands) -> Result<(), String> {
+    match command {
+        ProfilesCommands::List { profile_registry } => {
+            let registry = profile_registry_for_cli(profile_registry.as_deref())?;
+            for id in registry.list()? {
+                println!("{id}");
+            }
+            Ok(())
+        }
+        ProfilesCommands::Explain {
+            property_id,
+            profile_registry,
+        } => {
+            let registry = profile_registry_for_cli(profile_registry.as_deref())?;
+            println!("{}", registry.explain_json(&property_id)?);
+            Ok(())
+        }
+        ProfilesCommands::Validate {
+            path,
+            profile_registry,
+        } => {
+            let registry = profile_registry_for_cli(profile_registry.as_deref())?;
+            let profile = registry.validate_file(&path)?;
+            println!(
+                "OK property profile {} ({})",
+                profile.property_id,
+                path.display()
+            );
+            Ok(())
+        }
+    }
 }
 
 pub fn cmd_emit_certificate(opts: EmitCertificateOptions<'_>) -> Result<(), String> {
     let root = certifyedge_root();
-    let (spec_path, trace_path, out_path) = if let Some(handoff_path) = opts.handoff_path {
+    let registry = resolve_profile_registry(&root, opts.profile_registry)?;
+    let (spec_path, trace_path, out_path, handoff_profile) = if let Some(handoff_path) =
+        opts.handoff_path
+    {
         if opts.release_mode {
             validate_handoff_artifact(handoff_path, true)?;
         }
@@ -194,13 +273,18 @@ pub fn cmd_emit_certificate(opts: EmitCertificateOptions<'_>) -> Result<(), Stri
         let plan = plan_emit_from_handoff(
             handoff_path,
             &handoff,
-            &root,
+            &registry,
             opts.spec_path,
             opts.trace_path,
             opts.out_path,
             opts.release_mode,
         )?;
-        (plan.spec_path, plan.trace_path, plan.out_path)
+        (
+            plan.spec_path,
+            plan.trace_path,
+            plan.out_path,
+            Some(plan.property_profile),
+        )
     } else {
         let spec = opts.spec_path.ok_or_else(|| {
             "emit-pcs-certificate requires --spec and --trace, or --handoff".to_string()
@@ -211,55 +295,124 @@ pub fn cmd_emit_certificate(opts: EmitCertificateOptions<'_>) -> Result<(), Stri
         let out = opts.out_path.ok_or_else(|| {
             "emit-pcs-certificate requires --out (or --handoff with expected_outputs)".to_string()
         })?;
-        (spec.to_path_buf(), trace.to_path_buf(), out.to_path_buf())
+        (
+            spec.to_path_buf(),
+            trace.to_path_buf(),
+            out.to_path_buf(),
+            None,
+        )
     };
 
-    let spec = load_spec(&spec_path)?;
-    let trace = load_trace(&trace_path)?;
-    let trace_hash = trace.trace_hash.clone();
-    let view = TraceView::from(trace);
-    let check = check_property(&view, &spec);
-
-    let cx_path = if !check.passed {
-        let path = opts
-            .counterexample_out
-            .map(PathBuf::from)
-            .unwrap_or_else(|| out_path.with_file_name("counterexample.json"));
-        if let Some(cx) = &check.counterexample {
-            write_counterexample(&path, cx)?;
-        }
-        Some(path)
+    let trace_bytes = fs::read(&trace_path).map_err(|e| e.to_string())?;
+    let profile = if let Some(p) = handoff_profile.as_ref() {
+        p.clone()
+    } else if let Ok(tool_spec) = pcs_certificate::ToolUsePropertySpec::load(&spec_path) {
+        registry.load(&tool_spec.property_id)?
     } else {
-        None
+        let spec = load_spec(&spec_path)?;
+        registry.load(spec.property_id.as_str())?
     };
+
+    let cx_path = opts
+        .counterexample_out
+        .map(PathBuf::from)
+        .unwrap_or_else(|| out_path.with_file_name("counterexample.json"));
+    let cx_ref = cx_path
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned());
 
     let meta = CertifyEdgeMetadata::resolve(opts.release_mode)?;
     println!(
         "source_commit_resolution={}",
         meta.source_commit_resolution.as_str()
     );
-    let cx_ref = cx_path.as_ref().map(|p| p.to_string_lossy().to_string());
-    let outcome = build_certificate(&trace_hash, &spec, &check, &meta, cx_ref)?;
 
-    if outcome.certificate.trace_hash != trace_hash {
-        return Err(format!(
-            "internal error: certificate trace_hash {} != trace {}",
-            outcome.certificate.trace_hash, trace_hash
-        ));
+    let emit_outcome = emit_certificate_for_profile(
+        &profile,
+        &registry,
+        &spec_path,
+        &trace_bytes,
+        &meta,
+        cx_ref.clone(),
+    )?;
+
+    let failure_code = emit_outcome.failure_code.as_deref();
+    let passed = emit_outcome.certificate.status() == profile.valid_success_status;
+
+    if opts.release_mode && failure_code == Some("policy_hash_missing") {
+        let stderr = repair_tool_use_check_failed(
+            &profile,
+            "policy_hash_missing",
+            &trace_path.display().to_string(),
+        );
+        eprintln!("{stderr}");
+        return Err("release mode: tool-use trace missing policy_hash".to_string());
     }
 
-    let cert_json = certificate_to_json(&outcome.certificate).map_err(|e| e.to_string())?;
+    if !passed {
+        let failure_code = failure_code.unwrap_or("certificate_check_failed");
+        let stderr = if emit_outcome.labtrust_counterexample.is_some() {
+            repair_temporal_check_failed(
+                &profile,
+                &trace_path.display().to_string(),
+                &spec_path.display().to_string(),
+            )
+        } else if emit_outcome.tool_use_counterexample.is_some() {
+            repair_tool_use_check_failed(&profile, failure_code, &trace_path.display().to_string())
+        } else {
+            emit_check_failure_stderr(
+                &profile,
+                failure_code,
+                &trace_path.display().to_string(),
+                format!(
+                    "certificate check failed for property_id={}",
+                    profile.property_id
+                ),
+            )
+        };
+        eprintln!("{stderr}");
+
+        if let Some(cx) = &emit_outcome.labtrust_counterexample {
+            write_counterexample(&cx_path, cx)?;
+        } else if let Some(cx) = &emit_outcome.tool_use_counterexample {
+            fs::write(
+                &cx_path,
+                format!(
+                    "{}\n",
+                    serde_json::to_string_pretty(cx).map_err(|e| e.to_string())?
+                ),
+            )
+            .map_err(|e| e.to_string())?;
+        }
+    }
+
+    let cert_json = emit_outcome.certificate.to_json_pretty()?;
     if let Some(parent) = out_path.parent() {
         if !parent.as_os_str().is_empty() {
             fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }
     }
-    fs::write(&out_path, cert_json).map_err(|e| e.to_string())?;
+    fs::write(&out_path, format!("{cert_json}\n")).map_err(|e| e.to_string())?;
 
+    let cert_value: Value = serde_json::from_str(&cert_json).map_err(|e| e.to_string())?;
+    validate_certificate_json_for_profile(&cert_value, &profile)?;
     validate_certificate_artifact(&out_path, opts.release_mode)?;
     registry_check_artifact(&out_path, opts.release_mode)?;
 
-    let summary = CertificateEmitSummary::from_certificate(&outcome.certificate);
+    if opts.release_mode {
+        validate_release_mode_fields(&cert_value, &profile)?;
+    }
+
+    let summary_failure = if passed {
+        None
+    } else {
+        Some(failure_code.unwrap_or("certificate_check_failed"))
+    };
+    let summary = CertificateEmitSummary::from_emitted_with_rejection(
+        &emit_outcome.certificate,
+        summary_failure,
+        Some(&profile),
+    );
     let summary_json = summary_to_json(&summary).map_err(|e| e.to_string())?;
     if let Some(path) = opts.summary_out {
         if let Some(parent) = path.parent() {
@@ -271,25 +424,33 @@ pub fn cmd_emit_certificate(opts: EmitCertificateOptions<'_>) -> Result<(), Stri
     }
     println!("{summary_json}");
 
+    let cx_handoff_ref = if passed { None } else { cx_ref.as_deref() };
+
     if let Some(path) = opts.handoff_out {
-        let mut outbound = build_certificate_to_bundle_handoff(&outcome.certificate, &out_path)?;
+        let mut outbound = build_certificate_to_bundle_handoff(
+            &emit_outcome.certificate,
+            &out_path,
+            &registry,
+            cx_handoff_ref,
+            summary_failure,
+        )?;
         finalize_handoff_digest(&mut outbound);
         write_handoff_manifest(path, &outbound)?;
         validate_handoff_artifact(path, opts.release_mode)?;
         println!("handoff_out={}", path.display());
     }
 
-    if check.passed {
+    if passed {
         println!(
             "CertificateChecked -> {} ({})",
             out_path.display(),
-            outcome.certificate.certificate_id
+            emit_outcome.certificate.certificate_id()
         );
     } else {
         println!(
             "Rejected -> {} ({})",
             out_path.display(),
-            outcome.certificate.certificate_id
+            emit_outcome.certificate.certificate_id()
         );
     }
 

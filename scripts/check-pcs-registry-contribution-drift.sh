@@ -19,6 +19,7 @@ fi
 
 python3 - "$UPSTREAM" "$LOCAL" <<'PY'
 import json
+import os
 import sys
 
 upstream_path, local_path = sys.argv[1:3]
@@ -54,4 +55,19 @@ if errors:
     sys.exit(1)
 
 print("OK TraceCertificate.v0 registry contribution matches pcs-core entry")
+
+tool_local = os.path.join(os.path.dirname(local_path), "ToolUseCertificate.v0.registry.json")
+if os.path.isfile(tool_local) and "ToolUseCertificate.v0" in upstream.get("entries", {}):
+    tool_entry = upstream["entries"]["ToolUseCertificate.v0"]
+    with open(tool_local, encoding="utf-8") as f:
+        tool_doc = json.load(f)
+    tool_errors: list[str] = []
+    for key in COMPARE_KEYS:
+        if tool_entry.get(key) != tool_doc.get(key):
+            tool_errors.append(f"ToolUseCertificate field drift: {key}")
+    if tool_errors:
+        for err in tool_errors:
+            print(f"error: {err}", file=sys.stderr)
+        sys.exit(1)
+    print("OK ToolUseCertificate.v0 registry contribution matches pcs-core entry")
 PY

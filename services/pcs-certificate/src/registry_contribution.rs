@@ -49,7 +49,8 @@ fn merged_registry_entry_schema() -> Value {
         schema["$defs"] = common_defs.clone();
     }
     if let Some(entry_defs) = registry.pointer("/$defs") {
-        if let (Some(target), Some(source)) = (schema["$defs"].as_object_mut(), entry_defs.as_object())
+        if let (Some(target), Some(source)) =
+            (schema["$defs"].as_object_mut(), entry_defs.as_object())
         {
             for (key, value) in source {
                 if key != "registry_entry" {
@@ -84,15 +85,29 @@ pub fn validate_registry_contribution_entry(value: &Value) -> Result<(), String>
     }
 }
 
+fn validate_registry_contribution_file(repo_root: &Path, relative: &str) -> Result<(), String> {
+    let path = repo_root.join(relative);
+    let text =
+        std::fs::read_to_string(&path).map_err(|e| format!("read {}: {e}", path.display()))?;
+    let value: Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+    validate_registry_contribution_entry(&value)
+}
+
 /// Load and validate `pcs_registry/TraceCertificate.v0.registry.json` under `repo_root`.
 pub fn validate_default_trace_certificate_registry_contribution(
     repo_root: &Path,
 ) -> Result<(), String> {
-    let path = repo_root.join("pcs_registry/TraceCertificate.v0.registry.json");
-    let text = std::fs::read_to_string(&path)
-        .map_err(|e| format!("read {}: {e}", path.display()))?;
-    let value: Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
-    validate_registry_contribution_entry(&value)
+    validate_registry_contribution_file(repo_root, "pcs_registry/TraceCertificate.v0.registry.json")
+}
+
+/// Load and validate `pcs_registry/ToolUseCertificate.v0.registry.json` under `repo_root`.
+pub fn validate_default_tool_use_certificate_registry_contribution(
+    repo_root: &Path,
+) -> Result<(), String> {
+    validate_registry_contribution_file(
+        repo_root,
+        "pcs_registry/ToolUseCertificate.v0.registry.json",
+    )
 }
 
 #[cfg(test)]
@@ -105,7 +120,12 @@ mod tests {
     }
 
     #[test]
-    fn default_contribution_validates() {
+    fn trace_certificate_contribution_validates() {
         validate_default_trace_certificate_registry_contribution(&repo_root()).unwrap();
+    }
+
+    #[test]
+    fn tool_use_certificate_contribution_validates() {
+        validate_default_tool_use_certificate_registry_contribution(&repo_root()).unwrap();
     }
 }

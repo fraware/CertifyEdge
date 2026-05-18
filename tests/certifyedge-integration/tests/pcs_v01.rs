@@ -9,7 +9,7 @@ use std::path::PathBuf;
 #[path = "../common/support.rs"]
 mod support;
 
-use support::{labtrust_fixture, repo_root, spec_path};
+use support::{labtrust_fixture, property_profile_registry, repo_root, spec_path};
 
 fn step(action: &str, actor_id: &str, role: &str, ts: &str) -> WorkflowStep {
     WorkflowStep {
@@ -170,12 +170,14 @@ fn certificate_digest_verifies() {
     let trace = valid_trace();
     let spec = PropertySpec::load(&spec_path("qc_release.stl")).unwrap();
     let check = check_property(&TraceView::from(trace.clone()), &spec);
+    let registry = property_profile_registry();
     let outcome = build_certificate(
         &trace.trace_hash,
         &spec,
         &check,
         &CertifyEdgeMetadata::dev_default(),
         None,
+        &registry,
     )
     .unwrap();
     let json = serde_json::to_string_pretty(&outcome.certificate).unwrap();
@@ -226,12 +228,14 @@ fn test_certificate_trace_hash_matches_labtrust_trace_hash() {
     let trace = parse_and_validate_json(&text).unwrap();
     let spec = PropertySpec::load(&spec_path("qc_release.stl")).unwrap();
     let check = check_property(&TraceView::from(trace.clone()), &spec);
+    let registry = property_profile_registry();
     let outcome = build_certificate(
         &trace.trace_hash,
         &spec,
         &check,
         &CertifyEdgeMetadata::dev_default(),
         None,
+        &registry,
     )
     .unwrap();
     assert_eq!(outcome.certificate.trace_hash, trace.trace_hash);
@@ -273,12 +277,14 @@ fn trace_certificate_validates_against_vendored_pcs_schema() {
     let trace = parse_and_validate_json(&text).unwrap();
     let spec = PropertySpec::load(&spec_path("qc_release.stl")).unwrap();
     let check = check_property(&TraceView::from(trace.clone()), &spec);
+    let registry = property_profile_registry();
     let outcome = build_certificate(
         &trace.trace_hash,
         &spec,
         &check,
         &CertifyEdgeMetadata::dev_default(),
         None,
+        &registry,
     )
     .unwrap();
     let value = serde_json::to_value(&outcome.certificate).unwrap();

@@ -4,6 +4,7 @@ package(default_visibility = ["//visibility:public"])
 
 PCS_FIXTURES = [
     "//templates/hospital_lab:specs",
+    "//templates/tool_use:tool_use_specs",
     "//templates/profiles:profiles",
     "//tests/labtrust:fixtures",
     "//tests/fixtures/release-run:release_run_fixtures",
@@ -162,6 +163,43 @@ rust_test(
         "@crates//:serde_json",
     ],
     tags = ["pcs", "phase2"],
+)
+
+rust_test(
+    name = "tool_use_emit",
+    srcs = [
+        "tests/tool_use_emit.rs",
+        "common/support.rs",
+    ],
+    edition = "2021",
+    rustc_flags = ["--cfg=bazel"],
+    data = PCS_FIXTURES + ["//cli:certifyedge", "//tests/tool_use:tool_use_traces"],
+    env = PCS_TEST_ENV,
+    deps = [
+        "//services/pcs-certificate:pcs_certificate",
+        "@crates//:assert_cmd",
+        "@crates//:serde_json",
+    ],
+    tags = ["pcs", "integration", "tool_use"],
+)
+
+rust_test(
+    name = "handoff_tool_use",
+    srcs = [
+        "tests/handoff_tool_use.rs",
+        "common/support.rs",
+        "common/handoff_fixtures.rs",
+    ],
+    edition = "2021",
+    rustc_flags = ["--cfg=bazel"],
+    data = PCS_FIXTURES + ["//cli:certifyedge", "//tests/tool_use:tool_use_traces"],
+    env = PCS_TEST_ENV,
+    deps = [
+        "//services/pcs-certificate:pcs_certificate",
+        "@crates//:assert_cmd",
+        "@crates//:serde_json",
+    ],
+    tags = ["pcs", "integration", "tool_use", "handoff"],
 )
 
 rust_test(

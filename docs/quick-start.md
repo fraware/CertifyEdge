@@ -128,6 +128,7 @@ bazel test --config=ci //tests/pipeline_integration:pipeline_integration --test_
 
 - Read [CONTRIBUTING.md](../CONTRIBUTING.md)
 - Explore `services/certificate/` and `services/stl-compiler/`
+- PCS certificate engine: [pcs-certificate-profile.md](pcs-certificate-profile.md), [pcs-handoff.md](pcs-handoff.md); `make validate-profiles` checks the property profile registry
 
 ## Support
 

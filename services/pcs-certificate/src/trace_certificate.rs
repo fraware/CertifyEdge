@@ -29,15 +29,32 @@ pub const SCHEMA_VERSION: &str = "v0";
 pub const SOURCE_REPO: &str = "https://github.com/fraware/CertifyEdge";
 
 pub use crate::metadata::CertifyEdgeMetadata;
-use crate::status_policy::{
-    validate_certificate_status_transition, STATUS_CERTIFICATE_CHECKED, STATUS_CERTIFICATE_PENDING,
-    STATUS_REJECTED,
+use crate::property_profile::{
+    validate_certificate_status_transition_for_profile, PropertyProfile, PropertyProfileRegistry,
 };
+use crate::status_policy::STATUS_CERTIFICATE_PENDING;
 
 #[derive(Debug, Clone)]
 pub struct CertificateOutcome {
     pub certificate: TraceCertificateV0,
     pub counterexample: Option<Counterexample>,
+}
+
+fn resolve_profile_for_spec(
+    spec: &PropertySpec,
+    registry: &PropertyProfileRegistry,
+) -> Result<PropertyProfile, String> {
+    registry.load(spec.property_id.as_str())
+}
+
+pub fn resolve_profile_registry(
+    certifyedge_root: &std::path::Path,
+    registry_override: Option<&std::path::Path>,
+) -> Result<PropertyProfileRegistry, String> {
+    Ok(PropertyProfileRegistry::resolve(
+        certifyedge_root,
+        registry_override,
+    ))
 }
 
 pub fn build_certificate(
@@ -46,25 +63,57 @@ pub fn build_certificate(
     check: &TemporalCheckResult,
     meta: &CertifyEdgeMetadata,
     counterexample_path: Option<String>,
+    registry: &PropertyProfileRegistry,
 ) -> Result<CertificateOutcome, String> {
-    let spec_hash = crate::hash::spec_hash(&spec.raw_text, spec.property_id.as_str());
-    let property_id = spec.property_id.as_str().to_string();
+    let profile = resolve_profile_for_spec(spec, registry)?;
+    build_certificate_with_profile(trace_hash, spec, &profile, check, meta, counterexample_path)
+}
 
-    let (status, counterexample_ref) = if check.passed {
-        (STATUS_CERTIFICATE_CHECKED.to_string(), None)
+pub fn build_certificate_with_profile(
+    trace_hash: &str,
+    spec: &PropertySpec,
+    profile: &PropertyProfile,
+    check: &TemporalCheckResult,
+    meta: &CertifyEdgeMetadata,
+    counterexample_path: Option<String>,
+) -> Result<CertificateOutcome, String> {
+    if spec.property_id.as_str() != profile.property_id {
+        return Err(crate::repair_hint::certificate_failure(
+            "property_template_mismatch",
+            &profile.template,
+            format!(
+                "property template mismatch: spec declares {}, profile {}",
+                spec.property_id.as_str(),
+                profile.property_id
+            ),
+            crate::repair_hint::repair_property_template_mismatch(
+                &profile.property_id,
+                &profile.template,
+            ),
+        ));
+    }
+
+    let spec_hash = crate::hash::spec_hash(&spec.raw_text, spec.property_id.as_str());
+    let property_id = profile.property_id.clone();
+
+    let status = crate::property_profile::status_for_check(profile, check.passed).to_string();
+    let counterexample_ref = if check.passed {
+        None
     } else {
-        (
-            STATUS_REJECTED.to_string(),
-            counterexample_path.or_else(|| {
-                check
-                    .counterexample
-                    .as_ref()
-                    .map(|_| "inline:counterexample.json".to_string())
-            }),
-        )
+        counterexample_path.or_else(|| {
+            check
+                .counterexample
+                .as_ref()
+                .map(|_| "inline:counterexample.json".to_string())
+        })
     };
 
-    validate_certificate_status_transition(STATUS_CERTIFICATE_PENDING, &status, meta.release_mode)?;
+    validate_certificate_status_transition_for_profile(
+        STATUS_CERTIFICATE_PENDING,
+        &status,
+        profile,
+        meta.release_mode,
+    )?;
 
     let mut certificate = TraceCertificateV0 {
         certificate_id: format!("cert-trace-{}", Uuid::new_v4()),

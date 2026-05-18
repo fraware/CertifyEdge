@@ -36,6 +36,10 @@ pub fn spec_path(name: &str) -> PathBuf {
     repo_root().join("templates/hospital_lab").join(name)
 }
 
+pub fn property_profile_registry() -> pcs_certificate::PropertyProfileRegistry {
+    pcs_certificate::PropertyProfileRegistry::from_certifyedge_root(&repo_root())
+}
+
 pub fn labtrust_fixture(name: &str) -> PathBuf {
     repo_root().join("tests/labtrust").join(name)
 }

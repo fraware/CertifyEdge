@@ -1,6 +1,6 @@
 {
-  "artifact_type": "TraceCertificate.v0",
-  "schema": "schemas/TraceCertificate.v0.schema.json",
+  "artifact_type": "ToolUseCertificate.v0",
+  "schema": "schemas/ToolUseCertificate.v0.schema.json",
   "schema_owner": "pcs-core",
   "runtime_producer": "CertifyEdge",
   "allowed_runtime_producers": [
@@ -8,7 +8,6 @@
   ],
   "producer": "CertifyEdge",
   "allowed_statuses": [
-    "CertificatePending",
     "CertificateChecked",
     "Rejected",
     "Stale"
@@ -17,7 +16,10 @@
     "schema_version",
     "certificate_id",
     "trace_hash",
-    "spec_hash",
+    "policy_hash",
+    "property_id",
+    "checker",
+    "checker_version",
     "status",
     "source_repo",
     "source_commit",
@@ -26,6 +28,13 @@
   "semantic_checks": [
     {
       "check_id": "trace_hash_matches_runtime_receipt",
+      "severity": "release_blocking",
+      "responsible_component": "CertifyEdge",
+      "execution_required_in_release_mode": true,
+      "allowed_to_skip": false
+    },
+    {
+      "check_id": "policy_hash_matches_runtime_policy",
       "severity": "release_blocking",
       "responsible_component": "CertifyEdge",
       "execution_required_in_release_mode": true,
@@ -48,9 +57,7 @@
   ],
   "consumer_repos": [
     "CertifyEdge",
-    "LabTrust-Gym",
-    "Provability Fabric",
-    "Scientific Memory"
+    "Provability Fabric"
   ],
   "canonical_hash_required": true,
   "release_mode_required": true

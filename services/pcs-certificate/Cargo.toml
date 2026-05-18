@@ -3,7 +3,7 @@ name = "pcs-certificate"
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
-description = "PCS TraceCertificate.v0 export and verification for CertifyEdge"
+description = "PCS profile-driven certificate emit and verification for CertifyEdge"
 repository = "https://github.com/fraware/CertifyEdge"
 
 [dependencies]

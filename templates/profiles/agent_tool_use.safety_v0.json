@@ -1,0 +1,29 @@
+{
+  "property_id": "agent_tool_use.safety_v0",
+  "template": "templates/tool_use/no_unauthorized_tool.stl",
+  "input_trace_artifact": "ToolUseTrace.v0",
+  "output_certificate_artifact": "ToolUseCertificate.v0",
+  "counterexample_artifact": "ToolUseCounterexample.v0",
+  "valid_success_status": "CertificateChecked",
+  "valid_failure_status": "Rejected",
+  "release_mode_required_fields": [
+    "trace_hash",
+    "policy_hash",
+    "property_id",
+    "source_repo",
+    "source_commit",
+    "signature_or_digest"
+  ],
+  "repair_hints": {
+    "unauthorized_tool_call": {
+      "kind": "fix_trace_or_policy",
+      "command": "regenerate runtime trace after policy enforcement",
+      "responsible_component": "runtime_producer"
+    },
+    "policy_hash_missing": {
+      "kind": "fix_trace_or_policy",
+      "command": "ensure tool-use trace includes policy_hash before certification",
+      "responsible_component": "runtime_producer"
+    }
+  }
+}

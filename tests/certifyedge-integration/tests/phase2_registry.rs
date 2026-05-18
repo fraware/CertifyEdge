@@ -32,14 +32,16 @@ const EXPECTED_SEMANTIC_CHECK_IDS: &[&str] = &[
     "source_commit_matches_release_manifest",
 ];
 
-fn load_registry_contribution() -> Value {
-    let path = repo_root().join("pcs_registry/TraceCertificate.v0.registry.json");
+fn load_registry_contribution(artifact: &str) -> Value {
+    let path = repo_root()
+        .join("pcs_registry")
+        .join(format!("{artifact}.registry.json"));
     serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap()
 }
 
 #[test]
-fn test_registry_contribution_matches_pcs_core_registry_shape() {
-    let entry = load_registry_contribution();
+fn test_trace_certificate_registry_contribution_matches_pcs_core_shape() {
+    let entry = load_registry_contribution("TraceCertificate.v0");
     for key in REGISTRY_ENTRY_REQUIRED {
         assert!(
             entry.get(key).is_some(),
@@ -71,8 +73,32 @@ fn test_registry_contribution_matches_pcs_core_registry_shape() {
 
 #[test]
 fn test_registry_contribution_validates_against_vendored_schema() {
-    let entry = load_registry_contribution();
-    validate_registry_contribution_entry(&entry).expect("registry contribution schema");
+    for artifact in ["TraceCertificate.v0", "ToolUseCertificate.v0"] {
+        let entry = load_registry_contribution(artifact);
+        validate_registry_contribution_entry(&entry)
+            .unwrap_or_else(|e| panic!("{artifact} registry contribution schema: {e}"));
+    }
+}
+
+#[test]
+fn test_tool_use_certificate_registry_contribution_shape() {
+    let entry = load_registry_contribution("ToolUseCertificate.v0");
+    for key in REGISTRY_ENTRY_REQUIRED {
+        assert!(
+            entry.get(key).is_some(),
+            "ToolUseCertificate registry missing {key}"
+        );
+    }
+    assert_eq!(entry["artifact_type"], "ToolUseCertificate.v0");
+    assert!(entry["required_release_fields"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|v| v.as_str() == Some("policy_hash")));
+    let checks = entry["semantic_checks"].as_array().unwrap();
+    assert!(checks
+        .iter()
+        .any(|c| c["check_id"] == "policy_hash_matches_runtime_policy"));
 }
 
 #[test]
@@ -93,7 +119,7 @@ fn test_registry_contribution_aligns_with_pcs_core_entry() {
     let upstream_registry: Value =
         serde_json::from_str(&std::fs::read_to_string(&upstream).unwrap()).unwrap();
     let pcs_entry = &upstream_registry["entries"]["TraceCertificate.v0"];
-    let local = load_registry_contribution();
+    let local = load_registry_contribution("TraceCertificate.v0");
 
     for key in [
         "artifact_type",

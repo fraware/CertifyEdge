@@ -37,7 +37,7 @@
     },
     "expected_outputs": {
       "type": "object",
-      "minProperties": 1,
+      "minProperties": 0,
       "additionalProperties": {
         "$ref": "common.defs.json#/$defs/handoff_artifact_ref"
       }

@@ -69,10 +69,17 @@ certifyedge verify-certificate trace_certificate.json --trace trace.json
 
 Canonical committed input fixture: `tests/fixtures/handoff/labtrust_to_certifyedge_handoff.json` (synced from RC trace via `make write-handoff-fixture`).
 
+Property profiles live under `templates/profiles/` (see `certifyedge profiles list`). Handoff emit resolves `invariants.property_id` through that registry.
+
 ```bash
+certifyedge profiles list
+certifyedge profiles explain hospital_lab.qc_release
+
 certifyedge --release-mode emit-pcs-certificate \
   --handoff labtrust_to_certifyedge_handoff.json \
+  --profile-registry templates/profiles \
   --out trace_certificate.json \
+  --summary-out certificate_summary.json \
   --handoff-out certifyedge_to_labtrust_handoff.json
 certifyedge verify-certificate trace_certificate.json --trace trace.json
 ```
@@ -81,9 +88,54 @@ CertifyEdge validates:
 
 - `handoff_kind = runtime_to_certificate`, `to_component = CertifyEdge`
 - input `trace.json` file hash and `invariants.trace_hash`
-- `invariants.property_id` matches the hospital-lab spec template
-- release-mode rejects placeholder handoff `source_commit`
-- outbound `certificate_to_bundle` handoff with `certificate_id`, `trace_hash`, `status = CertificateChecked`
+- `invariants.property_id` resolves to a registered profile; STL `property_id` must match
+- input trace and expected certificate artifact types match the profile
+- release-mode rejects placeholder handoff `source_commit` and enforces profile `release_mode_required_fields`
+- outbound `certificate_to_bundle` handoff with `certificate_id`, `trace_hash`, and `status = CertificateChecked` (success) or `Rejected` with empty `expected_outputs` (failure)
+
+Failures emit JSON repair hints on stderr (`failure_code`, `responsible_component`, `artifact`, `repair_hint`).
+
+### Tool-use profile (`agent_tool_use.safety_v0`)
+
+Tool-use workflows use the same emit path with a different profile (no separate engine):
+
+```bash
+certifyedge profiles explain agent_tool_use.safety_v0
+
+certifyedge emit-pcs-certificate \
+  --spec templates/tool_use/no_unauthorized_tool.stl \
+  --trace tool_use_trace.json \
+  --profile-registry templates/profiles \
+  --out certificate.json \
+  --summary-out certificate_summary.json \
+  --handoff-out certificate_handoff.json
+```
+
+Output artifact type is **`ToolUseCertificate.v0`** (from the profile). v0.1 checks: no tool call with `authorization_status` of `unauthorized` or `rejected`; release mode requires explicit `policy_hash` on the trace.
+
+Handoff-driven tool-use emit (profile resolves artifact types and output filenames):
+
+```bash
+certifyedge --release-mode emit-pcs-certificate \
+  --handoff runtime_to_certifyedge_handoff.json \
+  --profile-registry templates/profiles \
+  --out certificate.json \
+  --summary-out certificate_summary.json \
+  --handoff-out certifyedge_handoff.json
+```
+
+Inbound handoff expects `input_artifacts.trace.json` with `artifact_type: ToolUseTrace.v0` and `expected_outputs.certificate.json` with `artifact_type: ToolUseCertificate.v0`.
+
+### Rejected certificate protocol
+
+Invalid traces still produce protocol-valid artifacts (all profiles):
+
+| Artifact | Content |
+|----------|---------|
+| `trace_certificate.json` or `certificate.json` | `TraceCertificate.v0` or `ToolUseCertificate.v0`, `status = Rejected` |
+| `counterexample.json` | profile counterexample artifact when available |
+| `certificate_summary.json` | emit summary (`output_certificate_artifact`, `counterexample_ref` when applicable) |
+| `certifyedge_to_labtrust_handoff.json` | `certificate_to_bundle`, `invariants.status = Rejected`, empty `expected_outputs` |
 
 See [pcs-certificate-profile.md](pcs-certificate-profile.md) and `pcs_registry/TraceCertificate.v0.registry.json`.
 
@@ -141,6 +193,8 @@ python examples/pcs_qc_release/scripts/verify_pcs_v01_chain.py --work . --stage 
 | Output | When |
 |--------|------|
 | `trace_certificate.json` | `emit-pcs-certificate` on any trace |
+| `certificate_summary.json` | `--summary-out` (identity handoff for release runs) |
+| `certifyedge_to_labtrust_handoff.json` | `--handoff-out` (`certificate_to_bundle`) |
 | `counterexample.json` | Rejected traces (default beside certificate, or `--counterexample-out`) |
 
 Committed release fixtures: `tests/fixtures/labtrust-release/` (`trace.json`, CLI-generated `trace_certificate.json`, invalid traces and counterexamples; see [pcs-trace-certificates.md](pcs-trace-certificates.md)).
@@ -198,15 +252,15 @@ Invalid-trace `check-trace` (from CertifyEdge, `qc_release.stl` spec):
 | `invalid_missing_qc_trace.json` | `release_before_qc` |
 | `invalid_unauthorized_trace.json` | `unauthorized_release` |
 
-## Property templates
+## Property templates and profiles
 
-| File | Property ID |
-|------|-------------|
-| `templates/hospital_lab/qc_release.stl` | `hospital_lab.qc_release` |
-| `templates/hospital_lab/no_release_before_qc.stl` | `hospital_lab.no_release_before_qc` |
-| `templates/hospital_lab/authorized_release_only.stl` | `hospital_lab.authorized_release_only` |
+| STL template | Profile registry (`templates/profiles/`) |
+|--------------|------------------------------------------|
+| `templates/hospital_lab/qc_release.stl` | `hospital_lab.qc_release.json` |
+| `templates/hospital_lab/no_release_before_qc.stl` | `hospital_lab.no_release_before_qc.json` |
+| `templates/hospital_lab/authorized_release_only.stl` | *(add `<property_id>.json` to register)* |
 
-These are a **LabTrust temporal-property profile**, not full STL.
+Add a PCS workflow by adding a profile JSON + STL; no CertifyEdge emit code changes required.
 
 ## Validation
 

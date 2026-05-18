@@ -10,11 +10,18 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
 
+use crate::emitted_certificate::{default_certificate_output_name, EmittedCertificate};
 use crate::pcs_schema::validate_handoff_manifest_schema;
-use crate::property_profile::load_property_profile;
+use crate::property_profile::{
+    validate_runtime_to_certificate_profile, PropertyProfile, PropertyProfileRegistry,
+    ARTIFACT_LABTRUST_TRACE, ARTIFACT_TOOL_USE_TRACE,
+};
+use crate::repair_hint::{
+    certificate_failure, repair_fix_trace_hash, repair_regenerate_handoff, RepairHint,
+};
 use crate::source_commit::is_placeholder_source_commit;
-use crate::status_policy::STATUS_REJECTED;
-use crate::trace_certificate::TraceCertificateV0;
+use crate::tool_use_check::ToolUsePropertySpec;
+use crate::tool_use_trace::parse_tool_use_trace_json;
 
 pub const HANDOFF_KIND_RUNTIME_TO_CERTIFICATE: &str = "runtime_to_certificate";
 pub const HANDOFF_KIND_CERTIFICATE_TO_BUNDLE: &str = "certificate_to_bundle";
@@ -24,6 +31,8 @@ pub const TRACE_ARTIFACT_NAME: &str = "trace.json";
 pub const TRACE_CERTIFICATE_ARTIFACT_NAME: &str = "trace_certificate.json";
 pub const ARTIFACT_TYPE_TRACE: &str = "Trace";
 pub const ARTIFACT_TYPE_TRACE_CERTIFICATE: &str = "TraceCertificate.v0";
+pub const ARTIFACT_TYPE_TOOL_USE_CERTIFICATE: &str = "ToolUseCertificate.v0";
+pub const ARTIFACT_TYPE_TOOL_USE_TRACE: &str = "ToolUseTrace.v0";
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct HandoffArtifactRef {
@@ -54,6 +63,7 @@ pub struct HandoffEmitPlan {
     pub trace_path: PathBuf,
     pub spec_path: PathBuf,
     pub out_path: PathBuf,
+    pub property_profile: PropertyProfile,
 }
 
 /// Raw SHA-256 of file bytes (`sha256:<hex>`), matching pcs-core `file_digest`.
@@ -109,7 +119,7 @@ pub fn spec_path_for_property_id(
 pub fn plan_emit_from_handoff(
     handoff_path: &Path,
     handoff: &HandoffManifestV0,
-    certifyedge_root: &Path,
+    registry: &PropertyProfileRegistry,
     spec_override: Option<&Path>,
     trace_override: Option<&Path>,
     out_override: Option<&Path>,
@@ -144,18 +154,37 @@ pub fn plan_emit_from_handoff(
         .invariants
         .get("property_id")
         .ok_or_else(|| "invariants must include property_id".to_string())?;
-    let profile = load_property_profile(property_id, certifyedge_root)?;
+    let profile = registry.load(property_id)?;
+
+    let handoff_dir = handoff_path
+        .parent()
+        .ok_or_else(|| "handoff path has no parent directory".to_string())?;
 
     let trace_entry = handoff
         .input_artifacts
         .get(TRACE_ARTIFACT_NAME)
         .ok_or_else(|| format!("input_artifacts must include {TRACE_ARTIFACT_NAME}"))?;
-    if trace_entry.artifact_type != ARTIFACT_TYPE_TRACE
-        && trace_entry.artifact_type != profile.input_trace_artifact
-    {
-        return Err(format!(
-            "{TRACE_ARTIFACT_NAME} artifact_type must be {} or {ARTIFACT_TYPE_TRACE}",
-            profile.input_trace_artifact
+    let trace_type_ok = trace_entry.artifact_type == profile.input_trace_artifact
+        || (profile.input_trace_artifact == ARTIFACT_LABTRUST_TRACE
+            && trace_entry.artifact_type == ARTIFACT_TYPE_TRACE)
+        || (profile.input_trace_artifact == ARTIFACT_TOOL_USE_TRACE
+            && trace_entry.artifact_type == ARTIFACT_TYPE_TOOL_USE_TRACE);
+    if !trace_type_ok {
+        return Err(certificate_failure(
+            "input_trace_artifact_mismatch",
+            TRACE_ARTIFACT_NAME,
+            format!(
+                "{TRACE_ARTIFACT_NAME} artifact_type must be {} (profile {})",
+                profile.input_trace_artifact, profile.property_id
+            ),
+            repair_regenerate_handoff(
+                &handoff_dir.join(TRACE_ARTIFACT_NAME).display().to_string(),
+                &handoff_dir
+                    .join("runtime_receipt.json")
+                    .display()
+                    .to_string(),
+                &handoff_path.display().to_string(),
+            ),
         ));
     }
     let expected_sha = trace_entry
@@ -163,29 +192,50 @@ pub fn plan_emit_from_handoff(
         .as_deref()
         .ok_or_else(|| format!("input_artifacts[{TRACE_ARTIFACT_NAME}] missing sha256"))?;
 
+    let expected_cert_name = default_certificate_output_name(&profile);
     let cert_output = handoff
         .expected_outputs
-        .get(TRACE_CERTIFICATE_ARTIFACT_NAME)
+        .get(expected_cert_name)
+        .or_else(|| {
+            handoff
+                .expected_outputs
+                .get(TRACE_CERTIFICATE_ARTIFACT_NAME)
+        })
         .ok_or_else(|| {
-            format!("expected_outputs must include {TRACE_CERTIFICATE_ARTIFACT_NAME}")
+            format!(
+                "expected_outputs must include {expected_cert_name} (profile {})",
+                profile.property_id
+            )
         })?;
-    if cert_output.artifact_type != ARTIFACT_TYPE_TRACE_CERTIFICATE
-        && cert_output.artifact_type != profile.output_certificate_artifact
-    {
-        return Err(format!(
-            "expected_outputs[{TRACE_CERTIFICATE_ARTIFACT_NAME}] must be {}",
-            profile.output_certificate_artifact
+    let cert_type_ok = cert_output.artifact_type == profile.output_certificate_artifact
+        || (profile.output_certificate_artifact
+            == crate::property_profile::ARTIFACT_TOOL_USE_CERTIFICATE
+            && cert_output.artifact_type == ARTIFACT_TYPE_TOOL_USE_CERTIFICATE)
+        || (profile.output_certificate_artifact
+            == crate::property_profile::ARTIFACT_TRACE_CERTIFICATE
+            && cert_output.artifact_type == ARTIFACT_TYPE_TRACE_CERTIFICATE);
+    if !cert_type_ok {
+        return Err(certificate_failure(
+            "output_certificate_artifact_mismatch",
+            expected_cert_name,
+            format!(
+                "expected_outputs[{expected_cert_name}] artifact_type must be {} (profile {})",
+                profile.output_certificate_artifact, profile.property_id
+            ),
+            repair_regenerate_handoff(
+                &handoff_dir.join(TRACE_ARTIFACT_NAME).display().to_string(),
+                &handoff_dir
+                    .join("runtime_receipt.json")
+                    .display()
+                    .to_string(),
+                &handoff_path.display().to_string(),
+            ),
         ));
     }
-
     let invariant_trace_hash = handoff
         .invariants
         .get("trace_hash")
         .ok_or_else(|| "invariants must include trace_hash".to_string())?;
-
-    let handoff_dir = handoff_path
-        .parent()
-        .ok_or_else(|| "handoff path has no parent directory".to_string())?;
 
     let trace_path = trace_override
         .map(Path::to_path_buf)
@@ -194,49 +244,140 @@ pub fn plan_emit_from_handoff(
         .map_err(|e| format!("read trace {}: {e}", trace_path.display()))?;
     let actual_file_digest = file_digest(&trace_bytes);
     if actual_file_digest != expected_sha {
-        return Err(format!(
-            "trace file hash mismatch: handoff expects {expected_sha}, file has {actual_file_digest}"
+        return Err(certificate_failure(
+            "trace_file_digest_mismatch",
+            TRACE_ARTIFACT_NAME,
+            format!(
+                "trace file hash mismatch: handoff expects {expected_sha}, file has {actual_file_digest}"
+            ),
+            repair_regenerate_handoff(
+                &trace_path.display().to_string(),
+                &handoff_dir
+                    .join("runtime_receipt.json")
+                    .display()
+                    .to_string(),
+                &handoff_path.display().to_string(),
+            ),
         ));
     }
 
-    let trace: LabTrustTrace = labtrust_adapter::parse_and_validate_json(
-        &String::from_utf8(trace_bytes).map_err(|e| e.to_string())?,
-    )
-    .map_err(|e| e.to_string())?;
-    if trace.trace_hash != *invariant_trace_hash {
-        return Err(format!(
-            "trace_hash invariant mismatch: handoff {invariant_trace_hash}, trace {}",
-            trace.trace_hash
-        ));
-    }
+    let spec_path = spec_override
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| registry.spec_path(&profile));
 
-    let spec_path = spec_override.map(Path::to_path_buf).unwrap_or_else(|| {
-        spec_path_for_property_id(property_id, certifyedge_root)
-            .unwrap_or_else(|_| handoff_dir.join("qc_release.stl"))
-    });
-    let spec = labtrust_adapter::PropertySpec::load(&spec_path)
-        .map_err(|e| format!("load spec {}: {e}", spec_path.display()))?;
-    if spec.property_id.as_str() != property_id {
-        return Err(format!(
-            "property profile mismatch: handoff {property_id}, spec {}",
-            spec.property_id.as_str()
-        ));
+    if profile.input_trace_artifact == ARTIFACT_TOOL_USE_TRACE {
+        let text = String::from_utf8(trace_bytes).map_err(|e| e.to_string())?;
+        let trace_value: Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+        crate::pcs_schema::validate_tool_use_trace_schema(&trace_value)?;
+        let trace = parse_tool_use_trace_json(&text)?;
+        if trace.trace_hash != *invariant_trace_hash {
+            return Err(certificate_failure(
+                "trace_hash_mismatch",
+                TRACE_ARTIFACT_NAME,
+                format!(
+                    "trace_hash invariant mismatch: handoff {invariant_trace_hash}, trace {}",
+                    trace.trace_hash
+                ),
+                repair_fix_trace_hash(&trace_path.display().to_string()),
+            ));
+        }
+        let spec = ToolUsePropertySpec::load(&spec_path)
+            .map_err(|e| format!("load spec {}: {e}", spec_path.display()))?;
+        registry.assert_template_matches(property_id, &spec.property_id, &spec_path)?;
+    } else {
+        let trace: LabTrustTrace = labtrust_adapter::parse_and_validate_json(
+            &String::from_utf8(trace_bytes).map_err(|e| e.to_string())?,
+        )
+        .map_err(|e| e.to_string())?;
+        if trace.trace_hash != *invariant_trace_hash {
+            return Err(certificate_failure(
+                "trace_hash_mismatch",
+                TRACE_ARTIFACT_NAME,
+                format!(
+                    "trace_hash invariant mismatch: handoff {invariant_trace_hash}, trace {}",
+                    trace.trace_hash
+                ),
+                repair_fix_trace_hash(&trace_path.display().to_string()),
+            ));
+        }
+        let spec = labtrust_adapter::PropertySpec::load(&spec_path)
+            .map_err(|e| format!("load spec {}: {e}", spec_path.display()))?;
+        registry.assert_template_matches(property_id, spec.property_id.as_str(), &spec_path)?;
     }
 
     let out_path = out_override
         .map(Path::to_path_buf)
-        .unwrap_or_else(|| handoff_dir.join(TRACE_CERTIFICATE_ARTIFACT_NAME));
+        .unwrap_or_else(|| handoff_dir.join(default_certificate_output_name(&profile)));
 
     Ok(HandoffEmitPlan {
         trace_path,
         spec_path,
         out_path,
+        property_profile: profile,
     })
 }
 
+fn build_outbound_invariants(
+    cert: &EmittedCertificate,
+    rejected: bool,
+    counterexample_ref: Option<&str>,
+    rejection: Option<(&str, Option<&str>, &RepairHint)>,
+) -> BTreeMap<String, String> {
+    let mut invariants = BTreeMap::from([
+        (
+            "certificate_id".to_string(),
+            cert.certificate_id().to_string(),
+        ),
+        ("trace_hash".to_string(), cert.trace_hash().to_string()),
+        ("status".to_string(), cert.status().to_string()),
+    ]);
+    if rejected {
+        invariants.insert("no_bundle_admissible".to_string(), "true".to_string());
+        if let Some(cx_ref) = counterexample_ref.or(cert.counterexample_ref()) {
+            invariants.insert("counterexample_ref".to_string(), cx_ref.to_string());
+        }
+        if let Some((failure_code, responsible_component, repair_hint)) = rejection {
+            invariants.insert("failure_code".to_string(), failure_code.to_string());
+            if let Some(component) = responsible_component {
+                invariants.insert("responsible_component".to_string(), component.to_string());
+            }
+            invariants.insert("repair_hint_kind".to_string(), repair_hint.kind.clone());
+            invariants.insert(
+                "repair_hint_command".to_string(),
+                repair_hint.command.clone(),
+            );
+        }
+    }
+    invariants
+}
+
+fn success_expected_outputs(profile: &PropertyProfile) -> BTreeMap<String, HandoffArtifactRef> {
+    if profile.output_certificate_artifact == crate::property_profile::ARTIFACT_TOOL_USE_CERTIFICATE
+    {
+        BTreeMap::from([(
+            "tool_use_bundle.certified.json".to_string(),
+            HandoffArtifactRef {
+                artifact_type: "ToolUseBundle.v0".to_string(),
+                sha256: None,
+            },
+        )])
+    } else {
+        BTreeMap::from([(
+            "science_claim_bundle.certified.json".to_string(),
+            HandoffArtifactRef {
+                artifact_type: "ScienceClaimBundle.v0".to_string(),
+                sha256: None,
+            },
+        )])
+    }
+}
+
 pub fn build_certificate_to_bundle_handoff(
-    cert: &TraceCertificateV0,
+    cert: &EmittedCertificate,
     cert_path: &Path,
+    registry: &PropertyProfileRegistry,
+    counterexample_ref: Option<&str>,
+    rejection_failure_code: Option<&str>,
 ) -> Result<HandoffManifestV0, String> {
     let cert_bytes = std::fs::read(cert_path)
         .map_err(|e| format!("read certificate {}: {e}", cert_path.display()))?;
@@ -246,32 +387,32 @@ pub fn build_certificate_to_bundle_handoff(
         .and_then(|n| n.to_str())
         .unwrap_or(TRACE_CERTIFICATE_ARTIFACT_NAME);
 
-    let certifyedge_root = crate::source_commit::certifyedge_repo_root()
-        .or_else(|| std::env::var("CERTIFYEDGE_ROOT").ok().map(PathBuf::from))
-        .ok_or_else(|| "CERTIFYEDGE_ROOT not set for outbound handoff".to_string())?;
-    let profile = load_property_profile(&cert.property_id, &certifyedge_root)?;
-    let rejected = cert.status == STATUS_REJECTED;
+    let profile = registry.load(cert.property_id())?;
+    validate_runtime_to_certificate_profile(&profile)?;
+    if cert.status() != profile.valid_success_status
+        && cert.status() != profile.valid_failure_status
+    {
+        return Err(format!(
+            "certificate status {} is not valid for property profile {}",
+            cert.status(),
+            profile.property_id
+        ));
+    }
+    let rejected = cert.status() == profile.valid_failure_status;
     let expected_outputs = if rejected {
-        let mut out = BTreeMap::new();
-        if cert.counterexample_ref.is_some() {
-            out.insert(
-                "counterexample.json".to_string(),
-                HandoffArtifactRef {
-                    artifact_type: profile.counterexample_artifact.clone(),
-                    sha256: None,
-                },
-            );
-        }
-        out
+        BTreeMap::new()
     } else {
-        BTreeMap::from([(
-            "science_claim_bundle.certified.json".to_string(),
-            HandoffArtifactRef {
-                artifact_type: "ScienceClaimBundle.v0".to_string(),
-                sha256: None,
-            },
-        )])
+        success_expected_outputs(&profile)
     };
+
+    let rejection = if rejected {
+        rejection_failure_code
+            .and_then(|code| crate::repair_hint::rejection_repair_context(&profile, code))
+    } else {
+        None
+    };
+
+    let input_artifact_type = profile.output_certificate_artifact.clone();
 
     Ok(HandoffManifestV0 {
         schema_version: "v0".to_string(),
@@ -280,21 +421,27 @@ pub fn build_certificate_to_bundle_handoff(
         from_component: COMPONENT_CERTIFYEDGE.to_string(),
         to_component: COMPONENT_LABTRUST.to_string(),
         created_at: Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
-        source_repo: cert.source_repo.clone(),
-        source_commit: cert.source_commit.clone(),
+        source_repo: match cert {
+            EmittedCertificate::Trace(c) => c.source_repo.clone(),
+            EmittedCertificate::ToolUse(c) => c.source_repo.clone(),
+        },
+        source_commit: cert.source_commit().to_string(),
         input_artifacts: BTreeMap::from([(
             cert_name.to_string(),
             HandoffArtifactRef {
-                artifact_type: ARTIFACT_TYPE_TRACE_CERTIFICATE.to_string(),
+                artifact_type: input_artifact_type,
                 sha256: Some(cert_digest),
             },
         )]),
         expected_outputs,
-        invariants: BTreeMap::from([
-            ("certificate_id".to_string(), cert.certificate_id.clone()),
-            ("trace_hash".to_string(), cert.trace_hash.clone()),
-            ("status".to_string(), cert.status.clone()),
-        ]),
+        invariants: build_outbound_invariants(
+            cert,
+            rejected,
+            counterexample_ref,
+            rejection
+                .as_ref()
+                .map(|(code, responsible, hint)| (code.as_str(), responsible.as_deref(), hint)),
+        ),
         status: "Validated".to_string(),
         signature_or_digest: String::new(),
     })
@@ -322,6 +469,8 @@ pub fn validate_handoff_artifact(path: &Path, require_pcs_cli: bool) -> Result<(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::status_policy::STATUS_REJECTED;
+    use crate::trace_certificate::TraceCertificateV0;
     #[test]
     fn file_digest_is_raw_bytes() {
         assert_eq!(
@@ -356,9 +505,16 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let cert_path = dir.join("trace_certificate.json");
         std::fs::write(&cert_path, r#"{"certificate_id":"cert-trace-test"}"#).unwrap();
-        let handoff = build_certificate_to_bundle_handoff(&cert, &cert_path).unwrap();
+        let registry = PropertyProfileRegistry::from_certifyedge_root(
+            &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        );
+        let certificate_id = cert.certificate_id.clone();
+        let emitted = EmittedCertificate::Trace(cert);
+        let handoff =
+            build_certificate_to_bundle_handoff(&emitted, &cert_path, &registry, None, None)
+                .unwrap();
         assert_eq!(handoff.handoff_kind, HANDOFF_KIND_CERTIFICATE_TO_BUNDLE);
-        assert_eq!(handoff.invariants["certificate_id"], cert.certificate_id);
+        assert_eq!(handoff.invariants["certificate_id"], certificate_id);
         assert_eq!(handoff.invariants["status"], "CertificateChecked");
     }
 
@@ -438,11 +594,89 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let cert_path = dir.join("trace_certificate.json");
         std::fs::write(&cert_path, r#"{"certificate_id":"cert-trace-rejected"}"#).unwrap();
-        let handoff = build_certificate_to_bundle_handoff(&cert, &cert_path).unwrap();
+        let registry = PropertyProfileRegistry::from_certifyedge_root(
+            &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        );
+        let emitted = EmittedCertificate::Trace(cert);
+        let handoff = build_certificate_to_bundle_handoff(
+            &emitted,
+            &cert_path,
+            &registry,
+            Some("counterexample.json"),
+            Some("temporal_check_failed"),
+        )
+        .unwrap();
         assert_eq!(handoff.invariants["status"], STATUS_REJECTED);
+        assert_eq!(handoff.invariants["no_bundle_admissible"], "true");
+        assert_eq!(handoff.invariants["failure_code"], "temporal_check_failed");
+        assert_eq!(
+            handoff.invariants["counterexample_ref"],
+            "counterexample.json"
+        );
         assert!(!handoff
             .expected_outputs
             .contains_key("science_claim_bundle.certified.json"));
-        assert!(handoff.expected_outputs.contains_key("counterexample.json"));
+        assert!(handoff.expected_outputs.is_empty());
+    }
+
+    #[test]
+    fn plan_emit_accepts_tool_use_expected_certificate_output() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let registry = PropertyProfileRegistry::from_certifyedge_root(&root);
+        let work = std::env::temp_dir().join(format!("ce-tool-handoff-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&work).unwrap();
+        let trace_src = root.join("tests/tool_use/valid_tool_trace.json");
+        let trace_bytes = std::fs::read(&trace_src).unwrap();
+        let trace_digest = file_digest(&trace_bytes);
+        let trace: Value = serde_json::from_slice(&trace_bytes).unwrap();
+        let trace_hash = trace["trace_hash"].as_str().unwrap();
+        std::fs::write(work.join("trace.json"), &trace_bytes).unwrap();
+
+        let mut handoff = HandoffManifestV0 {
+            schema_version: "v0".into(),
+            handoff_id: "handoff-tool-use-plan".into(),
+            handoff_kind: HANDOFF_KIND_RUNTIME_TO_CERTIFICATE.into(),
+            from_component: COMPONENT_LABTRUST.into(),
+            to_component: COMPONENT_CERTIFYEDGE.into(),
+            created_at: "2026-05-17T17:01:22Z".into(),
+            source_repo: "https://github.com/fraware/CertifyEdge".into(),
+            source_commit: "abcdef0123456789abcdef0123456789abcdef01".into(),
+            input_artifacts: BTreeMap::from([(
+                TRACE_ARTIFACT_NAME.into(),
+                HandoffArtifactRef {
+                    artifact_type: ARTIFACT_TYPE_TOOL_USE_TRACE.into(),
+                    sha256: Some(trace_digest),
+                },
+            )]),
+            expected_outputs: BTreeMap::from([(
+                "certificate.json".into(),
+                HandoffArtifactRef {
+                    artifact_type: ARTIFACT_TYPE_TOOL_USE_CERTIFICATE.into(),
+                    sha256: None,
+                },
+            )]),
+            invariants: BTreeMap::from([
+                ("trace_hash".into(), trace_hash.into()),
+                ("property_id".into(), "agent_tool_use.safety_v0".into()),
+            ]),
+            status: "Validated".into(),
+            signature_or_digest: String::new(),
+        };
+        finalize_handoff_digest(&mut handoff);
+        let handoff_path = work.join("runtime_handoff.json");
+        write_handoff_manifest(&handoff_path, &handoff).unwrap();
+
+        let plan = plan_emit_from_handoff(
+            &handoff_path,
+            &handoff,
+            &registry,
+            None,
+            None,
+            None,
+            false,
+        )
+        .unwrap();
+        assert_eq!(plan.property_profile.property_id, "agent_tool_use.safety_v0");
+        assert!(plan.out_path.ends_with("certificate.json"));
     }
 }

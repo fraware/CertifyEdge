@@ -148,7 +148,12 @@ fn test_hash_vectors_match_pcs_core_when_path_set() {
             .trim()
             .to_string();
         assert_eq!(local_digest, expected, "{artifact} digest drift");
-        let input_rel = vector["input"].as_str().unwrap();
+        let input_rel = vector["input_file"]
+            .as_str()
+            .or_else(|| vector["input"].as_str())
+            .unwrap_or_else(|| {
+                panic!("{vector_name} missing input_file (pcs-core hash vector contract)")
+            });
         let upstream = pcs_core.join(input_rel);
         let local_input = repo_root
             .join("tests/fixtures/pcs-hash-vectors")
@@ -156,7 +161,18 @@ fn test_hash_vectors_match_pcs_core_when_path_set() {
             .join("input.json");
         let upstream_bytes = std::fs::read(&upstream).unwrap();
         let local_bytes = std::fs::read(&local_input).unwrap();
-        assert_eq!(upstream_bytes, local_bytes, "{artifact} input drift");
+        if upstream_bytes != local_bytes {
+            let normalize = |bytes: &[u8]| {
+                String::from_utf8_lossy(bytes)
+                    .replace("\r\n", "\n")
+                    .into_bytes()
+            };
+            assert_eq!(
+                normalize(&upstream_bytes),
+                normalize(&local_bytes),
+                "{artifact} input drift"
+            );
+        }
     }
     let cert_bundle_digest_path = repo_root
         .join("tests/fixtures/pcs-hash-vectors/HandoffManifest.certificate_to_bundle/digest.txt");

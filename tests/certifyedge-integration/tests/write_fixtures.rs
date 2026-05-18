@@ -207,8 +207,16 @@ fn write_fixtures() {
     let meta = CertifyEdgeMetadata::dev_default();
 
     let valid_check = check_property(&TraceView::from(valid.clone()), &spec);
-    let valid_cert =
-        build_certificate(&valid.trace_hash, &spec, &valid_check, &meta, None).unwrap();
+    let registry = pcs_certificate::PropertyProfileRegistry::from_certifyedge_root(&repo_root());
+    let valid_cert = build_certificate(
+        &valid.trace_hash,
+        &spec,
+        &valid_check,
+        &meta,
+        None,
+        &registry,
+    )
+    .unwrap();
     std::fs::write(
         out_dir.join("expected_valid_certificate.json"),
         format!("{}\n", to_string_pretty(&valid_cert.certificate).unwrap()),

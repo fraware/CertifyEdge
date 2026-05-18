@@ -5,7 +5,7 @@ SPEC ?= templates/hospital_lab/qc_release.stl
 TRACE ?= tests/labtrust/valid_trace.json
 CERT ?= trace_certificate.json
 
-.PHONY: build test pcs-test runbook clean-checkout clean-checkout-certified fixtures release-run sync-pcs-core-rc check-pcs-core-rc sync-pcs-schemas sync-pcs-hash-vectors check-pcs-hash-vectors check-pcs-registry write-handoff-fixture check-trace emit-certificate verify-certificate install-cli substrate-test bazel-pcs-test
+.PHONY: build test pcs-test runbook clean-checkout clean-checkout-certified fixtures release-run sync-pcs-core-rc check-pcs-core-rc sync-pcs-schemas sync-pcs-hash-vectors check-pcs-hash-vectors check-pcs-registry validate-profiles check-profiles write-handoff-fixture check-trace emit-certificate verify-certificate install-cli substrate-test bazel-pcs-test
 
 build:
 	$(CARGO) build -p certifyedge
@@ -23,7 +23,10 @@ substrate-test:
 bazel-pcs-test:
 	./scripts/bazel-pcs-test.sh
 
+check-profiles: validate-profiles
+
 pcs-test: build test
+	bash ./scripts/validate-profiles.sh
 	bash ./scripts/check-pcs-optional.sh all
 
 runbook: build
@@ -55,6 +58,12 @@ check-pcs-hash-vectors:
 
 check-pcs-registry:
 	bash ./scripts/check-pcs-registry-contribution-drift.sh
+
+validate-profiles: build
+	$(CARGO) run -p certifyedge -- profiles list
+	$(CARGO) run -p certifyedge -- profiles validate templates/profiles/hospital_lab.qc_release.json
+	$(CARGO) run -p certifyedge -- profiles validate templates/profiles/hospital_lab.no_release_before_qc.json
+	$(CARGO) run -p certifyedge -- profiles validate templates/profiles/agent_tool_use.safety_v0.json
 
 check-pcs-core-rc:
 	bash ./scripts/check-pcs-core-rc-drift.sh

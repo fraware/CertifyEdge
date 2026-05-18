@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pcs.sentinelops.ci/schemas/ToolUseTrace.v0.schema.json",
+  "title": "ToolUseTrace.v0",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "trace_id",
+    "trace_hash",
+    "tool_calls",
+    "source_repo",
+    "source_commit",
+    "signature_or_digest"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "$ref": "common.defs.json#/$defs/schema_version" },
+    "trace_id": { "type": "string", "minLength": 1 },
+    "trace_hash": { "$ref": "common.defs.json#/$defs/hex_digest" },
+    "policy_id": { "type": "string" },
+    "policy_hash": { "$ref": "common.defs.json#/$defs/hex_digest" },
+    "workflow_id": { "type": "string" },
+    "agent_id": { "type": "string" },
+    "tool_calls": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/tool_call" }
+    },
+    "source_repo": { "type": "string", "format": "uri" },
+    "source_commit": { "$ref": "common.defs.json#/$defs/git_commit" },
+    "signature_or_digest": { "$ref": "common.defs.json#/$defs/hex_digest" }
+  },
+  "$defs": {
+    "tool_call": {
+      "type": "object",
+      "required": ["event_id", "authorization_status"],
+      "additionalProperties": true,
+      "properties": {
+        "event_id": { "type": "string", "minLength": 1 },
+        "authorization_status": { "type": "string", "minLength": 1 },
+        "tool_name": { "type": "string" },
+        "tool_category": { "type": "string" },
+        "timestamp": { "type": "string" }
+      }
+    }
+  }
+}

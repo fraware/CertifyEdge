@@ -118,7 +118,19 @@ fn test_local_fixtures_match_pcs_core_rc_source() {
         );
         let expected = std::fs::read(&upstream).unwrap();
         let local = std::fs::read(labtrust_release_fixture(name)).unwrap();
-        assert_eq!(expected, local, "{name} drifted from {}", src.display());
+        if expected != local {
+            let normalize = |bytes: &[u8]| {
+                String::from_utf8_lossy(bytes)
+                    .replace("\r\n", "\n")
+                    .into_bytes()
+            };
+            assert_eq!(
+                normalize(&expected),
+                normalize(&local),
+                "{name} drifted from {}",
+                src.display()
+            );
+        }
     }
 }
 

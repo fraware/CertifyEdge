@@ -1,0 +1,4 @@
+no_unauthorized_tool
+// No tool call may run with authorization_status rejected or unauthorized.
+property: agent_tool_use.safety_v0
+check: no_unauthorized_tool_call

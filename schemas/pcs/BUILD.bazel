@@ -4,6 +4,7 @@ filegroup(
     name = "schemas",
     srcs = [
         "TraceCertificate.v0.schema.json",
+        "ToolUseCertificate.v0.schema.json",
         "HandoffManifest.v0.schema.json",
         "ArtifactRegistry.v0.schema.json",
         "common.defs.json",

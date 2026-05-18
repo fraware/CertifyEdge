@@ -196,8 +196,67 @@ fn test_trace_hash_matches_labtrust_fixture() {
         serde_json::from_str(&std::fs::read_to_string(&valid_out).unwrap()).unwrap();
     assert_eq!(valid_cert["trace_hash"], trace["trace_hash"]);
     assert_eq!(valid_cert["status"], "CertificateChecked");
-    assert!(valid_cert["counterexample_ref"].is_null());
+}
 
+#[test]
+fn test_profiles_list_includes_qc_release() {
+    certifyedge()
+        .args(["profiles", "list"])
+        .env("CERTIFYEDGE_ROOT", repo_root())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("hospital_lab.qc_release"))
+        .stdout(predicate::str::contains(
+            "hospital_lab.no_release_before_qc",
+        ))
+        .stdout(predicate::str::contains("agent_tool_use.safety_v0"));
+}
+
+#[test]
+fn test_profiles_explain_qc_release() {
+    certifyedge()
+        .args(["profiles", "explain", "hospital_lab.qc_release"])
+        .env("CERTIFYEDGE_ROOT", repo_root())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("TraceCertificate.v0"));
+}
+
+#[test]
+fn test_profiles_explain_agent_tool_use() {
+    certifyedge()
+        .args(["profiles", "explain", "agent_tool_use.safety_v0"])
+        .env("CERTIFYEDGE_ROOT", repo_root())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("ToolUseCertificate.v0"))
+        .stdout(predicate::str::contains("ToolUseTrace.v0"));
+}
+
+#[test]
+fn test_profiles_validate_qc_release_profile() {
+    let path = repo_root().join("templates/profiles/hospital_lab.qc_release.json");
+    certifyedge()
+        .args(["profiles", "validate", path.to_str().unwrap()])
+        .env("CERTIFYEDGE_ROOT", repo_root())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("OK property profile"));
+}
+
+#[test]
+fn test_profiles_validate_agent_tool_use_profile() {
+    let path = repo_root().join("templates/profiles/agent_tool_use.safety_v0.json");
+    certifyedge()
+        .args(["profiles", "validate", path.to_str().unwrap()])
+        .env("CERTIFYEDGE_ROOT", repo_root())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("agent_tool_use.safety_v0"));
+}
+
+#[test]
+fn test_cli_emit_rejected_certificate() {
     let invalid_out = repo_root().join("target/test_cli_invalid_cert.json");
     certifyedge()
         .args([

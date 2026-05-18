@@ -37,6 +37,9 @@ jobs:
       - name: cargo clippy (PCS v0.1)
         run: cargo clippy -p labtrust-adapter -p pcs-certificate -p certifyedge -- -D warnings
 
+      - name: Validate property profiles
+        run: bash ./scripts/validate-profiles.sh
+
       - name: cargo test (PCS v0.1)
         run: cargo test -p certifyedge-integration -- --test-threads=4 --nocapture
 
