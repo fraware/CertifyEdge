@@ -25,4 +25,35 @@ if [ "$failed" -ne 0 ]; then
   exit 1
 fi
 
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "warning: python3 not found; skipped formalization predicate cross-check" >&2
+else
+  python3 - "$PROFILES_DIR" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+profiles_dir = Path(sys.argv[1])
+expected = {
+    "scientific_computation.reproducibility_v0": "ComputationWitnessBindsResults",
+}
+default_predicate = "CertificateMatchesRuntime"
+
+for path in sorted(profiles_dir.glob("*.json")):
+    if path.name == "schema.json":
+        continue
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    pid = doc["property_id"]
+    predicate = doc.get("formalization", {}).get("certificate_predicate")
+    want = expected.get(pid, default_predicate)
+    if predicate != want:
+        print(
+            f"error: {path.name} formalization.certificate_predicate must be {want}, got {predicate}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+print("OK formalization predicates")
+PY
+fi
+
 echo "OK all property profiles in $PROFILES_DIR"

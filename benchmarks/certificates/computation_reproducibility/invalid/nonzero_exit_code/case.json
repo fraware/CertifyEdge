@@ -1,0 +1,16 @@
+{
+  "schema_version": "v0",
+  "case_id": "nonzero_exit_code",
+  "profile_id": "scientific_computation.reproducibility_v0",
+  "kind": "invalid",
+  "handoff_file": "handoff.json",
+  "expect_cli_success": true,
+  "expected_certificate_status": "Rejected",
+  "expected_failure_code": "nonzero_exit_code",
+  "expect_counterexample": true,
+  "expected_repair_hint": {
+    "kind": "fix_computation_run",
+    "command_contains": "exit_code",
+    "responsible_component": "runtime_producer"
+  }
+}

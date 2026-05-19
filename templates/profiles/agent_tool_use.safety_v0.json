@@ -14,6 +14,21 @@
     "source_commit",
     "signature_or_digest"
   ],
+  "formalization": {
+    "certificate_predicate": "CertificateMatchesRuntime",
+    "required_fields": [
+      "certificate_id",
+      "trace_hash",
+      "policy_hash",
+      "status",
+      "source_repo",
+      "source_commit",
+      "signature_or_digest"
+    ],
+    "admissible_status": "CertificateChecked",
+    "rejected_status": "Rejected",
+    "stale_status": "Stale"
+  },
   "repair_hints": {
     "unauthorized_tool_call": {
       "kind": "fix_trace_or_policy",
@@ -23,6 +38,16 @@
     "policy_hash_missing": {
       "kind": "fix_trace_or_policy",
       "command": "ensure tool-use trace includes policy_hash before certification",
+      "responsible_component": "runtime_producer"
+    },
+    "unknown_authorization_status": {
+      "kind": "fix_trace_or_policy",
+      "command": "normalize tool authorization_status to authorized or rejected before certification",
+      "responsible_component": "runtime_producer"
+    },
+    "policy_hash_mismatch": {
+      "kind": "fix_trace_or_policy",
+      "command": "regenerate tool-use trace and handoff with matching policy_hash invariant",
       "responsible_component": "runtime_producer"
     }
   }

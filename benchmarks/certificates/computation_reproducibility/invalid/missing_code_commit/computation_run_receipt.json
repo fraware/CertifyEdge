@@ -1,0 +1,12 @@
+{
+  "schema_version": "v0",
+  "run_id": "run-demo-missing-commit",
+  "run_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "dataset_receipt_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "environment_receipt_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "code_commit": "",
+  "exit_code": 0,
+  "result_artifact_hashes": [
+    "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  ]
+}

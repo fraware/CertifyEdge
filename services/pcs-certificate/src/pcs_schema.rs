@@ -8,6 +8,9 @@ static TOOL_USE_CERTIFICATE_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 static HANDOFF_MANIFEST_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 static TOOL_USE_TRACE_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 static COMPUTATION_WITNESS_VALIDATOR: OnceLock<Validator> = OnceLock::new();
+static BENCHMARK_CASE_SPEC_VALIDATOR: OnceLock<Validator> = OnceLock::new();
+static BENCHMARK_RUN_VALIDATOR: OnceLock<Validator> = OnceLock::new();
+static CERTIFICATE_COVERAGE_REPORT_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 
 /// Merged TraceCertificate.v0 + common defs for self-contained JSON Schema validation.
 fn merged_trace_certificate_schema() -> Value {
@@ -36,8 +39,17 @@ fn rewrite_common_defs_refs(value: &mut Value) {
     match value {
         Value::Object(map) => {
             if let Some(Value::String(reference)) = map.get("$ref") {
-                if let Some(suffix) = reference.strip_prefix("common.defs.json#/") {
-                    map.insert("$ref".to_string(), Value::String(format!("#/{suffix}")));
+                let rewritten = if let Some(suffix) = reference.strip_prefix("common.defs.json#/") {
+                    Some(format!("#/{suffix}"))
+                } else if reference == "ProfileCoverageReport.v0.schema.json" {
+                    Some("#/$defs/profile_coverage_report_v0".to_string())
+                } else if reference == "CertificateCoverageReport.v0.schema.json" {
+                    Some("#/$defs/certificate_coverage_report_v0".to_string())
+                } else {
+                    None
+                };
+                if let Some(r) = rewritten {
+                    map.insert("$ref".to_string(), Value::String(r));
                 }
             }
             for child in map.values_mut() {
@@ -52,6 +64,14 @@ fn rewrite_common_defs_refs(value: &mut Value) {
         _ => {}
     }
 }
+
+fn strip_schema_metadata(value: &mut Value) {
+    if let Some(obj) = value.as_object_mut() {
+        obj.remove("$schema");
+        obj.remove("$id");
+    }
+}
+
 
 fn merged_handoff_manifest_schema() -> Value {
     let common: Value = serde_json::from_str(include_str!("../../../schemas/pcs/common.defs.json"))
@@ -224,6 +244,54 @@ fn computation_witness_validator() -> &'static Validator {
     })
 }
 
+fn merged_certificate_formal_facts_schema() -> Value {
+    let common: Value = serde_json::from_str(include_str!("../../../schemas/pcs/common.defs.json"))
+        .expect("common.defs.json");
+    let mut cert: Value = serde_json::from_str(include_str!(
+        "../../../schemas/pcs/CertificateFormalFacts.v0.schema.json"
+    ))
+    .expect("CertificateFormalFacts.v0.schema.json");
+
+    if let Some(cert_obj) = cert.as_object_mut() {
+        let mut merged_defs = serde_json::Map::new();
+        if let Some(common_defs) = common.get("$defs").and_then(|v| v.as_object()) {
+            for (k, v) in common_defs {
+                merged_defs.insert(k.clone(), v.clone());
+            }
+        }
+        if let Some(local_defs) = cert_obj.get("$defs").and_then(|v| v.as_object()) {
+            for (k, v) in local_defs {
+                merged_defs.insert(k.clone(), v.clone());
+            }
+        }
+        cert_obj.insert("$defs".to_string(), Value::Object(merged_defs));
+    }
+    rewrite_common_defs_refs(&mut cert);
+    cert
+}
+
+static CERTIFICATE_FORMAL_FACTS_VALIDATOR: OnceLock<Validator> = OnceLock::new();
+
+fn certificate_formal_facts_validator() -> &'static Validator {
+    CERTIFICATE_FORMAL_FACTS_VALIDATOR.get_or_init(|| {
+        let schema = merged_certificate_formal_facts_schema();
+        Validator::new(&schema).expect("CertificateFormalFacts.v0 schema compiles")
+    })
+}
+
+pub fn validate_certificate_formal_facts_schema(value: &Value) -> Result<(), String> {
+    let validator = certificate_formal_facts_validator();
+    let errors: Vec<String> = validator
+        .iter_errors(value)
+        .map(|e| e.to_string())
+        .collect();
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors.join("; "))
+    }
+}
+
 pub fn validate_computation_witness_schema(value: &Value) -> Result<(), String> {
     let validator = computation_witness_validator();
     let errors: Vec<String> = validator
@@ -251,6 +319,110 @@ pub fn detect_certificate_artifact_type(value: &Value) -> Option<&'static str> {
     } else {
         None
     }
+}
+
+fn merged_benchmark_case_spec_schema() -> Value {
+    let common: Value = serde_json::from_str(include_str!("../../../schemas/pcs/common.defs.json"))
+        .expect("common.defs.json");
+    let mut spec: Value = serde_json::from_str(include_str!(
+        "../../../schemas/pcs/BenchmarkCaseSpec.v0.schema.json"
+    ))
+    .expect("BenchmarkCaseSpec.v0.schema.json");
+    if let (Some(common_defs), Some(obj)) = (common.get("$defs"), spec.as_object_mut()) {
+        obj.insert("$defs".to_string(), common_defs.clone());
+    }
+    rewrite_common_defs_refs(&mut spec);
+    spec
+}
+
+fn benchmark_case_spec_validator() -> &'static Validator {
+    BENCHMARK_CASE_SPEC_VALIDATOR.get_or_init(|| {
+        Validator::new(&merged_benchmark_case_spec_schema())
+            .expect("BenchmarkCaseSpec.v0 schema compiles")
+    })
+}
+
+fn merged_certificate_coverage_report_schema() -> Value {
+    let common: Value = serde_json::from_str(include_str!("../../../schemas/pcs/common.defs.json"))
+        .expect("common.defs.json");
+    let mut coverage: Value = serde_json::from_str(include_str!(
+        "../../../schemas/pcs/CertificateCoverageReport.v0.schema.json"
+    ))
+    .expect("CertificateCoverageReport.v0.schema.json");
+    strip_schema_metadata(&mut coverage);
+    if let (Some(common_defs), Some(obj)) = (common.get("$defs"), coverage.as_object_mut()) {
+        obj.insert("$defs".to_string(), common_defs.clone());
+    }
+    rewrite_common_defs_refs(&mut coverage);
+    coverage
+}
+
+fn certificate_coverage_report_validator() -> &'static Validator {
+    CERTIFICATE_COVERAGE_REPORT_VALIDATOR.get_or_init(|| {
+        Validator::new(&merged_certificate_coverage_report_schema())
+            .expect("CertificateCoverageReport.v0 schema compiles")
+    })
+}
+
+fn merged_benchmark_run_schema() -> Value {
+    let common: Value = serde_json::from_str(include_str!("../../../schemas/pcs/common.defs.json"))
+        .expect("common.defs.json");
+    let mut coverage: Value = serde_json::from_str(include_str!(
+        "../../../schemas/pcs/CertificateCoverageReport.v0.schema.json"
+    ))
+    .expect("CertificateCoverageReport.v0.schema.json");
+    let mut run: Value = serde_json::from_str(include_str!(
+        "../../../schemas/pcs/BenchmarkRun.v0.schema.json"
+    ))
+    .expect("BenchmarkRun.v0.schema.json");
+    strip_schema_metadata(&mut coverage);
+    strip_schema_metadata(&mut run);
+    rewrite_common_defs_refs(&mut coverage);
+    if let Some(obj) = run.as_object_mut() {
+        let mut defs_map = serde_json::Map::new();
+        if let Some(common_defs) = common.get("$defs").and_then(|v| v.as_object()) {
+            for (k, v) in common_defs {
+                defs_map.insert(k.clone(), v.clone());
+            }
+        }
+        defs_map.insert(
+            "certificate_coverage_report_v0".to_string(),
+            coverage,
+        );
+        obj.insert("$defs".to_string(), Value::Object(defs_map));
+    }
+    rewrite_common_defs_refs(&mut run);
+    run
+}
+
+fn benchmark_run_validator() -> &'static Validator {
+    BENCHMARK_RUN_VALIDATOR.get_or_init(|| {
+        Validator::new(&merged_benchmark_run_schema()).expect("BenchmarkRun.v0 schema compiles")
+    })
+}
+
+fn validate_with(validator: &Validator, value: &Value) -> Result<(), String> {
+    let errors: Vec<String> = validator
+        .iter_errors(value)
+        .map(|e| e.to_string())
+        .collect();
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors.join("; "))
+    }
+}
+
+pub fn validate_benchmark_case_spec_schema(value: &Value) -> Result<(), String> {
+    validate_with(benchmark_case_spec_validator(), value)
+}
+
+pub fn validate_certificate_coverage_report_schema(value: &Value) -> Result<(), String> {
+    validate_with(certificate_coverage_report_validator(), value)
+}
+
+pub fn validate_benchmark_run_schema(value: &Value) -> Result<(), String> {
+    validate_with(benchmark_run_validator(), value)
 }
 
 pub fn validate_certificate_schema_for_type(
@@ -287,6 +459,85 @@ mod tests {
     fn accepts_minimal_valid_shape() {
         let doc = minimal_valid_cert();
         validate_trace_certificate_schema(&doc).unwrap();
+    }
+
+    #[test]
+    fn benchmark_case_spec_schema_accepts_minimal() {
+        let doc = json!({
+            "schema_version": "v0",
+            "case_id": "ok",
+            "profile_id": "hospital_lab.qc_release",
+            "kind": "valid",
+            "handoff_file": "handoff.json"
+        });
+        validate_benchmark_case_spec_schema(&doc).unwrap();
+    }
+
+    #[test]
+    fn benchmark_run_schema_accepts_sample_shape() {
+        let doc = json!({
+            "schema_version": "v0",
+            "artifact": "BenchmarkRun.v0",
+            "profile_id": "hospital_lab.qc_release",
+            "cases_dir": "benchmarks/certificates/hospital_lab_qc_release",
+            "out_dir": "benchmark_runs/hospital_lab_qc_release",
+            "started_at": "2026-05-19T12:00:00Z",
+            "finished_at": "2026-05-19T12:00:01Z",
+            "cases_run": 1,
+            "cases_passed": 1,
+            "coverage": sample_coverage_report()
+        });
+        validate_benchmark_run_schema(&doc).unwrap();
+    }
+
+    fn sample_coverage_report() -> Value {
+        json!({
+            "schema_version": "v0",
+            "artifact": "CertificateCoverageReport.v0",
+            "profile_id": "hospital_lab.qc_release",
+            "cases_dir": "benchmarks/certificates/hospital_lab_qc_release",
+            "valid_certificates_accepted": 1,
+            "valid_cases_total": 1,
+            "invalid_certificates_rejected": 0,
+            "invalid_cases_total": 0,
+            "failure_code_accuracy": 1.0,
+            "counterexample_completeness": 1.0,
+            "profile_resolution_accuracy": 1.0,
+            "handoff_validation_accuracy": 1.0,
+            "repair_hint_metrics": {
+                "repair_hint_accuracy": 1.0,
+                "cases_with_expected_repair_hint": 0,
+                "repair_hint_matches": 0,
+                "missing_repair_hints": []
+            },
+            "profile_coverage": {
+                "schema_version": "v0",
+                "artifact": "ProfileCoverageReport.v0",
+                "profile_id": "hospital_lab.qc_release",
+                "templates_checked": true,
+                "valid_cases": 1,
+                "invalid_cases": 0,
+                "properties_covered": ["hospital_lab.qc_release"],
+                "counterexample_types_covered": [],
+                "unsupported_cases": [],
+                "coverage_score": 1.0
+            },
+            "case_results": [{
+                "case_id": "ok",
+                "kind": "valid",
+                "passed": true,
+                "profile_resolution_ok": true,
+                "handoff_validation_ok": true,
+                "status_match": true,
+                "failure_code_match": true,
+                "counterexample_match": true,
+                "repair_hint_present": true,
+                "repair_hint_kind_correct": true,
+                "repair_hint_command_present": true,
+                "responsible_component_correct": true,
+                "errors": []
+            }]
+        })
     }
 
     fn minimal_valid_cert() -> Value {

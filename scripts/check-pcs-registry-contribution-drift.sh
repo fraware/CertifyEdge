@@ -41,10 +41,25 @@ COMPARE_KEYS = [
     "release_mode_required",
 ]
 
+LOCAL_FORMAL_KEYS = [
+    "formal_predicate",
+    "formal_fact_artifact",
+    "lean_module",
+    "admissible_status",
+]
+
 errors: list[str] = []
+for key in LOCAL_FORMAL_KEYS:
+    if key not in local:
+        errors.append(f"local TraceCertificate missing formal field: {key}")
+
 for key in COMPARE_KEYS:
     if entry.get(key) != local.get(key):
         errors.append(f"field drift: {key}")
+
+for key in LOCAL_FORMAL_KEYS:
+    if key in entry and entry.get(key) != local.get(key):
+        errors.append(f"formal field drift: {key}")
 
 if entry.get("consumer_repos") != local.get("consumer_repos"):
     errors.append("field drift: consumer_repos")
@@ -62,9 +77,15 @@ if os.path.isfile(tool_local) and "ToolUseCertificate.v0" in upstream.get("entri
     with open(tool_local, encoding="utf-8") as f:
         tool_doc = json.load(f)
     tool_errors: list[str] = []
+    for key in LOCAL_FORMAL_KEYS:
+        if key not in tool_doc:
+            tool_errors.append(f"local ToolUseCertificate missing formal field: {key}")
     for key in COMPARE_KEYS:
         if tool_entry.get(key) != tool_doc.get(key):
             tool_errors.append(f"ToolUseCertificate field drift: {key}")
+    for key in LOCAL_FORMAL_KEYS:
+        if key in tool_entry and tool_entry.get(key) != tool_doc.get(key):
+            tool_errors.append(f"ToolUseCertificate formal field drift: {key}")
     if tool_errors:
         for err in tool_errors:
             print(f"error: {err}", file=sys.stderr)
@@ -77,9 +98,15 @@ if os.path.isfile(comp_local) and "ComputationWitness.v0" in upstream.get("entri
     with open(comp_local, encoding="utf-8") as f:
         comp_doc = json.load(f)
     comp_errors: list[str] = []
+    for key in LOCAL_FORMAL_KEYS:
+        if key not in comp_doc:
+            comp_errors.append(f"local ComputationWitness missing formal field: {key}")
     for key in COMPARE_KEYS:
         if comp_entry.get(key) != comp_doc.get(key):
             comp_errors.append(f"ComputationWitness field drift: {key}")
+    for key in LOCAL_FORMAL_KEYS:
+        if key in comp_entry and comp_entry.get(key) != comp_doc.get(key):
+            comp_errors.append(f"ComputationWitness formal field drift: {key}")
     if comp_errors:
         for err in comp_errors:
             print(f"error: {err}", file=sys.stderr)

@@ -13,6 +13,20 @@
     "source_commit",
     "signature_or_digest"
   ],
+  "formalization": {
+    "certificate_predicate": "CertificateMatchesRuntime",
+    "required_fields": [
+      "certificate_id",
+      "trace_hash",
+      "status",
+      "source_repo",
+      "source_commit",
+      "signature_or_digest"
+    ],
+    "admissible_status": "CertificateChecked",
+    "rejected_status": "Rejected",
+    "stale_status": "Stale"
+  },
   "repair_hints": {
     "temporal_check_failed": {
       "kind": "fix_trace_or_property",

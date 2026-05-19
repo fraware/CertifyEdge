@@ -14,14 +14,17 @@ use labtrust_adapter::{
     check_property, parse_and_validate_json, Counterexample, PropertySpec, TraceView,
 };
 use pcs_certificate::{
-    build_certificate_to_bundle_handoff, counterexample_from_json, counterexample_to_json,
-    emit_certificate_for_profile, emit_check_failure_stderr, explain_counterexample,
-    finalize_handoff_digest, load_handoff_manifest, plan_emit_from_handoff,
-    registry_check_artifact, repair_temporal_check_failed, repair_tool_use_check_failed,
-    resolve_profile_registry, summary_to_json, validate_certificate_artifact,
-    validate_certificate_json_for_profile, validate_handoff_artifact, validate_release_mode_fields,
-    verify_certificate_document, write_handoff_manifest, CertificateEmitSummary,
-    CertifyEdgeMetadata, PropertyProfileRegistry,
+    build_certificate_formal_facts, build_certificate_to_bundle_handoff, counterexample_from_json,
+    counterexample_to_json, emit_certificate_for_profile, emit_check_failure_stderr,
+    explain_counterexample, finalize_handoff_digest, formal_facts_to_json_pretty,
+    load_handoff_manifest, plan_emit_from_handoff, registry_check_artifact,
+    repair_temporal_check_failed, repair_tool_use_check_failed, resolve_profile_registry,
+    run_certificate_benchmark, summary_to_json, validate_certificate_artifact,
+    validate_certificate_benchmark_cases_tree,
+    validate_certificate_formal_facts_schema, validate_certificate_json_for_profile,
+    validate_formal_facts_consistency, validate_handoff_artifact, validate_release_mode_fields,
+    verify_certificate_document, write_handoff_manifest, BenchmarkCertificatesOptions,
+    CertificateEmitSummary, CertifyEdgeMetadata, PropertyProfileRegistry,
 };
 use serde_json::Value;
 
@@ -81,6 +84,9 @@ pub enum Commands {
         /// Write outbound `HandoffManifest.v0` after certificate emission.
         #[arg(long)]
         handoff_out: Option<PathBuf>,
+        /// Write `CertificateFormalFacts.v0` Lean-fact source JSON alongside the certificate.
+        #[arg(long)]
+        formal_facts_out: Option<PathBuf>,
         /// Property profile registry directory (default: `<CERTIFYEDGE_ROOT>/templates/profiles`).
         #[arg(long, value_name = "DIR")]
         profile_registry: Option<PathBuf>,
@@ -100,6 +106,28 @@ pub enum Commands {
         #[command(subcommand)]
         command: ProfilesCommands,
     },
+    /// Certificate benchmark suites (`benchmark certificates`).
+    Benchmark {
+        #[command(subcommand)]
+        command: BenchmarkCommands,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum BenchmarkCommands {
+    /// Run profile-driven certificate benchmark cases.
+    Certificates {
+        #[arg(long)]
+        profile: String,
+        #[arg(long)]
+        cases: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
+        #[arg(long, value_name = "DIR")]
+        profile_registry: Option<PathBuf>,
+    },
+    /// Validate committed `benchmarks/certificates/**/case.json` files.
+    ValidateCases,
 }
 
 #[derive(Subcommand)]
@@ -138,6 +166,7 @@ pub fn run(cli: Cli) -> Result<(), String> {
             counterexample_out,
             summary_out,
             handoff_out,
+            formal_facts_out,
             profile_registry,
         } => cmd_emit_certificate(EmitCertificateOptions {
             release_mode: cli.release_mode,
@@ -148,9 +177,11 @@ pub fn run(cli: Cli) -> Result<(), String> {
             counterexample_out: counterexample_out.as_deref(),
             summary_out: summary_out.as_deref(),
             handoff_out: handoff_out.as_deref(),
+            formal_facts_out: formal_facts_out.as_deref(),
             profile_registry: profile_registry.as_deref(),
         }),
         Commands::Profiles { command } => cmd_profiles(command),
+        Commands::Benchmark { command } => cmd_benchmark(command),
         Commands::VerifyCertificate { certificate, trace } => {
             cmd_verify_certificate(cli.release_mode, &certificate, trace.as_deref())
         }
@@ -208,6 +239,48 @@ fn certifyedge_root() -> PathBuf {
         .unwrap_or_else(|_| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
 }
 
+/// Runbook filename when the committed LabTrust fixture should be used instead.
+const HANDOFF_DOC_ALIASES: &[(&str, &str)] = &[(
+    "handoff_to_certifyedge.json",
+    "tests/fixtures/handoff/labtrust_to_certifyedge_handoff.json",
+)];
+
+/// Resolve `--handoff` to an on-disk `HandoffManifest.v0` (with doc-name fallbacks).
+pub fn resolve_handoff_path(handoff: &Path, certifyedge_root: &Path) -> Result<PathBuf, String> {
+    let mut candidates = vec![handoff.to_path_buf()];
+    if let Ok(cwd) = std::env::current_dir() {
+        candidates.push(cwd.join(handoff));
+    }
+    candidates.push(certifyedge_root.join(handoff));
+    for candidate in &candidates {
+        if candidate.is_file() {
+            return Ok(candidate.clone());
+        }
+    }
+    if let Some(name) = handoff.file_name().and_then(|n| n.to_str()) {
+        for (alias, fixture_rel) in HANDOFF_DOC_ALIASES {
+            if name == *alias {
+                let fixture = certifyedge_root.join(fixture_rel);
+                if fixture.is_file() {
+                    eprintln!(
+                        "note: --handoff {} -> {}",
+                        handoff.display(),
+                        fixture.display()
+                    );
+                    return Ok(fixture);
+                }
+            }
+        }
+    }
+    Err(format!(
+        "handoff manifest not found: {}\n\
+         Committed LabTrust fixture (run from CertifyEdge repo root):\n  \
+         tests/fixtures/handoff/labtrust_to_certifyedge_handoff.json\n\
+         Regenerate: make write-handoff-fixture",
+        handoff.display()
+    ))
+}
+
 pub struct EmitCertificateOptions<'a> {
     pub release_mode: bool,
     pub handoff_path: Option<&'a Path>,
@@ -217,6 +290,7 @@ pub struct EmitCertificateOptions<'a> {
     pub counterexample_out: Option<&'a Path>,
     pub summary_out: Option<&'a Path>,
     pub handoff_out: Option<&'a Path>,
+    pub formal_facts_out: Option<&'a Path>,
     pub profile_registry: Option<&'a Path>,
 }
 
@@ -225,6 +299,51 @@ fn profile_registry_for_cli(
 ) -> Result<PropertyProfileRegistry, String> {
     let root = certifyedge_root();
     resolve_profile_registry(&root, registry_override)
+}
+
+pub fn cmd_benchmark(command: BenchmarkCommands) -> Result<(), String> {
+    match command {
+        BenchmarkCommands::ValidateCases => {
+            let root = certifyedge_root();
+            validate_certificate_benchmark_cases_tree(&root)?;
+            println!("OK certificate benchmark case tree under benchmarks/certificates/");
+            Ok(())
+        }
+        BenchmarkCommands::Certificates {
+            profile,
+            cases,
+            out,
+            profile_registry,
+        } => {
+            let root = certifyedge_root();
+            let run = run_certificate_benchmark(BenchmarkCertificatesOptions {
+                profile_id: &profile,
+                cases_dir: &cases,
+                out_dir: &out,
+                certifyedge_root: &root,
+                profile_registry: profile_registry.as_deref(),
+                // Certificate benchmarks exercise release-mode checks (policy_hash, handoff fields).
+                release_mode: true,
+            })?;
+            println!(
+                "benchmark complete: {}/{} cases passed",
+                run.cases_passed, run.cases_run
+            );
+            println!("benchmark_run={}/benchmark_run.v0.json", out.display());
+            println!(
+                "coverage_report={}/certificate_coverage_report.v0.json",
+                out.display()
+            );
+            if run.cases_passed != run.cases_run {
+                return Err(format!(
+                    "certificate benchmark failed: {} of {} cases",
+                    run.cases_run - run.cases_passed,
+                    run.cases_run
+                ));
+            }
+            Ok(())
+        }
+    }
 }
 
 pub fn cmd_profiles(command: ProfilesCommands) -> Result<(), String> {
@@ -264,13 +383,14 @@ pub fn cmd_emit_certificate(opts: EmitCertificateOptions<'_>) -> Result<(), Stri
     let root = certifyedge_root();
     let registry = resolve_profile_registry(&root, opts.profile_registry)?;
     let (spec_path, trace_path, out_path, handoff_profile, computation_inputs) =
-        if let Some(handoff_path) = opts.handoff_path {
+        if let Some(handoff_arg) = opts.handoff_path {
+            let handoff_path = resolve_handoff_path(handoff_arg, &root)?;
             if opts.release_mode {
-                validate_handoff_artifact(handoff_path, true)?;
+                validate_handoff_artifact(&handoff_path, true)?;
             }
-            let handoff = load_handoff_manifest(handoff_path)?;
+            let handoff = load_handoff_manifest(&handoff_path)?;
             let plan = plan_emit_from_handoff(
-                handoff_path,
+                &handoff_path,
                 &handoff,
                 &registry,
                 opts.spec_path,
@@ -429,6 +549,31 @@ pub fn cmd_emit_certificate(opts: EmitCertificateOptions<'_>) -> Result<(), Stri
         validate_release_mode_fields(&cert_value, &profile)?;
     }
 
+    if let Some(formal_path) = opts.formal_facts_out {
+        let artifact_name = out_path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "certificate.json".to_string());
+        let profile_repair = failure_code.and_then(|code| profile.repair_hint_for(code));
+        let facts = build_certificate_formal_facts(
+            &emit_outcome.certificate,
+            &profile,
+            &artifact_name,
+            failure_code,
+            profile_repair,
+        )?;
+        validate_formal_facts_consistency(&facts, &emit_outcome.certificate, &profile)?;
+        validate_certificate_formal_facts_schema(&facts)?;
+        let facts_json = formal_facts_to_json_pretty(&facts)?;
+        if let Some(parent) = formal_path.parent() {
+            if !parent.as_os_str().is_empty() {
+                fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            }
+        }
+        fs::write(formal_path, format!("{facts_json}\n")).map_err(|e| e.to_string())?;
+        println!("formal_facts_out={}", formal_path.display());
+    }
+
     let summary_failure = if passed {
         None
     } else {
@@ -459,6 +604,7 @@ pub fn cmd_emit_certificate(opts: EmitCertificateOptions<'_>) -> Result<(), Stri
             &registry,
             cx_handoff_ref,
             summary_failure,
+            opts.formal_facts_out,
         )?;
         finalize_handoff_digest(&mut outbound);
         write_handoff_manifest(path, &outbound)?;

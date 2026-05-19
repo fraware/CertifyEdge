@@ -32,6 +32,18 @@ pub const SUPPORTED_OUTPUT_ARTIFACTS: &[&str] = &[
 static PROFILE_SCHEMA_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+pub struct ProfileFormalization {
+    pub certificate_predicate: String,
+    pub required_fields: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub admissible_status: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rejected_status: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stale_status: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct ProfileRepairHint {
     pub kind: String,
     pub command: String,
@@ -56,6 +68,7 @@ pub struct PropertyProfile {
     pub repair_hints: BTreeMap<String, ProfileRepairHint>,
     #[serde(default)]
     pub supporting_artifacts: Vec<String>,
+    pub formalization: ProfileFormalization,
 }
 
 impl PropertyProfile {
@@ -269,6 +282,7 @@ pub fn profile_document_value(profile: &PropertyProfile) -> Value {
         "release_mode_required_fields": profile.required_release_fields,
         "supporting_artifacts": profile.supporting_artifacts,
         "repair_hints": profile.repair_hints,
+        "formalization": profile.formalization,
     })
 }
 
@@ -360,6 +374,8 @@ pub fn validate_runtime_to_certificate_profile(profile: &PropertyProfile) -> Res
         ));
     }
 
+    crate::formal_facts::validate_profile_formalization(profile)?;
+
     Ok(())
 }
 
@@ -444,6 +460,10 @@ mod tests {
             ARTIFACT_TRACE_CERTIFICATE
         );
         assert!(profile.repair_hints.contains_key("temporal_check_failed"));
+        assert_eq!(
+            profile.formalization.certificate_predicate,
+            "CertificateMatchesRuntime"
+        );
         assert!(registry
             .list()
             .unwrap()
@@ -479,6 +499,10 @@ mod tests {
         );
         assert_eq!(profile.supporting_artifacts.len(), 3);
         assert!(profile.repair_hints.contains_key("dataset_hash_mismatch"));
+        assert_eq!(
+            profile.formalization.certificate_predicate,
+            "ComputationWitnessBindsResults"
+        );
     }
 
     #[test]

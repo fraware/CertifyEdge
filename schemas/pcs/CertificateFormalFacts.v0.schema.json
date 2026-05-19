@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pcs.sentinelops.ci/schemas/CertificateFormalFacts.v0.schema.json",
+  "title": "CertificateFormalFacts.v0",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "artifact",
+    "certificate_id",
+    "certificate_type",
+    "formal_predicate",
+    "status",
+    "admissible_for_release"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "$ref": "common.defs.json#/$defs/schema_version" },
+    "artifact": { "type": "string", "minLength": 1 },
+    "certificate_id": { "type": "string", "minLength": 1 },
+    "certificate_type": { "type": "string", "minLength": 1 },
+    "formal_predicate": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "minLength": 1 },
+    "admissible_for_release": { "type": "boolean" },
+    "trace_hash": { "$ref": "common.defs.json#/$defs/hex_digest" },
+    "policy_hash": { "$ref": "common.defs.json#/$defs/hex_digest" },
+    "source_repo": { "type": "string", "format": "uri" },
+    "source_commit": { "$ref": "common.defs.json#/$defs/git_commit" },
+    "signature_or_digest": { "$ref": "common.defs.json#/$defs/hex_digest" },
+    "witness_id": { "type": "string", "minLength": 1 },
+    "dataset_hash": { "$ref": "common.defs.json#/$defs/hex_digest" },
+    "environment_hash": { "$ref": "common.defs.json#/$defs/hex_digest" },
+    "run_receipt_hash": { "$ref": "common.defs.json#/$defs/hex_digest" },
+    "result_hashes": {
+      "type": "array",
+      "items": { "$ref": "common.defs.json#/$defs/hex_digest" }
+    },
+    "failure_code": { "type": "string", "minLength": 1 },
+    "formal_implication": { "type": "string", "minLength": 1 },
+    "repair_hint": {
+      "type": "object",
+      "required": ["kind", "command"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "command": { "type": "string", "minLength": 1 },
+        "responsible_component": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pcs.sentinelops.ci/schemas/ProfileCoverageReport.v0.schema.json",
+  "title": "ProfileCoverageReport.v0",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "artifact",
+    "profile_id",
+    "templates_checked",
+    "valid_cases",
+    "invalid_cases",
+    "properties_covered",
+    "counterexample_types_covered",
+    "unsupported_cases",
+    "coverage_score"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "$ref": "common.defs.json#/$defs/schema_version" },
+    "artifact": { "const": "ProfileCoverageReport.v0" },
+    "profile_id": { "type": "string", "minLength": 1 },
+    "templates_checked": { "type": "boolean" },
+    "valid_cases": { "type": "integer", "minimum": 0 },
+    "invalid_cases": { "type": "integer", "minimum": 0 },
+    "properties_covered": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "counterexample_types_covered": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "unsupported_cases": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "coverage_score": { "$ref": "common.defs.json#/$defs/unit_ratio" }
+  }
+}

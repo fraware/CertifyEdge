@@ -1,0 +1,22 @@
+{
+  "artifact_type": "CertificateCoverageReport.v0",
+  "schema": "schemas/CertificateCoverageReport.v0.schema.json",
+  "schema_owner": "CertifyEdge",
+  "runtime_producer": "CertifyEdge",
+  "allowed_runtime_producers": ["CertifyEdge"],
+  "producer": "CertifyEdge",
+  "allowed_statuses": ["CertificateChecked"],
+  "required_release_fields": [
+    "schema_version",
+    "artifact",
+    "profile_id",
+    "cases_dir",
+    "failure_code_accuracy",
+    "repair_hint_metrics",
+    "profile_coverage"
+  ],
+  "semantic_checks": [],
+  "consumer_repos": ["CertifyEdge"],
+  "canonical_hash_required": false,
+  "release_mode_required": false
+}

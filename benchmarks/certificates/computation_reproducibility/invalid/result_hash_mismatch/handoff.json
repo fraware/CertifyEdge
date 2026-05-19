@@ -1,0 +1,39 @@
+{
+  "created_at": "2026-05-17T17:01:22Z",
+  "expected_outputs": {
+    "certificate.json": {
+      "artifact_type": "ComputationWitness.v0"
+    }
+  },
+  "from_component": "LabTrust-Gym",
+  "handoff_id": "bench-computation-handoff",
+  "handoff_kind": "runtime_to_certificate",
+  "input_artifacts": {
+    "computation_run_receipt.json": {
+      "artifact_type": "ComputationRunReceipt.v0",
+      "sha256": "sha256:69b9b797e505b48c980c67e3114ef61a0afc54813ea042f6595d70001812f71a"
+    },
+    "dataset_receipt.json": {
+      "artifact_type": "DatasetReceipt.v0",
+      "sha256": "sha256:2ccc0163a83dbf5a6c5b661a6b151ae7b699dc66344342d34818cf6ed2f16e5a"
+    },
+    "environment_receipt.json": {
+      "artifact_type": "EnvironmentReceipt.v0",
+      "sha256": "sha256:18cf3c35d8a7d7ad4f11e2387df537812b7a7eeaa83d0746ebfb4e2510404c51"
+    },
+    "result_artifact.json": {
+      "artifact_type": "ResultArtifact.v0",
+      "sha256": "sha256:b366603a714d12be53b422505ef05e621dab933f3a51e051c472905c2be76d7b"
+    }
+  },
+  "invariants": {
+    "property_id": "scientific_computation.reproducibility_v0",
+    "run_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "schema_version": "v0",
+  "signature_or_digest": "sha256:8445e57d3022f69b117e7b10f2c68eeb823d0977e9e4b7ae322119d2c1666b04",
+  "source_commit": "abcdef0123456789abcdef0123456789abcdef01",
+  "source_repo": "https://github.com/fraware/LabTrust-Gym",
+  "status": "Validated",
+  "to_component": "CertifyEdge"
+}

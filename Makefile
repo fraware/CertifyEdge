@@ -5,7 +5,7 @@ SPEC ?= templates/hospital_lab/qc_release.stl
 TRACE ?= tests/labtrust/valid_trace.json
 CERT ?= trace_certificate.json
 
-.PHONY: build test pcs-test runbook clean-checkout clean-checkout-certified fixtures release-run sync-pcs-core-rc check-pcs-core-rc sync-pcs-schemas sync-pcs-hash-vectors check-pcs-hash-vectors check-pcs-registry validate-profiles check-profiles write-handoff-fixture check-trace emit-certificate verify-certificate install-cli substrate-test bazel-pcs-test
+.PHONY: build test pcs-test runbook clean-checkout clean-checkout-certified fixtures release-run sync-pcs-core-rc check-pcs-core-rc sync-pcs-schemas sync-pcs-hash-vectors check-pcs-hash-vectors check-pcs-registry validate-profiles check-profiles write-handoff-fixture generate-certificate-benchmarks validate-certificate-benchmarks benchmark-certificates check-trace emit-certificate verify-certificate install-cli substrate-test bazel-pcs-test
 
 build:
 	$(CARGO) build -p certifyedge
@@ -27,6 +27,7 @@ check-profiles: validate-profiles
 
 pcs-test: build test
 	bash ./scripts/validate-profiles.sh
+	bash ./scripts/validate-certificate-benchmark-cases.sh
 	bash ./scripts/check-pcs-optional.sh all
 
 runbook: build
@@ -58,6 +59,27 @@ check-pcs-hash-vectors:
 
 check-pcs-registry:
 	bash ./scripts/check-pcs-registry-contribution-drift.sh
+
+generate-certificate-benchmarks:
+	python3 scripts/generate-certificate-benchmark-cases.py
+
+validate-certificate-benchmarks: build
+	bash ./scripts/validate-certificate-benchmark-cases.sh
+	bash ./scripts/check-certificate-benchmark-cases-drift.sh
+
+benchmark-certificates: build generate-certificate-benchmarks validate-certificate-benchmarks
+	$(CARGO) run -p certifyedge -- benchmark certificates \
+		--profile hospital_lab.qc_release \
+		--cases benchmarks/certificates/hospital_lab_qc_release \
+		--out benchmark_runs/hospital_lab_qc_release
+	$(CARGO) run -p certifyedge -- benchmark certificates \
+		--profile agent_tool_use.safety_v0 \
+		--cases benchmarks/certificates/tool_use_safety \
+		--out benchmark_runs/tool_use_safety
+	$(CARGO) run -p certifyedge -- benchmark certificates \
+		--profile scientific_computation.reproducibility_v0 \
+		--cases benchmarks/certificates/computation_reproducibility \
+		--out benchmark_runs/computation_reproducibility
 
 validate-profiles: build
 	$(CARGO) run -p certifyedge -- profiles list

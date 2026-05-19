@@ -17,6 +17,9 @@ use crate::computation_receipt::{
     RESULT_ARTIFACT_FILE,
 };
 use crate::emitted_certificate::{default_certificate_output_name, EmittedCertificate};
+use crate::formal_facts::{
+    admissible_for_release, ARTIFACT_CERTIFICATE_FORMAL_FACTS, DEFAULT_FORMAL_FACTS_FILENAME,
+};
 use crate::pcs_schema::validate_handoff_manifest_schema;
 use crate::property_profile::{
     validate_runtime_to_certificate_profile, PropertyProfile, PropertyProfileRegistry,
@@ -81,12 +84,33 @@ pub fn file_digest(content: &[u8]) -> String {
     format!("sha256:{digest:x}")
 }
 
+fn io_error_path(context: &str, path: &Path, err: std::io::Error) -> String {
+    if err.kind() == std::io::ErrorKind::NotFound {
+        format!("{context}: file not found: {}", path.display())
+    } else {
+        format!("{context}: {}: {err}", path.display())
+    }
+}
+
 pub fn load_handoff_manifest(path: &Path) -> Result<HandoffManifestV0, String> {
-    let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+    let text = std::fs::read_to_string(path)
+        .map_err(|e| io_error_path("handoff manifest", path, e))?;
     let value: Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
     validate_handoff_manifest_schema(&value)?;
     verify_handoff_digest(&value)?;
     serde_json::from_value(value).map_err(|e| e.to_string())
+}
+
+/// Recompute `signature_or_digest` from manifest content and rewrite the file (benchmark fixtures).
+pub fn refresh_handoff_digest_file(path: &Path) -> Result<(), String> {
+    let text = std::fs::read_to_string(path)
+        .map_err(|e| io_error_path("handoff manifest", path, e))?;
+    let value: Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+    validate_handoff_manifest_schema(&value)?;
+    let mut manifest: HandoffManifestV0 =
+        serde_json::from_value(value).map_err(|e| e.to_string())?;
+    finalize_handoff_digest(&mut manifest);
+    write_handoff_manifest(path, &manifest)
 }
 
 pub fn finalize_handoff_digest(manifest: &mut HandoffManifestV0) {
@@ -302,6 +326,19 @@ pub fn plan_emit_from_handoff(
                 ),
                 repair_fix_trace_hash(&trace_path.display().to_string()),
             ));
+        }
+        if let Some(invariant_policy) = handoff.invariants.get("policy_hash") {
+            let trace_policy = crate::tool_use_trace::policy_hash_from_trace(&trace);
+            if invariant_policy != &trace_policy {
+                return Err(certificate_failure(
+                    "policy_hash_mismatch",
+                    TRACE_ARTIFACT_NAME,
+                    format!(
+                        "policy_hash invariant mismatch: handoff {invariant_policy}, trace {trace_policy}"
+                    ),
+                    repair_fix_trace_hash(&trace_path.display().to_string()),
+                ));
+            }
         }
         let spec = ToolUsePropertySpec::load(&spec_path)
             .map_err(|e| format!("load spec {}: {e}", spec_path.display()))?;
@@ -521,6 +558,7 @@ fn build_outbound_invariants(
 ) -> BTreeMap<String, String> {
     let hash_key = profile.primary_hash_invariant_key();
     let primary_hash = cert.trace_hash().to_string();
+    let admissible = admissible_for_release(profile, cert.status());
     let mut invariants = BTreeMap::from([
         (
             "certificate_id".to_string(),
@@ -529,6 +567,11 @@ fn build_outbound_invariants(
         (hash_key.to_string(), primary_hash.clone()),
         ("status".to_string(), cert.status().to_string()),
         ("property_id".to_string(), cert.property_id().to_string()),
+        (
+            "formal_predicate".to_string(),
+            profile.formalization.certificate_predicate.clone(),
+        ),
+        ("admissible_for_release".to_string(), admissible.to_string()),
     ]);
     if hash_key != "trace_hash" {
         invariants.insert("trace_hash".to_string(), primary_hash);
@@ -590,6 +633,7 @@ pub fn build_certificate_to_bundle_handoff(
     registry: &PropertyProfileRegistry,
     counterexample_ref: Option<&str>,
     rejection_failure_code: Option<&str>,
+    formal_facts_path: Option<&Path>,
 ) -> Result<HandoffManifestV0, String> {
     let cert_bytes = std::fs::read(cert_path)
         .map_err(|e| format!("read certificate {}: {e}", cert_path.display()))?;
@@ -626,6 +670,29 @@ pub fn build_certificate_to_bundle_handoff(
 
     let input_artifact_type = profile.output_certificate_artifact.clone();
 
+    let mut input_artifacts = BTreeMap::from([(
+        cert_name.to_string(),
+        HandoffArtifactRef {
+            artifact_type: input_artifact_type,
+            sha256: Some(cert_digest),
+        },
+    )]);
+    if let Some(facts_path) = formal_facts_path {
+        let facts_bytes = std::fs::read(facts_path)
+            .map_err(|e| format!("read formal facts {}: {e}", facts_path.display()))?;
+        let facts_name = facts_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or(DEFAULT_FORMAL_FACTS_FILENAME);
+        input_artifacts.insert(
+            facts_name.to_string(),
+            HandoffArtifactRef {
+                artifact_type: ARTIFACT_CERTIFICATE_FORMAL_FACTS.to_string(),
+                sha256: Some(file_digest(&facts_bytes)),
+            },
+        );
+    }
+
     Ok(HandoffManifestV0 {
         schema_version: "v0".to_string(),
         handoff_id: format!("handoff-certifyedge-{}", Uuid::new_v4()),
@@ -639,13 +706,7 @@ pub fn build_certificate_to_bundle_handoff(
             EmittedCertificate::Computation(c) => c.source_repo.clone(),
         },
         source_commit: cert.source_commit().to_string(),
-        input_artifacts: BTreeMap::from([(
-            cert_name.to_string(),
-            HandoffArtifactRef {
-                artifact_type: input_artifact_type,
-                sha256: Some(cert_digest),
-            },
-        )]),
+        input_artifacts,
         expected_outputs,
         invariants: build_outbound_invariants(
             cert,
@@ -673,7 +734,8 @@ pub fn write_handoff_manifest(path: &Path, manifest: &HandoffManifestV0) -> Resu
 
 /// Validate handoff JSON against vendored schema; optional `pcs validate` when installed.
 pub fn validate_handoff_artifact(path: &Path, require_pcs_cli: bool) -> Result<(), String> {
-    let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+    let text = std::fs::read_to_string(path)
+        .map_err(|e| io_error_path("handoff manifest", path, e))?;
     let value: serde_json::Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
     validate_handoff_manifest_schema(&value)?;
     verify_handoff_digest(&value)?;
@@ -725,11 +787,16 @@ mod tests {
         let certificate_id = cert.certificate_id.clone();
         let emitted = EmittedCertificate::Trace(cert);
         let handoff =
-            build_certificate_to_bundle_handoff(&emitted, &cert_path, &registry, None, None)
+            build_certificate_to_bundle_handoff(&emitted, &cert_path, &registry, None, None, None)
                 .unwrap();
         assert_eq!(handoff.handoff_kind, HANDOFF_KIND_CERTIFICATE_TO_BUNDLE);
         assert_eq!(handoff.invariants["certificate_id"], certificate_id);
         assert_eq!(handoff.invariants["status"], "CertificateChecked");
+        assert_eq!(
+            handoff.invariants["formal_predicate"],
+            "CertificateMatchesRuntime"
+        );
+        assert_eq!(handoff.invariants["admissible_for_release"], "true");
     }
 
     #[test]
@@ -818,9 +885,11 @@ mod tests {
             &registry,
             Some("counterexample.json"),
             Some("temporal_check_failed"),
+            None,
         )
         .unwrap();
         assert_eq!(handoff.invariants["status"], STATUS_REJECTED);
+        assert_eq!(handoff.invariants["admissible_for_release"], "false");
         assert_eq!(handoff.invariants["no_bundle_admissible"], "true");
         assert_eq!(handoff.invariants["failure_code"], "temporal_check_failed");
         assert_eq!(

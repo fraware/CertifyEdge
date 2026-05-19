@@ -41,7 +41,17 @@ Each profile JSON defines:
 - `property_id`, `template`, `input_trace_artifact`, `output_certificate_artifact`, `counterexample_artifact`, optional `supporting_artifacts`
 - `valid_success_status`, `valid_failure_status`
 - `release_mode_required_fields` (release-mode certificate field gate; alias `required_release_fields`)
+- `formalization` — Lean-facing metadata (`certificate_predicate`, `required_fields`, `admissible_status`, `rejected_status`, `stale_status`)
 - `repair_hints` — map of `failure_code` → `{ kind, command, responsible_component? }` for PF explain mode
+
+### Formalization block
+
+| Profile family | `certificate_predicate` | Typical `required_fields` |
+|----------------|-------------------------|---------------------------|
+| LabTrust / tool-use | `CertificateMatchesRuntime` | `certificate_id`, `trace_hash`, `status`, provenance fields |
+| Computation witness | `ComputationWitnessBindsResults` | `witness_id`, `dataset_hash`, `environment_hash`, `run_receipt_hash`, `result_hashes`, `status` |
+
+Formal facts are emitted with `--formal-facts-out certificate_formal_facts.json` and validated against `CertificateFormalFacts.v0`. See [pcs-core-certificate-formal-facts-proposal.md](pcs-core-certificate-formal-facts-proposal.md).
 
 Validate all profiles: `make validate-profiles` or `bash scripts/validate-profiles.sh`.
 
@@ -67,6 +77,28 @@ With `--release-mode`:
 - Outbound handoff and certificate artifacts are validated the same way before exit.
 - `source_repo` must match the canonical CertifyEdge repository URL on verify/emit.
 
+## Certificate benchmarks
+
+Profile-driven benchmark cases live under `benchmarks/certificates/<suite>/{valid,invalid}/`.
+Each case includes `case.json` (`BenchmarkCaseSpec.v0`), `handoff.json`, and input artifacts.
+
+```bash
+make validate-certificate-benchmarks   # schema + layout gates
+make benchmark-certificates            # run all three profile suites
+certifyedge benchmark validate-cases   # case.json schema only
+certifyedge benchmark certificates \
+  --profile hospital_lab.qc_release \
+  --cases benchmarks/certificates/hospital_lab_qc_release \
+  --out benchmark_runs/hospital_lab_qc_release
+```
+
+Outputs: `benchmark_run.v0.json` (`BenchmarkRun.v0`) and
+`certificate_coverage_report.v0.json` (`CertificateCoverageReport.v0` with nested
+`ProfileCoverageReport.v0`). Metrics include failure-code accuracy, counterexample
+completeness, handoff validation, and repair-hint accuracy (`repair_hint_metrics`).
+
+Regenerate cases from test fixtures: `python3 scripts/generate-certificate-benchmark-cases.py`.
+
 ## CLI
 
 Property profiles:
@@ -86,8 +118,11 @@ certifyedge emit-pcs-certificate \
   --profile-registry templates/profiles \
   --out trace_certificate.json \
   --summary-out certificate_summary.json \
-  --handoff-out certifyedge_to_labtrust_handoff.json
+  --handoff-out certifyedge_to_labtrust_handoff.json \
+  --formal-facts-out certificate_formal_facts.json
 ```
+
+`certificate_summary.json` includes `formal_predicate`, `formal_fact_artifact`, and `admissible_for_release` for release-run identity handoff.
 
 Legacy path (no handoff): `--spec`, `--trace`, `--out`.
 
@@ -102,6 +137,11 @@ Registry contributions (pcs-core `ArtifactRegistry.v0` `registry_entry` shape):
 | `pcs_registry/TraceCertificate.v0.registry.json` | `TraceCertificate.v0` |
 | `pcs_registry/ToolUseCertificate.v0.registry.json` | `ToolUseCertificate.v0` |
 | `pcs_registry/ComputationWitness.v0.registry.json` | `ComputationWitness.v0` |
+| `pcs_registry/CertificateFormalFacts.v0.registry.json` | `CertificateFormalFacts.v0` |
+| `pcs_registry/BenchmarkRun.v0.registry.json` | `BenchmarkRun.v0` (CertifyEdge CI metrics) |
+| `pcs_registry/CertificateCoverageReport.v0.registry.json` | `CertificateCoverageReport.v0` |
+
+Certificate registry entries also declare `formal_predicate`, `formal_fact_artifact`, `lean_module`, and `admissible_status` for pcs-core formalization.
 
 Shared fields:
 

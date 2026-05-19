@@ -76,6 +76,28 @@ pub fn check_no_unauthorized_tool_call(
     }
 
     for call in &trace.tool_calls {
+        let status_lower = call.authorization_status.to_ascii_lowercase();
+        if status_lower != "authorized" && !is_unauthorized_status(&call.authorization_status) {
+            let message = format!(
+                "unknown authorization_status on {} ({}): {}",
+                call.event_id, call.tool_name, call.authorization_status
+            );
+            return ToolUseCheckResult {
+                passed: false,
+                failure_code: Some("unknown_authorization_status".to_string()),
+                violations: vec![ToolUseViolationV0::new(
+                    "unknown_authorization_status",
+                    message.clone(),
+                )
+                .with_tool_call(&call.event_id, &call.tool_name, &call.authorization_status)],
+                counterexample: Some(tool_use_counterexample_json(
+                    "unknown_authorization_status",
+                    &call.event_id,
+                    &call.tool_name,
+                    &call.authorization_status,
+                )),
+            };
+        }
         if is_unauthorized_status(&call.authorization_status) {
             let message = format!(
                 "unauthorized tool call {} ({}) status={}",

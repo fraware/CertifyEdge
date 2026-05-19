@@ -120,6 +120,16 @@ pub fn validate_default_computation_witness_registry_contribution(
     )
 }
 
+/// Load and validate `pcs_registry/CertificateFormalFacts.v0.registry.json` under `repo_root`.
+pub fn validate_default_certificate_formal_facts_registry_contribution(
+    repo_root: &Path,
+) -> Result<(), String> {
+    validate_registry_contribution_file(
+        repo_root,
+        "pcs_registry/CertificateFormalFacts.v0.registry.json",
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -142,5 +152,28 @@ mod tests {
     #[test]
     fn computation_witness_contribution_validates() {
         validate_default_computation_witness_registry_contribution(&repo_root()).unwrap();
+    }
+
+    #[test]
+    fn certificate_formal_facts_contribution_validates() {
+        validate_default_certificate_formal_facts_registry_contribution(&repo_root()).unwrap();
+    }
+
+    #[test]
+    fn benchmark_run_contribution_validates() {
+        validate_registry_contribution_file(
+            &repo_root(),
+            "pcs_registry/BenchmarkRun.v0.registry.json",
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn certificate_coverage_report_contribution_validates() {
+        validate_registry_contribution_file(
+            &repo_root(),
+            "pcs_registry/CertificateCoverageReport.v0.registry.json",
+        )
+        .unwrap();
     }
 }

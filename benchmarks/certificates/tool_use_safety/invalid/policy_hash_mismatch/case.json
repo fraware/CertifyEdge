@@ -1,0 +1,15 @@
+{
+  "schema_version": "v0",
+  "case_id": "policy_hash_mismatch",
+  "profile_id": "agent_tool_use.safety_v0",
+  "kind": "invalid",
+  "handoff_file": "handoff.json",
+  "expect_cli_success": false,
+  "expected_certificate_status": null,
+  "expected_failure_code": "policy_hash_mismatch",
+  "expect_counterexample": false,
+  "expected_repair_hint": {
+    "kind": "regenerate_trace_or_handoff",
+    "command_contains": "labtrust"
+  }
+}

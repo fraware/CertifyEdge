@@ -1,17 +1,17 @@
 //! Structured certificate failures with repair hints (PF explain / operator recovery).
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::property_profile::{ProfileRepairHint, PropertyProfile};
 
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RepairHint {
     pub kind: String,
     pub command: String,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CertificateFailure {
     pub failure_code: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -268,6 +268,7 @@ pub fn validate_release_mode_fields(cert: &Value, profile: &PropertyProfile) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::property_profile::ProfileFormalization;
     use std::collections::BTreeMap;
 
     fn sample_profile() -> PropertyProfile {
@@ -289,6 +290,17 @@ mod tests {
                 },
             )]),
             supporting_artifacts: vec![],
+            formalization: ProfileFormalization {
+                certificate_predicate: "CertificateMatchesRuntime".into(),
+                required_fields: vec![
+                    "certificate_id".into(),
+                    "trace_hash".into(),
+                    "status".into(),
+                ],
+                admissible_status: Some("CertificateChecked".into()),
+                rejected_status: Some("Rejected".into()),
+                stale_status: Some("Stale".into()),
+            },
         }
     }
 

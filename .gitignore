@@ -385,3 +385,7 @@ target/runbook_test/
 
 # Local Cargo cache (Bazel / scripts)
 .cargo-home/
+
+# Certificate benchmark runner outputs
+benchmark_runs/
+benchmarks/**/.benchmark_work/

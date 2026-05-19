@@ -8,6 +8,11 @@ These files are copied from [pcs-core](https://github.com/SentinelOps-CI/pcs-cor
 | `ToolUseCertificate.v0.schema.json` | `agent_tool_use.safety_v0` |
 | `ToolUseTrace.v0.schema.json` | Tool-use trace validation |
 | `ComputationWitness.v0.schema.json` | `scientific_computation.reproducibility_v0` |
+| `CertificateFormalFacts.v0.schema.json` | `--formal-facts-out` (Lean-fact sources; propose upstream to pcs-core) |
+| `BenchmarkCaseSpec.v0.schema.json` | `benchmarks/certificates/**/case.json` expectations |
+| `BenchmarkRun.v0.schema.json` | `certifyedge benchmark certificates` run summary |
+| `CertificateCoverageReport.v0.schema.json` | Per-profile benchmark metrics and repair-hint accuracy |
+| `ProfileCoverageReport.v0.schema.json` | Profile/template coverage nested in coverage reports |
 | `HandoffManifest.v0.schema.json` | Runtime and certificate handoffs |
 | `ArtifactRegistry.v0.schema.json` | `pcs_registry/*.registry.json` entries |
 

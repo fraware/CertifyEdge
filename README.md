@@ -61,6 +61,14 @@ cargo run -p certifyedge -- verify-certificate trace_certificate.json
 
 # Explain a counterexample
 cargo run -p certifyedge -- explain-counterexample counterexample.json
+
+# Profile-driven certificate benchmarks (all three profiles)
+make benchmark-certificates
+# Or one suite:
+cargo run -p certifyedge -- benchmark certificates \
+  --profile hospital_lab.qc_release \
+  --cases benchmarks/certificates/hospital_lab_qc_release \
+  --out benchmark_runs/hospital_lab_qc_release
 ```
 
 | Crate / path | Role |

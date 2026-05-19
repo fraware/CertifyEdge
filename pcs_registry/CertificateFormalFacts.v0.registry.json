@@ -1,0 +1,51 @@
+{
+  "artifact_type": "CertificateFormalFacts.v0",
+  "schema": "schemas/CertificateFormalFacts.v0.schema.json",
+  "schema_owner": "pcs-core",
+  "runtime_producer": "CertifyEdge",
+  "allowed_runtime_producers": [
+    "CertifyEdge"
+  ],
+  "producer": "CertifyEdge",
+  "allowed_statuses": [
+    "CertificateChecked",
+    "Rejected",
+    "Stale"
+  ],
+  "required_release_fields": [
+    "schema_version",
+    "artifact",
+    "certificate_id",
+    "certificate_type",
+    "formal_predicate",
+    "status",
+    "admissible_for_release"
+  ],
+  "semantic_checks": [
+    {
+      "check_id": "formal_facts_certificate_id_matches_certificate",
+      "severity": "release_blocking",
+      "responsible_component": "CertifyEdge",
+      "execution_required_in_release_mode": true,
+      "allowed_to_skip": false
+    },
+    {
+      "check_id": "admissible_for_release_matches_certificate_status",
+      "severity": "release_blocking",
+      "responsible_component": "CertifyEdge",
+      "execution_required_in_release_mode": true,
+      "allowed_to_skip": false
+    }
+  ],
+  "consumer_repos": [
+    "CertifyEdge",
+    "Provability Fabric",
+    "Scientific Memory"
+  ],
+  "canonical_hash_required": true,
+  "release_mode_required": true,
+  "formal_predicate": "DerivedFromCertificatePredicate",
+  "formal_fact_artifact": "CertificateFormalFacts.v0",
+  "lean_module": "PCS.CertificateFormalFacts",
+  "admissible_status": "CertificateChecked"
+}

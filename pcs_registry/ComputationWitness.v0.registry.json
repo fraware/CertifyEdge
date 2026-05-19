@@ -69,5 +69,9 @@
     "Scientific Memory"
   ],
   "canonical_hash_required": true,
-  "release_mode_required": true
+  "release_mode_required": true,
+  "formal_predicate": "ComputationWitnessBindsResults",
+  "formal_fact_artifact": "CertificateFormalFacts.v0",
+  "lean_module": "PCS.ComputationWitness",
+  "admissible_status": "CertificateChecked"
 }

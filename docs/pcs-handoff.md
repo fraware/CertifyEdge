@@ -80,7 +80,8 @@ certifyedge --release-mode emit-pcs-certificate \
   --profile-registry templates/profiles \
   --out trace_certificate.json \
   --summary-out certificate_summary.json \
-  --handoff-out certifyedge_to_labtrust_handoff.json
+  --handoff-out certifyedge_to_labtrust_handoff.json \
+  --formal-facts-out certificate_formal_facts.json
 certifyedge verify-certificate trace_certificate.json --trace trace.json
 ```
 
@@ -219,6 +220,7 @@ python examples/pcs_qc_release/scripts/verify_pcs_v01_chain.py --work . --stage 
 |--------|------|
 | `trace_certificate.json` | `emit-pcs-certificate` on any trace |
 | `certificate_summary.json` | `--summary-out` (identity handoff for release runs) |
+| `certificate_formal_facts.json` | `--formal-facts-out` (`CertificateFormalFacts.v0` Lean-fact source for pcs-core) |
 | `certifyedge_to_labtrust_handoff.json` | `--handoff-out` (`certificate_to_bundle`) |
 | `counterexample.json` | Rejected traces (default beside certificate, or `--counterexample-out`) |
 

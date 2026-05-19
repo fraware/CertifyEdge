@@ -24,6 +24,10 @@ const REGISTRY_ENTRY_REQUIRED: &[&str] = &[
     "consumer_repos",
     "canonical_hash_required",
     "release_mode_required",
+    "formal_predicate",
+    "formal_fact_artifact",
+    "lean_module",
+    "admissible_status",
 ];
 
 const EXPECTED_SEMANTIC_CHECK_IDS: &[&str] = &[
@@ -69,6 +73,10 @@ fn test_trace_certificate_registry_contribution_matches_pcs_core_shape() {
         assert_eq!(check["severity"], "release_blocking");
         assert_eq!(check["responsible_component"], "CertifyEdge");
     }
+    assert_eq!(entry["formal_predicate"], "CertificateMatchesRuntime");
+    assert_eq!(entry["formal_fact_artifact"], "CertificateFormalFacts.v0");
+    assert_eq!(entry["lean_module"], "PCS.Certificate");
+    assert_eq!(entry["admissible_status"], "CertificateChecked");
 }
 
 #[test]
@@ -99,6 +107,24 @@ fn test_computation_witness_registry_contribution_shape() {
     assert!(checks
         .iter()
         .any(|c| c["check_id"] == "computation_status_checked_for_release"));
+    assert_eq!(entry["formal_predicate"], "ComputationWitnessBindsResults");
+    assert_eq!(entry["formal_fact_artifact"], "CertificateFormalFacts.v0");
+    assert_eq!(entry["lean_module"], "PCS.ComputationWitness");
+    assert_eq!(entry["admissible_status"], "CertificateChecked");
+}
+
+#[test]
+fn test_certificate_formal_facts_registry_contribution_shape() {
+    let entry = load_registry_contribution("CertificateFormalFacts.v0");
+    for key in REGISTRY_ENTRY_REQUIRED {
+        assert!(
+            entry.get(key).is_some(),
+            "CertificateFormalFacts registry missing {key}"
+        );
+    }
+    assert_eq!(entry["artifact_type"], "CertificateFormalFacts.v0");
+    assert_eq!(entry["formal_fact_artifact"], "CertificateFormalFacts.v0");
+    assert_eq!(entry["lean_module"], "PCS.CertificateFormalFacts");
 }
 
 #[test]
@@ -107,6 +133,7 @@ fn test_registry_contribution_validates_against_vendored_schema() {
         "TraceCertificate.v0",
         "ToolUseCertificate.v0",
         "ComputationWitness.v0",
+        "CertificateFormalFacts.v0",
     ] {
         let entry = load_registry_contribution(artifact);
         validate_registry_contribution_entry(&entry)
@@ -133,6 +160,10 @@ fn test_tool_use_certificate_registry_contribution_shape() {
     assert!(checks
         .iter()
         .any(|c| c["check_id"] == "policy_hash_matches_runtime_policy"));
+    assert_eq!(entry["formal_predicate"], "CertificateMatchesRuntime");
+    assert_eq!(entry["formal_fact_artifact"], "CertificateFormalFacts.v0");
+    assert_eq!(entry["lean_module"], "PCS.Certificate");
+    assert_eq!(entry["admissible_status"], "CertificateChecked");
 }
 
 #[test]

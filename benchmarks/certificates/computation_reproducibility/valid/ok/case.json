@@ -1,0 +1,11 @@
+{
+  "schema_version": "v0",
+  "case_id": "ok",
+  "profile_id": "scientific_computation.reproducibility_v0",
+  "kind": "valid",
+  "handoff_file": "handoff.json",
+  "expect_cli_success": true,
+  "expected_certificate_status": "CertificateChecked",
+  "expected_failure_code": null,
+  "expect_counterexample": false
+}

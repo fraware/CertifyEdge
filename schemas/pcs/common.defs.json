@@ -217,6 +217,88 @@
     "limitations_notice": {
       "type": "string",
       "minLength": 1
+    },
+    "unit_ratio": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "benchmark_case_kind": {
+      "type": "string",
+      "enum": ["valid", "invalid"]
+    },
+    "expected_repair_hint_spec": {
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "command_contains": { "type": "string", "minLength": 1 },
+        "responsible_component": {
+          "anyOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ]
+        }
+      }
+    },
+    "benchmark_case_run_result": {
+      "type": "object",
+      "required": [
+        "case_id",
+        "kind",
+        "passed",
+        "profile_resolution_ok",
+        "handoff_validation_ok",
+        "status_match",
+        "failure_code_match",
+        "counterexample_match",
+        "repair_hint_present",
+        "repair_hint_kind_correct",
+        "repair_hint_command_present",
+        "responsible_component_correct",
+        "errors"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "case_id": { "type": "string", "minLength": 1 },
+        "kind": { "$ref": "#/$defs/benchmark_case_kind" },
+        "passed": { "type": "boolean" },
+        "profile_resolution_ok": { "type": "boolean" },
+        "handoff_validation_ok": { "type": "boolean" },
+        "status_match": { "type": "boolean" },
+        "failure_code_match": { "type": "boolean" },
+        "counterexample_match": { "type": "boolean" },
+        "repair_hint_present": { "type": "boolean" },
+        "repair_hint_kind_correct": { "type": "boolean" },
+        "repair_hint_command_present": { "type": "boolean" },
+        "responsible_component_correct": { "type": "boolean" },
+        "actual_certificate_status": { "type": ["string", "null"] },
+        "actual_failure_code": { "type": ["string", "null"] },
+        "errors": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "repair_hint_metrics": {
+      "type": "object",
+      "required": [
+        "repair_hint_accuracy",
+        "cases_with_expected_repair_hint",
+        "repair_hint_matches",
+        "missing_repair_hints"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "repair_hint_accuracy": { "$ref": "#/$defs/unit_ratio" },
+        "cases_with_expected_repair_hint": { "type": "integer", "minimum": 0 },
+        "repair_hint_matches": { "type": "integer", "minimum": 0 },
+        "missing_repair_hints": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
     }
   }
 }

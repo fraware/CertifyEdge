@@ -21,6 +21,20 @@
     "source_commit",
     "signature_or_digest"
   ],
+  "formalization": {
+    "certificate_predicate": "ComputationWitnessBindsResults",
+    "required_fields": [
+      "witness_id",
+      "dataset_hash",
+      "environment_hash",
+      "run_receipt_hash",
+      "result_hashes",
+      "status"
+    ],
+    "admissible_status": "CertificateChecked",
+    "rejected_status": "Rejected",
+    "stale_status": "Stale"
+  },
   "repair_hints": {
     "dataset_hash_mismatch": {
       "kind": "fix_computation_receipts",

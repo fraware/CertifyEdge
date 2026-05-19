@@ -73,6 +73,11 @@ fn test_handoff_emit_tool_use_certificate_checked() {
 
     let outbound = load_handoff_manifest(&handoff_out).unwrap();
     assert_eq!(outbound.invariants["status"], "CertificateChecked");
+    assert_eq!(
+        outbound.invariants["formal_predicate"],
+        "CertificateMatchesRuntime"
+    );
+    assert_eq!(outbound.invariants["admissible_for_release"], "true");
     assert!(outbound
         .expected_outputs
         .contains_key("tool_use_bundle.certified.json"));
@@ -90,6 +95,7 @@ fn test_handoff_emit_tool_use_rejected_with_repair_invariants() {
     let cert_out = work.join("certificate.json");
     let handoff_out = work.join("certifyedge_handoff.json");
     let cx_out = work.join("counterexample.json");
+    let formal_facts_out = work.join("certificate_formal_facts.json");
 
     let assert = certifyedge_cmd()
         .args([
@@ -104,6 +110,8 @@ fn test_handoff_emit_tool_use_rejected_with_repair_invariants() {
             cx_out.to_str().unwrap(),
             "--handoff-out",
             handoff_out.to_str().unwrap(),
+            "--formal-facts-out",
+            formal_facts_out.to_str().unwrap(),
         ])
         .env("CERTIFYEDGE_ROOT", repo_root())
         .assert()
@@ -115,6 +123,19 @@ fn test_handoff_emit_tool_use_rejected_with_repair_invariants() {
     let cert: Value = serde_json::from_str(&std::fs::read_to_string(&cert_out).unwrap()).unwrap();
     assert_eq!(cert["status"], "Rejected");
     assert!(cert["violations"][0]["failure_code"].is_string());
+
+    let facts: Value =
+        serde_json::from_str(&std::fs::read_to_string(&formal_facts_out).unwrap()).unwrap();
+    assert_eq!(facts["status"], "Rejected");
+    assert_eq!(facts["certificate_id"], cert["certificate_id"]);
+    assert_eq!(facts["trace_hash"], cert["trace_hash"]);
+    assert_eq!(facts["admissible_for_release"], false);
+    assert_eq!(facts["failure_code"], "unauthorized_tool_call");
+    assert!(facts["formal_implication"]
+        .as_str()
+        .unwrap()
+        .contains("cannot be established"));
+    assert!(facts.get("repair_hint").is_some());
 
     let outbound = load_handoff_manifest(&handoff_out).unwrap();
     assert_eq!(outbound.invariants["status"], "Rejected");

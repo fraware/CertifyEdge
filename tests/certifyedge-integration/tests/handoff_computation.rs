@@ -32,6 +32,7 @@ fn test_handoff_emit_computation_witness_checked() {
     let cert_out = work.join("certificate.json");
     let handoff_out = work.join("certifyedge_handoff.json");
     let summary_out = work.join("certificate_summary.json");
+    let formal_facts_out = work.join("certificate_formal_facts.json");
 
     with_source_commit("abcdef0123456789abcdef0123456789abcdef01", || {
         certifyedge_cmd()
@@ -48,6 +49,8 @@ fn test_handoff_emit_computation_witness_checked() {
                 summary_out.to_str().unwrap(),
                 "--handoff-out",
                 handoff_out.to_str().unwrap(),
+                "--formal-facts-out",
+                formal_facts_out.to_str().unwrap(),
             ])
             .env("CERTIFYEDGE_ROOT", repo_root())
             .assert()
@@ -79,6 +82,18 @@ fn test_handoff_emit_computation_witness_checked() {
         "ComputationWitness.v0"
     );
     assert_eq!(summary["status"], "CertificateChecked");
+    assert_eq!(
+        summary["formal_predicate"],
+        "ComputationWitnessBindsResults"
+    );
+    assert_eq!(summary["admissible_for_release"], true);
+
+    let facts: Value =
+        serde_json::from_str(&std::fs::read_to_string(&formal_facts_out).unwrap()).unwrap();
+    assert_eq!(facts["formal_predicate"], "ComputationWitnessBindsResults");
+    assert_eq!(facts["witness_id"], cert["certificate_id"]);
+    assert_eq!(facts["run_receipt_hash"], cert["run_hash"]);
+    assert_eq!(facts["admissible_for_release"], true);
 
     let outbound = load_handoff_manifest(&handoff_out).unwrap();
     assert_eq!(outbound.invariants["status"], "CertificateChecked");

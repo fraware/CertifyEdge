@@ -1,6 +1,7 @@
 use serde::Serialize;
 
 use crate::emitted_certificate::EmittedCertificate;
+use crate::formal_facts::{admissible_for_release, ARTIFACT_CERTIFICATE_FORMAL_FACTS};
 use crate::property_profile::PropertyProfile;
 use crate::repair_hint::{repair_hint_from_profile, RepairHint};
 
@@ -25,6 +26,9 @@ pub struct CertificateEmitSummary {
     pub responsible_component: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub repair_hint: Option<RepairHint>,
+    pub formal_predicate: String,
+    pub formal_fact_artifact: String,
+    pub admissible_for_release: bool,
 }
 
 impl CertificateEmitSummary {
@@ -39,49 +43,71 @@ impl CertificateEmitSummary {
     ) -> Self {
         let (failure_code, responsible_component, repair_hint) =
             rejection_summary_fields(profile, failure_code);
+        let (formal_predicate, admissible) = profile
+            .map(|p| {
+                (
+                    p.formalization.certificate_predicate.clone(),
+                    admissible_for_release(p, cert.status()),
+                )
+            })
+            .unwrap_or_else(|| (String::new(), cert.status() == "CertificateChecked"));
+        let base = |certificate_id: String,
+                    trace_hash: String,
+                    spec_hash: Option<String>,
+                    policy_hash: Option<String>,
+                    property_id: String,
+                    status: String,
+                    source_commit: String,
+                    counterexample_ref: Option<String>| {
+            Self {
+                certificate_id,
+                trace_hash,
+                spec_hash,
+                policy_hash,
+                property_id,
+                status,
+                output_certificate_artifact: cert.output_artifact_type().to_string(),
+                source_commit,
+                counterexample_ref,
+                failure_code: failure_code.clone(),
+                responsible_component: responsible_component.clone(),
+                repair_hint: repair_hint.clone(),
+                formal_predicate: formal_predicate.clone(),
+                formal_fact_artifact: ARTIFACT_CERTIFICATE_FORMAL_FACTS.to_string(),
+                admissible_for_release: admissible,
+            }
+        };
         match cert {
-            EmittedCertificate::Trace(c) => Self {
-                certificate_id: c.certificate_id.clone(),
-                trace_hash: c.trace_hash.clone(),
-                spec_hash: Some(c.spec_hash.clone()),
-                policy_hash: None,
-                property_id: c.property_id.clone(),
-                status: c.status.clone(),
-                output_certificate_artifact: cert.output_artifact_type().to_string(),
-                source_commit: c.source_commit.clone(),
-                counterexample_ref: c.counterexample_ref.clone(),
-                failure_code,
-                responsible_component,
-                repair_hint,
-            },
-            EmittedCertificate::ToolUse(c) => Self {
-                certificate_id: c.certificate_id.clone(),
-                trace_hash: c.trace_hash.clone(),
-                spec_hash: None,
-                policy_hash: Some(c.policy_hash.clone()),
-                property_id: c.property_id.clone(),
-                status: c.status.clone(),
-                output_certificate_artifact: cert.output_artifact_type().to_string(),
-                source_commit: c.source_commit.clone(),
-                counterexample_ref: c.counterexample_ref.clone(),
-                failure_code,
-                responsible_component,
-                repair_hint,
-            },
-            EmittedCertificate::Computation(c) => Self {
-                certificate_id: c.certificate_id.clone(),
-                trace_hash: c.run_hash.clone(),
-                spec_hash: None,
-                policy_hash: None,
-                property_id: c.property_id.clone(),
-                status: c.status.clone(),
-                output_certificate_artifact: cert.output_artifact_type().to_string(),
-                source_commit: c.source_commit.clone(),
-                counterexample_ref: c.counterexample_ref.clone(),
-                failure_code,
-                responsible_component,
-                repair_hint,
-            },
+            EmittedCertificate::Trace(c) => base(
+                c.certificate_id.clone(),
+                c.trace_hash.clone(),
+                Some(c.spec_hash.clone()),
+                None,
+                c.property_id.clone(),
+                c.status.clone(),
+                c.source_commit.clone(),
+                c.counterexample_ref.clone(),
+            ),
+            EmittedCertificate::ToolUse(c) => base(
+                c.certificate_id.clone(),
+                c.trace_hash.clone(),
+                None,
+                Some(c.policy_hash.clone()),
+                c.property_id.clone(),
+                c.status.clone(),
+                c.source_commit.clone(),
+                c.counterexample_ref.clone(),
+            ),
+            EmittedCertificate::Computation(c) => base(
+                c.certificate_id.clone(),
+                c.run_hash.clone(),
+                None,
+                None,
+                c.property_id.clone(),
+                c.status.clone(),
+                c.source_commit.clone(),
+                c.counterexample_ref.clone(),
+            ),
         }
     }
 }
@@ -113,7 +139,7 @@ pub fn summary_to_json(summary: &CertificateEmitSummary) -> Result<String, serde
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::property_profile::PropertyProfile;
+    use crate::property_profile::{ProfileFormalization, PropertyProfile};
     use std::collections::BTreeMap;
 
     #[test]
@@ -136,6 +162,17 @@ mod tests {
                 },
             )]),
             supporting_artifacts: vec![],
+            formalization: ProfileFormalization {
+                certificate_predicate: "CertificateMatchesRuntime".into(),
+                required_fields: vec![
+                    "certificate_id".into(),
+                    "trace_hash".into(),
+                    "status".into(),
+                ],
+                admissible_status: Some("CertificateChecked".into()),
+                rejected_status: Some("Rejected".into()),
+                stale_status: Some("Stale".into()),
+            },
         };
         let summary = CertificateEmitSummary::from_emitted_with_rejection(
             &EmittedCertificate::ToolUse(crate::tool_use_certificate::ToolUseCertificateV0 {
@@ -162,6 +199,8 @@ mod tests {
             Some("unauthorized_tool_call"),
             Some(&profile),
         );
+        assert_eq!(summary.formal_predicate, "CertificateMatchesRuntime");
+        assert!(!summary.admissible_for_release);
         assert_eq!(
             summary.failure_code.as_deref(),
             Some("unauthorized_tool_call")

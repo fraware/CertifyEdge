@@ -67,7 +67,11 @@
           "items": { "type": "string", "minLength": 1 }
         },
         "canonical_hash_required": { "type": "boolean" },
-        "release_mode_required": { "type": "boolean" }
+        "release_mode_required": { "type": "boolean" },
+        "formal_predicate": { "type": "string", "minLength": 1 },
+        "formal_fact_artifact": { "type": "string", "minLength": 1 },
+        "lean_module": { "type": "string", "minLength": 1 },
+        "admissible_status": { "type": "string", "minLength": 1 }
       }
     }
   }

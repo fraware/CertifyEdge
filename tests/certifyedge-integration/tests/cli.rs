@@ -210,7 +210,9 @@ fn test_profiles_list_includes_qc_release() {
             "hospital_lab.no_release_before_qc",
         ))
         .stdout(predicate::str::contains("agent_tool_use.safety_v0"))
-        .stdout(predicate::str::contains("scientific_computation.reproducibility_v0"));
+        .stdout(predicate::str::contains(
+            "scientific_computation.reproducibility_v0",
+        ));
 }
 
 #[test]
@@ -275,13 +277,16 @@ fn test_profiles_validate_agent_tool_use_profile() {
 
 #[test]
 fn test_profiles_validate_scientific_computation_profile() {
-    let path = repo_root().join("templates/profiles/scientific_computation.reproducibility_v0.json");
+    let path =
+        repo_root().join("templates/profiles/scientific_computation.reproducibility_v0.json");
     certifyedge()
         .args(["profiles", "validate", path.to_str().unwrap()])
         .env("CERTIFYEDGE_ROOT", repo_root())
         .assert()
         .success()
-        .stdout(predicate::str::contains("scientific_computation.reproducibility_v0"));
+        .stdout(predicate::str::contains(
+            "scientific_computation.reproducibility_v0",
+        ));
 }
 
 #[test]

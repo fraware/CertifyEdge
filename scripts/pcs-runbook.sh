@@ -33,9 +33,13 @@ TRACE_BAD_QC="$ROOT/tests/labtrust/invalid_missing_qc_trace.json"
 echo "==> check-trace (valid)"
 "$BIN" check-trace --spec "$SPEC_QC" --trace "$TRACE_OK"
 
+FORMAL_FACTS="$OUT_DIR/certificate_formal_facts.json"
+
 echo "==> emit-pcs-certificate (valid)"
-rm -f "$CERT"
-"$BIN" emit-pcs-certificate --spec "$SPEC_QC" --trace "$TRACE_OK" --out "$CERT"
+rm -f "$CERT" "$FORMAL_FACTS"
+"$BIN" emit-pcs-certificate --spec "$SPEC_QC" --trace "$TRACE_OK" --out "$CERT" \
+  --formal-facts-out "$FORMAL_FACTS"
+test -f "$FORMAL_FACTS"
 
 echo "==> verify-certificate"
 "$BIN" verify-certificate "$CERT"

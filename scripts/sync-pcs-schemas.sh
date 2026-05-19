@@ -18,4 +18,7 @@ cp -f "$PCS_CORE/schemas/ComputationWitness.v0.schema.json" "$DEST/" 2>/dev/null
 cp -f "$PCS_CORE/schemas/HandoffManifest.v0.schema.json" "$DEST/"
 cp -f "$PCS_CORE/schemas/ArtifactRegistry.v0.schema.json" "$DEST/"
 cp -f "$PCS_CORE/schemas/common.defs.json" "$DEST/"
+if [[ -f "$PCS_CORE/schemas/CertificateFormalFacts.v0.schema.json" ]]; then
+  cp -f "$PCS_CORE/schemas/CertificateFormalFacts.v0.schema.json" "$DEST/"
+fi
 echo "Synced pcs-core schemas -> $DEST"

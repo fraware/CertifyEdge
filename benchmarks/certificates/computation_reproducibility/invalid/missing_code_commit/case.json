@@ -1,0 +1,16 @@
+{
+  "schema_version": "v0",
+  "case_id": "missing_code_commit",
+  "profile_id": "scientific_computation.reproducibility_v0",
+  "kind": "invalid",
+  "handoff_file": "handoff.json",
+  "expect_cli_success": true,
+  "expected_certificate_status": "Rejected",
+  "expected_failure_code": "missing_code_commit",
+  "expect_counterexample": true,
+  "expected_repair_hint": {
+    "kind": "fix_run_receipt",
+    "command_contains": "code_commit",
+    "responsible_component": "runtime_producer"
+  }
+}

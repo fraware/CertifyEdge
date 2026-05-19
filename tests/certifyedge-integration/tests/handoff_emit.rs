@@ -26,6 +26,7 @@ fn test_emit_handoff_release_mode_full_protocol_outputs() {
     let cert_out = work.join("trace_certificate.json");
     let summary_out = work.join("certificate_summary.json");
     let handoff_out = work.join("certifyedge_to_labtrust_handoff.json");
+    let formal_facts_out = work.join("certificate_formal_facts.json");
     let profiles = repo_root().join("templates/profiles");
 
     with_source_commit(pcs_core_rc_constants().source_commit, || {
@@ -43,6 +44,8 @@ fn test_emit_handoff_release_mode_full_protocol_outputs() {
                 summary_out.to_str().unwrap(),
                 "--handoff-out",
                 handoff_out.to_str().unwrap(),
+                "--formal-facts-out",
+                formal_facts_out.to_str().unwrap(),
             ])
             .env("CERTIFYEDGE_ROOT", repo_root())
             .assert()
@@ -52,15 +55,35 @@ fn test_emit_handoff_release_mode_full_protocol_outputs() {
     let cert: Value = serde_json::from_str(&std::fs::read_to_string(&cert_out).unwrap()).unwrap();
     let summary: Value =
         serde_json::from_str(&std::fs::read_to_string(&summary_out).unwrap()).unwrap();
+    let facts: Value =
+        serde_json::from_str(&std::fs::read_to_string(&formal_facts_out).unwrap()).unwrap();
     assert_eq!(summary["certificate_id"], cert["certificate_id"]);
     assert_eq!(summary["property_id"], "hospital_lab.qc_release");
     assert_eq!(summary["status"], "CertificateChecked");
+    assert_eq!(facts["certificate_id"], cert["certificate_id"]);
+    assert_eq!(facts["trace_hash"], cert["trace_hash"]);
+    assert_eq!(facts["status"], cert["status"]);
+    assert_eq!(facts["formal_predicate"], "CertificateMatchesRuntime");
+    assert_eq!(facts["admissible_for_release"], true);
+    assert_eq!(facts["artifact"], "trace_certificate.json");
 
     let outbound = load_handoff_manifest(&handoff_out).expect("outbound handoff parses");
     assert_eq!(outbound.invariants["status"], "CertificateChecked");
     assert!(outbound
         .expected_outputs
         .contains_key("science_claim_bundle.certified.json"));
+    assert_eq!(
+        outbound.invariants["formal_predicate"],
+        "CertificateMatchesRuntime"
+    );
+    assert_eq!(outbound.invariants["admissible_for_release"], "true");
+    assert!(outbound
+        .input_artifacts
+        .contains_key("certificate_formal_facts.json"));
+    assert_eq!(
+        outbound.input_artifacts["certificate_formal_facts.json"].artifact_type,
+        "CertificateFormalFacts.v0"
+    );
 }
 
 #[test]

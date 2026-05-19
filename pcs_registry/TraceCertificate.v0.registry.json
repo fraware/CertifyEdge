@@ -53,5 +53,9 @@
     "Scientific Memory"
   ],
   "canonical_hash_required": true,
-  "release_mode_required": true
+  "release_mode_required": true,
+  "formal_predicate": "CertificateMatchesRuntime",
+  "formal_fact_artifact": "CertificateFormalFacts.v0",
+  "lean_module": "PCS.Certificate",
+  "admissible_status": "CertificateChecked"
 }
