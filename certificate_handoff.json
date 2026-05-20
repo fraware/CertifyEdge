@@ -1,0 +1,35 @@
+{
+  "created_at": "2026-05-19T13:47:28Z",
+  "expected_outputs": {
+    "science_claim_bundle.certified.json": {
+      "artifact_type": "ScienceClaimBundle.v0"
+    }
+  },
+  "from_component": "CertifyEdge",
+  "handoff_id": "handoff-certifyedge-8e5bf266-4490-4716-afe6-9722e597d670",
+  "handoff_kind": "certificate_to_bundle",
+  "input_artifacts": {
+    "certificate.json": {
+      "artifact_type": "TraceCertificate.v0",
+      "sha256": "sha256:d9df2dd53d43778eb9ede8de5f6c28e35a01dec034546c26b25246acd0eda4fd"
+    },
+    "certificate_formal_facts.json": {
+      "artifact_type": "CertificateFormalFacts.v0",
+      "sha256": "sha256:11593b796467833f13fb9077af5c3c1e64109476525bec419e44e9bd9b9bb2b3"
+    }
+  },
+  "invariants": {
+    "admissible_for_release": "true",
+    "certificate_id": "cert-trace-1b7eec6a-265c-4e03-ac97-9a5ec661d50b",
+    "formal_predicate": "CertificateMatchesRuntime",
+    "property_id": "hospital_lab.qc_release",
+    "status": "CertificateChecked",
+    "trace_hash": "sha256:c3e8a3dc4ad86d533de1dfa4ae7fe2a338c2cff3c945404c96a75216524d58cd"
+  },
+  "schema_version": "v0",
+  "signature_or_digest": "sha256:4963cd5fd4b991adb1657946092da830e8bc89e7c27a97d47bae48d9b65adece",
+  "source_commit": "cb6848001e2e60a484e04eba5ad6be3fe2e4eccc",
+  "source_repo": "https://github.com/fraware/CertifyEdge",
+  "status": "Validated",
+  "to_component": "LabTrust-Gym"
+}
