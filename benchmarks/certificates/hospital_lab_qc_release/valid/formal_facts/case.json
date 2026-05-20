@@ -1,0 +1,13 @@
+{
+  "schema_version": "v0",
+  "case_id": "formal_facts",
+  "profile_id": "hospital_lab.qc_release",
+  "kind": "valid",
+  "case_category": "formal_facts",
+  "handoff_file": "handoff.json",
+  "expect_cli_success": true,
+  "expected_certificate_status": "CertificateChecked",
+  "expected_failure_code": null,
+  "expect_counterexample": false,
+  "expect_formal_facts": true
+}

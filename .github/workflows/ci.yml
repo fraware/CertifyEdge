@@ -127,6 +127,11 @@ jobs:
             --test computation_emit \
             -- --nocapture
 
+      - name: Assert PCS benchmark schemas match pcs-core (no drift)
+        env:
+          PCS_CORE_PATH: ${{ github.workspace }}/pcs-core
+        run: bash ./scripts/check-pcs-benchmark-schemas-drift.sh
+
       - name: Assert PCS registry contribution matches pcs-core (no drift)
         env:
           PCS_CORE_PATH: ${{ github.workspace }}/pcs-core

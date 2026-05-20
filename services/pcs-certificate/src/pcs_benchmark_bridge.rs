@@ -1,5 +1,6 @@
 //! Map CertifyEdge certificate benchmark results to pcs-core `BenchmarkReport.v0` artifacts.
 
+use std::collections::BTreeSet;
 use std::path::Path;
 
 use serde::Serialize;
@@ -24,17 +25,18 @@ pub struct RepairHintQuality {
     pub repair_command: String,
 }
 
+/// Normalized stdout summary for pcs-bench ingestion (`--json-summary`).
 #[derive(Debug, Clone, Serialize)]
 pub struct BenchmarkCertificatesJsonSummary {
-    pub schema_version: String,
     pub producer_id: String,
-    pub profile_id: String,
     pub benchmark_suite_id: String,
+    pub workflow_profile_id: String,
     pub cases_run: usize,
     pub cases_passed: usize,
-    pub failure_code_accuracy: f64,
+    pub failure_localization_accuracy: f64,
     pub repair_hint_accuracy: f64,
     pub certificate_completeness_score: f64,
+    pub profile_coverage_ratio: f64,
     pub out_dir: String,
     pub benchmark_report_path: String,
 }
@@ -58,27 +60,6 @@ pub fn benchmark_suite_id(profile_id: &str) -> String {
             "certifyedge-computation-reproducibility-v0".into()
         }
         other => format!("certifyedge-{other}"),
-    }
-}
-
-pub fn map_case_category_to_pcs_kind(category: &str, folder_kind: &str) -> &'static str {
-    match category {
-        "valid" => "valid_release",
-        "invalid_hash_mismatch" | "policy_hash_mismatch" => "invalid_hash_mismatch",
-        "invalid_missing_required_field" => "invalid_handoff",
-        "invalid_source_provenance" => "invalid_certificate",
-        "invalid_policy_or_property_violation"
-        | "rejected_certificate"
-        | "unauthorized_tool_call"
-        | "missing_policy_hash"
-        | "unknown_authorization_status"
-        | "dataset_hash_mismatch"
-        | "environment_digest_mismatch"
-        | "result_hash_mismatch"
-        | "missing_code_commit"
-        | "nonzero_exit_code" => "invalid_certificate",
-        _ if folder_kind == "valid" => "valid_release",
-        _ => "invalid_certificate",
     }
 }
 
@@ -166,18 +147,28 @@ pub fn emit_pcs_benchmark_artifacts(input: PcsBenchmarkEmitInput<'_>) -> Result<
     let suite_id = benchmark_suite_id(input.profile_id);
     let artifact_type = output_artifact_type(input.profile);
     let meta = input.meta;
+    let runs_dir = input.out_dir.join("runs");
+    std::fs::create_dir_all(&runs_dir).map_err(|e| e.to_string())?;
 
     let mut run_refs: Vec<Value> = Vec::new();
     let mut failures: Vec<Value> = Vec::new();
 
     for result in input.case_results {
-        let run_filename = format!("benchmark_run.{}.v0.json", result.case_id);
+        let run_filename = format!("runs/{}.benchmark_run.v0.json", result.case_id);
         let run_path = input.out_dir.join(&run_filename);
-        let run_doc = build_per_case_run(result, input.profile_id, meta)?;
+        let run_doc = build_certificate_benchmark_run(result, &suite_id, input.profile_id, meta)?;
         let run_value = serde_json::to_value(&run_doc).map_err(|e| e.to_string())?;
-        crate::pcs_schema::validate_benchmark_run_schema(&run_value).map_err(|e| {
+        crate::pcs_schema::validate_certificate_benchmark_run_schema(&run_value).map_err(|e| {
             format!(
-                "benchmark run schema ({}, case {}): {e}",
+                "certificate benchmark run schema ({}, case {}): {e}",
+                run_path.display(),
+                result.case_id
+            )
+        })?;
+        let core_run = crate::pcs_schema::benchmark_run_core_from_certificate_run(&run_value);
+        crate::pcs_schema::validate_benchmark_run_schema(&core_run).map_err(|e| {
+            format!(
+                "benchmark run core projection ({}, case {}): {e}",
                 run_path.display(),
                 result.case_id
             )
@@ -214,7 +205,16 @@ pub fn emit_pcs_benchmark_artifacts(input: PcsBenchmarkEmitInput<'_>) -> Result<
         }
     }
 
-    let cert_coverage = coverage_report(
+    let cert_native = serde_json::to_value(input.coverage).map_err(|e| e.to_string())?;
+    crate::pcs_schema::validate_certificate_coverage_report_schema(&cert_native).map_err(|e| {
+        format!("certificate coverage report schema: {e}")
+    })?;
+    write_json_file(
+        &input.out_dir.join("certificate_coverage_report.v0.json"),
+        &cert_native,
+    )?;
+
+    let cert_completeness = coverage_report(
         &format!("{suite_id}-certificate-completeness"),
         "certificate_completeness",
         input.suite.cases_passed as f64,
@@ -245,16 +245,21 @@ pub fn emit_pcs_benchmark_artifacts(input: PcsBenchmarkEmitInput<'_>) -> Result<
         meta,
     );
 
-    let categories: Vec<String> = input
+    let pc = &input.coverage.profile_coverage;
+    let categories_required: Vec<String> = input
         .case_results
         .iter()
         .filter_map(|r| r.case_category.clone())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
         .collect();
-    let covered_categories: Vec<String> = input
+    let categories_covered: Vec<String> = input
         .case_results
         .iter()
         .filter(|r| r.passed)
         .filter_map(|r| r.case_category.clone())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
         .collect();
 
     let profile_coverage = with_digest(json!({
@@ -265,17 +270,22 @@ pub fn emit_pcs_benchmark_artifacts(input: PcsBenchmarkEmitInput<'_>) -> Result<
         "suite_id": suite_id,
         "artifact_types_required": [artifact_type],
         "artifact_types_covered": [artifact_type],
-        "semantic_checks_required": categories,
-        "semantic_checks_covered": covered_categories,
+        "semantic_checks_required": categories_required,
+        "semantic_checks_covered": pc.properties_covered.clone(),
         "handoff_steps_required": ["runtime_to_certificate"],
         "handoff_steps_covered": ["runtime_to_certificate"],
         "numerator": input.suite.cases_passed as f64,
         "denominator": input.suite.cases_run.max(1) as f64,
-        "coverage_ratio": input.coverage.profile_coverage.coverage_score,
+        "coverage_ratio": pc.coverage_score,
         "details": {
-            "templates_checked": input.coverage.profile_coverage.templates_checked,
-            "counterexample_types_covered": input.coverage.profile_coverage.counterexample_types_covered,
-            "unsupported_cases": input.coverage.profile_coverage.unsupported_cases,
+            "templates_checked": pc.templates_checked,
+            "case_counts": {
+                "valid": pc.valid_cases,
+                "invalid": pc.invalid_cases
+            },
+            "counterexample_types_covered": pc.counterexample_types_covered,
+            "unsupported_cases": pc.unsupported_cases,
+            "categories_covered": categories_covered,
         },
         "source_repo": CERTIFYEDGE_SOURCE_REPO,
         "source_commit": meta.source_commit,
@@ -287,7 +297,7 @@ pub fn emit_pcs_benchmark_artifacts(input: PcsBenchmarkEmitInput<'_>) -> Result<
         input.profile_id,
         &run_refs,
         &failures,
-        &cert_coverage,
+        &cert_completeness,
         &repair_coverage,
         &profile_coverage,
         input.coverage,
@@ -296,22 +306,16 @@ pub fn emit_pcs_benchmark_artifacts(input: PcsBenchmarkEmitInput<'_>) -> Result<
     )?;
     crate::pcs_schema::validate_benchmark_report_schema(&report)
         .map_err(|e| format!("benchmark report schema: {e}"))?;
-    crate::pcs_schema::validate_coverage_report_schema(&cert_coverage)
+    crate::pcs_schema::validate_coverage_report_schema(&cert_completeness)
         .map_err(|e| format!("certificate completeness coverage schema: {e}"))?;
     crate::pcs_schema::validate_coverage_report_schema(&repair_coverage)
         .map_err(|e| format!("repair hint coverage schema: {e}"))?;
-    // Repair-hint coverage is scored via `summary.repair_hint_accuracy`; keep the artifact
-    // out of `BenchmarkReport.coverage` because pcs-core's block schema is closed.
     crate::pcs_schema::validate_profile_coverage_report_schema(&profile_coverage)
         .map_err(|e| format!("profile coverage report schema: {e}"))?;
 
     write_json_file(
         &input.out_dir.join("benchmark_report.v0.json"),
         &report,
-    )?;
-    write_json_file(
-        &input.out_dir.join("certificate_coverage_report.v0.json"),
-        &cert_coverage,
     )?;
     write_json_file(
         &input.out_dir.join("profile_coverage_report.v0.json"),
@@ -331,7 +335,6 @@ pub fn emit_pcs_benchmark_artifacts(input: PcsBenchmarkEmitInput<'_>) -> Result<
         }
     }
     if !repair_cases.is_empty() {
-        let suite_id = benchmark_suite_id(input.profile_id);
         let manifest = with_digest(json!({
             "schema_version": "v0",
             "manifest_id": format!("{suite_id}-repair-hints"),
@@ -351,32 +354,111 @@ pub fn emit_pcs_benchmark_artifacts(input: PcsBenchmarkEmitInput<'_>) -> Result<
     Ok(())
 }
 
-fn build_per_case_run(
+/// Validate all pcs-bench ingest artifacts under a benchmark output directory.
+pub fn validate_pcs_benchmark_output_dir(out_dir: &Path) -> Result<(), String> {
+    let report_path = out_dir.join("benchmark_report.v0.json");
+    let report_text = std::fs::read_to_string(&report_path)
+        .map_err(|e| format!("read {}: {e}", report_path.display()))?;
+    let report: Value = serde_json::from_str(&report_text).map_err(|e| e.to_string())?;
+    crate::pcs_schema::validate_benchmark_report_schema(&report)?;
+
+    let cert_cov_path = out_dir.join("certificate_coverage_report.v0.json");
+    let cert_cov: Value =
+        serde_json::from_str(&std::fs::read_to_string(&cert_cov_path).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+    crate::pcs_schema::validate_certificate_coverage_report_schema(&cert_cov)?;
+    if cert_cov.get("artifact").and_then(|v| v.as_str())
+        != Some("CertificateCoverageReport.v0")
+    {
+        return Err(format!(
+            "{}: expected CertificateCoverageReport.v0 artifact",
+            cert_cov_path.display()
+        ));
+    }
+
+    let profile_cov_path = out_dir.join("profile_coverage_report.v0.json");
+    let profile_cov: Value = serde_json::from_str(
+        &std::fs::read_to_string(&profile_cov_path).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())?;
+    crate::pcs_schema::validate_profile_coverage_report_schema(&profile_cov)?;
+
+    let repair_path = out_dir.join("repair_hint_quality_report.v0.json");
+    let repair_cov: Value =
+        serde_json::from_str(&std::fs::read_to_string(&repair_path).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+    crate::pcs_schema::validate_coverage_report_schema(&repair_cov)?;
+
+    let runs = report
+        .get("runs")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| "benchmark_report.runs must be an array".to_string())?;
+    for run_ref in runs {
+        let rel = run_ref
+            .get("path")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| "run ref missing path".to_string())?;
+        if !rel.starts_with("runs/") || !rel.ends_with(".benchmark_run.v0.json") {
+            return Err(format!("unexpected run path: {rel}"));
+        }
+        let run_path = out_dir.join(rel);
+        let run_doc: Value = serde_json::from_str(
+            &std::fs::read_to_string(&run_path).map_err(|e| e.to_string())?,
+        )
+        .map_err(|e| e.to_string())?;
+        crate::pcs_schema::validate_certificate_benchmark_run_schema(&run_doc)?;
+        let core = crate::pcs_schema::benchmark_run_core_from_certificate_run(&run_doc);
+        crate::pcs_schema::validate_benchmark_run_schema(&core)
+            .map_err(|e| format!("{} (core): {e}", run_path.display()))?;
+    }
+
+    Ok(())
+}
+
+fn build_certificate_benchmark_run(
     result: &CaseRunResult,
+    suite_id: &str,
     profile_id: &str,
     meta: &CertifyEdgeMetadata,
 ) -> Result<Value, String> {
     let observed_status = if result.passed { "passed" } else { "failed" };
-    let failure_code = result.actual_failure_code.clone().unwrap_or_default();
+    let failure_code = result
+        .actual_failure_code
+        .as_ref()
+        .filter(|s| !s.is_empty())
+        .map(|s| Value::String(s.clone()))
+        .unwrap_or(Value::Null);
     let (repair_hint_pcs, component) = if let Some(q) = &result.repair_hint_quality {
         if q.repair_hint_present {
             (
-                map_certifyedge_repair_kind(&q.repair_hint_kind).to_string(),
-                normalize_responsible_component(&q.responsible_component),
+                Value::String(map_certifyedge_repair_kind(&q.repair_hint_kind).to_string()),
+                Some(normalize_responsible_component(&q.responsible_component)),
             )
         } else {
-            ("none".to_string(), "unknown".to_string())
+            (Value::Null, None)
         }
     } else {
-        ("unknown".to_string(), "unknown".to_string())
+        (Value::Null, None)
     };
+    let responsible = component
+        .as_ref()
+        .map(|c| Value::String(c.clone()))
+        .unwrap_or(Value::Null);
+    let certificate_status = result
+        .actual_certificate_status
+        .as_deref()
+        .map(certificate_status_for_benchmark);
 
     let command = format!(
         "certifyedge emit-pcs-certificate --profile {profile_id} --handoff <case>/handoff.json"
     );
     let exit_code = if result.passed { 0 } else { 1 };
+    let mut artifacts = vec!["certificate.json".to_string()];
+    if result.expect_formal_facts || result.formal_facts_ok {
+        artifacts.push("certificate_formal_facts.json".to_string());
+    }
 
-    Ok(with_digest(json!({
+    let mut doc = json!({
         "schema_version": "v0",
         "run_id": format!("bench-run-{}", result.case_id),
         "task_id": profile_id,
@@ -387,16 +469,39 @@ fn build_per_case_run(
             "command": command,
             "exit_code": exit_code
         }],
-        "artifacts_produced": ["certificate.json"],
+        "artifacts_produced": artifacts,
         "observed_status": observed_status,
         "observed_failure_code": failure_code,
-        "observed_responsible_component": component,
+        "observed_responsible_component": responsible,
         "observed_repair_hint": repair_hint_pcs,
         "duration_ms": result.duration_ms,
         "source_repo": CERTIFYEDGE_SOURCE_REPO,
         "source_commit": meta.source_commit,
-        "signature_or_digest": ""
-    })))
+        "signature_or_digest": "",
+        "suite_id": suite_id,
+        "workflow_id": profile_id,
+        "workflow_profile_id": profile_id,
+        "expected_certificate_status": result.expected_certificate_status,
+        "expected_failure_code": result.expected_failure_code,
+        "expected_responsible_component": result.expected_responsible_component,
+        "expected_repair_hint_kind": result.expected_repair_hint_kind,
+        "repair_hint_acceptable": result.repair_hint_acceptable,
+        "formal_facts_emitted": result.formal_facts_ok,
+        "logs": result.errors
+    });
+    if let Some(status) = certificate_status {
+        if let Some(obj) = doc.as_object_mut() {
+            obj.insert("certificate_status".to_string(), Value::String(status));
+        }
+    }
+    Ok(with_digest(doc))
+}
+
+fn certificate_status_for_benchmark(status: &str) -> String {
+    match status {
+        "CertificateChecked" | "Rejected" | "Stale" => status.to_string(),
+        _ => "not_applicable".to_string(),
+    }
 }
 
 fn normalize_responsible_component(component: &str) -> String {
@@ -508,15 +613,15 @@ pub fn build_json_summary(
 ) -> BenchmarkCertificatesJsonSummary {
     let suite_id = benchmark_suite_id(profile_id);
     BenchmarkCertificatesJsonSummary {
-        schema_version: "v0".into(),
         producer_id: "certifyedge".into(),
-        profile_id: profile_id.to_string(),
         benchmark_suite_id: suite_id,
+        workflow_profile_id: profile_id.to_string(),
         cases_run: suite.cases_run,
         cases_passed: suite.cases_passed,
-        failure_code_accuracy: coverage.failure_code_accuracy,
+        failure_localization_accuracy: coverage.failure_code_accuracy,
         repair_hint_accuracy: coverage.repair_hint_metrics.repair_hint_accuracy,
         certificate_completeness_score: ratio_score(suite.cases_passed, suite.cases_run),
+        profile_coverage_ratio: coverage.profile_coverage.coverage_score,
         out_dir: out_dir.display().to_string(),
         benchmark_report_path: out_dir
             .join("benchmark_report.v0.json")

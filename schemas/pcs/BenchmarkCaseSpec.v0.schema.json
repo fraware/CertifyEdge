@@ -31,6 +31,7 @@
       ]
     },
     "unsupported": { "type": "boolean" },
+    "expect_formal_facts": { "type": "boolean" },
     "notes": { "type": ["string", "null"] }
   }
 }

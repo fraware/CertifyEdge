@@ -10,6 +10,7 @@ static TOOL_USE_TRACE_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 static COMPUTATION_WITNESS_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 static BENCHMARK_CASE_SPEC_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 static BENCHMARK_RUN_VALIDATOR: OnceLock<Validator> = OnceLock::new();
+static CERTIFICATE_BENCHMARK_RUN_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 static BENCHMARK_REPORT_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 static COVERAGE_REPORT_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 static PROFILE_COVERAGE_REPORT_VALIDATOR: OnceLock<Validator> = OnceLock::new();
@@ -473,6 +474,15 @@ fn benchmark_run_validator() -> &'static Validator {
     })
 }
 
+fn certificate_benchmark_run_validator() -> &'static Validator {
+    CERTIFICATE_BENCHMARK_RUN_VALIDATOR.get_or_init(|| {
+        Validator::new(&merged_schema_with_common_defs(include_str!(
+            "../../../schemas/pcs/CertificateBenchmarkRun.v0.schema.json"
+        )))
+        .expect("CertificateBenchmarkRun.v0 schema compiles")
+    })
+}
+
 fn benchmark_report_validator() -> &'static Validator {
     BENCHMARK_REPORT_VALIDATOR.get_or_init(|| {
         Validator::new(&merged_benchmark_report_schema())
@@ -527,6 +537,46 @@ pub fn validate_certificate_coverage_report_schema(value: &Value) -> Result<(), 
 
 pub fn validate_benchmark_run_schema(value: &Value) -> Result<(), String> {
     validate_with(benchmark_run_validator(), value)
+}
+
+pub fn validate_certificate_benchmark_run_schema(value: &Value) -> Result<(), String> {
+    validate_with(certificate_benchmark_run_validator(), value)
+}
+
+/// Project a `CertificateBenchmarkRun.v0` document to pcs-core `BenchmarkRun.v0` fields.
+pub fn benchmark_run_core_from_certificate_run(value: &Value) -> Value {
+    const CORE_FIELDS: &[&str] = &[
+        "schema_version",
+        "run_id",
+        "task_id",
+        "case_id",
+        "started_at",
+        "completed_at",
+        "commands",
+        "artifacts_produced",
+        "observed_status",
+        "observed_failure_code",
+        "observed_responsible_component",
+        "observed_repair_hint",
+        "system_admission_outcome",
+        "release_chain_status",
+        "certificate_status",
+        "scientific_memory_import_status",
+        "scientific_memory_render_status",
+        "duration_ms",
+        "source_repo",
+        "source_commit",
+        "signature_or_digest",
+    ];
+    let mut out = serde_json::Map::new();
+    if let Some(obj) = value.as_object() {
+        for key in CORE_FIELDS {
+            if let Some(v) = obj.get(*key) {
+                out.insert((*key).to_string(), v.clone());
+            }
+        }
+    }
+    Value::Object(out)
 }
 
 pub fn validate_benchmark_report_schema(value: &Value) -> Result<(), String> {
@@ -605,15 +655,47 @@ mod tests {
             "commands": [{"command": "certifyedge emit-pcs-certificate", "exit_code": 0}],
             "artifacts_produced": ["certificate.json"],
             "observed_status": "passed",
-            "observed_failure_code": "",
-            "observed_responsible_component": "unknown",
-            "observed_repair_hint": "unknown",
+            "observed_failure_code": null,
+            "observed_responsible_component": null,
+            "observed_repair_hint": null,
+            "certificate_status": "CertificateChecked",
             "duration_ms": 1,
             "source_repo": "https://github.com/fraware/CertifyEdge",
             "source_commit": "abcdef0123456789abcdef0123456789abcdef01",
             "signature_or_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
         });
         validate_benchmark_run_schema(&doc).unwrap();
+    }
+
+    #[test]
+    fn certificate_benchmark_run_core_projection_validates() {
+        let doc = json!({
+            "schema_version": "v0",
+            "run_id": "bench-run-ok",
+            "task_id": "agent_tool_use.safety_v0",
+            "case_id": "ok",
+            "started_at": "2026-05-19T12:00:00Z",
+            "completed_at": "2026-05-19T12:00:01Z",
+            "commands": [{"command": "certifyedge emit-pcs-certificate", "exit_code": 0}],
+            "artifacts_produced": ["certificate.json"],
+            "observed_status": "passed",
+            "observed_failure_code": null,
+            "observed_responsible_component": null,
+            "observed_repair_hint": null,
+            "duration_ms": 1,
+            "source_repo": "https://github.com/fraware/CertifyEdge",
+            "source_commit": "abcdef0123456789abcdef0123456789abcdef01",
+            "signature_or_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "suite_id": "certifyedge-tool-use-safety-v0",
+            "workflow_id": "agent_tool_use.safety_v0",
+            "workflow_profile_id": "agent_tool_use.safety_v0",
+            "repair_hint_acceptable": true,
+            "formal_facts_emitted": false,
+            "logs": []
+        });
+        validate_certificate_benchmark_run_schema(&doc).unwrap();
+        let core = benchmark_run_core_from_certificate_run(&doc);
+        validate_benchmark_run_schema(&core).unwrap();
     }
 
     #[test]

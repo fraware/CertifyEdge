@@ -48,55 +48,57 @@ for path in sorted(profiles_dir.glob("*.json")):
         file=sys.stderr,
     )
 
-REQUIRED = {
-    "hospital_lab.qc_release": {
-        "valid",
+# Live-required minimums per benchmarked profile (pcs-bench ingestion).
+LIVE_REQUIRED = {
+    "valid": 1,
+    "invalid_field_or_hash": {
         "invalid_missing_required_field",
         "invalid_hash_mismatch",
-        "invalid_policy_or_property_violation",
         "invalid_source_provenance",
-        "rejected_certificate",
     },
-    "agent_tool_use.safety_v0": {
-        "valid",
-        "invalid_missing_required_field",
-        "invalid_hash_mismatch",
-        "invalid_policy_or_property_violation",
-        "invalid_source_provenance",
-        "rejected_certificate",
-        "unauthorized_tool_call",
-        "missing_policy_hash",
-        "unknown_authorization_status",
-        "policy_hash_mismatch",
-    },
-    "scientific_computation.reproducibility_v0": {
-        "valid",
-        "invalid_missing_required_field",
-        "invalid_hash_mismatch",
-        "invalid_policy_or_property_violation",
-        "invalid_source_provenance",
-        "rejected_certificate",
-        "dataset_hash_mismatch",
-        "environment_digest_mismatch",
-        "result_hash_mismatch",
-        "missing_code_commit",
-        "nonzero_exit_code",
-    },
+    "rejected_certificate": 1,
+    "repair_hint_quality": 1,
+    "formal_facts": 1,
 }
 
-for pid, suite in expected.items():
-    found: set[str] = set()
+INVALID_FIELD_OR_HASH = LIVE_REQUIRED["invalid_field_or_hash"]
+
+
+def count_categories(suite: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
     for case_json in (bench_root / suite).glob("*/*/case.json"):
         doc = json.loads(case_json.read_text(encoding="utf-8"))
         cat = doc.get("case_category")
-        if cat:
-            found.add(cat)
-    missing = sorted(REQUIRED[pid] - found)
-    if missing:
-        print(
-            f"error: suite {suite} missing case categories: {', '.join(missing)}",
-            file=sys.stderr,
-        )
+        if not cat:
+            continue
+        counts[cat] = counts.get(cat, 0) + 1
+    return counts
+
+
+for pid, suite in expected.items():
+    counts = count_categories(suite)
+    errors: list[str] = []
+
+    if counts.get("valid", 0) < LIVE_REQUIRED["valid"]:
+        errors.append(f"need >= {LIVE_REQUIRED['valid']} valid case(s)")
+
+    for cat in sorted(INVALID_FIELD_OR_HASH):
+        if counts.get(cat, 0) < 1:
+            errors.append(f"missing invalid field/hash category: {cat}")
+
+    if counts.get("rejected_certificate", 0) < LIVE_REQUIRED["rejected_certificate"]:
+        errors.append("need >= 1 rejected_certificate case")
+
+    if counts.get("repair_hint_quality", 0) < LIVE_REQUIRED["repair_hint_quality"]:
+        errors.append("need >= 1 repair_hint_quality case")
+
+    if counts.get("formal_facts", 0) < LIVE_REQUIRED["formal_facts"]:
+        errors.append("need >= 1 formal_facts case")
+
+    if errors:
+        print(f"error: suite {suite} ({pid}):", file=sys.stderr)
+        for msg in errors:
+            print(f"  - {msg}", file=sys.stderr)
         sys.exit(1)
 
 print("OK certificate benchmark profile coverage")

@@ -36,7 +36,18 @@ MERGE_KEYS = [
     k
     for k in pcs_defs
     if k.startswith("benchmark_")
-    or k in ("conformance_run_ref",)
+    or k
+    in (
+        "conformance_run_ref",
+        "nullable_benchmark_responsible_component",
+        "nullable_benchmark_repair_hint_kind",
+        "system_admission_outcome",
+        "release_chain_status",
+        "certificate_status_value",
+        "scientific_memory_import_status",
+        "scientific_memory_render_status",
+        "metric_summary_applicability",
+    )
 ]
 for key in MERGE_KEYS:
     if key in local_defs and key.startswith("certificate_benchmark"):
@@ -48,4 +59,4 @@ print(f"Merged {len(MERGE_KEYS)} benchmark defs into {local_path}")
 PY
 
 echo "Synced pcs-core benchmark schemas -> $DEST"
-echo "Preserved CertifyEdge-only: BenchmarkCaseSpec, CertificateCoverageReport, CertificateBenchmarkSuite"
+echo "Preserved CertifyEdge-only: BenchmarkCaseSpec, CertificateBenchmarkRun, CertificateCoverageReport, CertificateBenchmarkSuite"

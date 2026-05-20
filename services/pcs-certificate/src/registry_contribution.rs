@@ -169,6 +169,15 @@ mod tests {
     }
 
     #[test]
+    fn certificate_benchmark_run_contribution_validates() {
+        validate_registry_contribution_file(
+            &repo_root(),
+            "pcs_registry/CertificateBenchmarkRun.v0.registry.json",
+        )
+        .unwrap();
+    }
+
+    #[test]
     fn certificate_coverage_report_contribution_validates() {
         validate_registry_contribution_file(
             &repo_root(),

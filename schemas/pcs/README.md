@@ -21,8 +21,8 @@ report schemas follow the same contract as `pcs-bench`.
 | Schema | Output file |
 |--------|-------------|
 | `BenchmarkReport.v0.schema.json` | `benchmark_report.v0.json` |
-| `BenchmarkRun.v0.schema.json` | `benchmark_run.<case_id>.v0.json` |
-| `CoverageReport.v0.schema.json` | `certificate_coverage_report.v0.json`, `repair_hint_quality_report.v0.json` |
+| `BenchmarkRun.v0.schema.json` | Core fields projected from each `CertificateBenchmarkRun.v0` |
+| `CoverageReport.v0.schema.json` | `repair_hint_quality_report.v0.json`; embedded in `BenchmarkReport.coverage` |
 | `ProfileCoverageReport.v0.schema.json` | `profile_coverage_report.v0.json` |
 
 ## CertifyEdge benchmark extensions
@@ -30,11 +30,15 @@ report schemas follow the same contract as `pcs-bench`.
 | Schema | Output file |
 |--------|-------------|
 | `BenchmarkCaseSpec.v0.schema.json` | `benchmarks/certificates/**/case.json` |
+| `CertificateBenchmarkRun.v0.schema.json` | `runs/<case_id>.benchmark_run.v0.json` |
 | `CertificateBenchmarkSuite.v0.schema.json` | `certificate_benchmark_suite.v0.json` |
-| `CertificateCoverageReport.v0.schema.json` | Nested metrics inside the suite report |
+| `CertificateCoverageReport.v0.schema.json` | `certificate_coverage_report.v0.json` |
 
 `repair_hint_manifest.v0.json` is a CertifyEdge aggregate of per-case `repair_hint_quality`
 objects for scoring (not a separate pcs-core schema yet).
+
+Each `CertificateBenchmarkRun.v0` validates as a superset of pcs-core `BenchmarkRun.v0`
+(projection strips CertifyEdge-only keys before pcs-bench ingest).
 
 ## Sync
 

@@ -65,6 +65,8 @@ pub struct BenchmarkCaseSpec {
     #[serde(default)]
     pub unsupported: bool,
     #[serde(default)]
+    pub expect_formal_facts: bool,
+    #[serde(default)]
     pub notes: Option<String>,
 }
 
@@ -100,7 +102,19 @@ pub struct CaseRunResult {
     #[serde(skip)]
     pub expected_failure_code: Option<String>,
     #[serde(skip)]
+    pub expected_certificate_status: Option<String>,
+    #[serde(skip)]
+    pub expected_repair_hint_kind: Option<String>,
+    #[serde(skip)]
+    pub expected_responsible_component: Option<String>,
+    #[serde(skip)]
     pub expect_counterexample: bool,
+    #[serde(skip)]
+    pub expect_formal_facts: bool,
+    #[serde(skip)]
+    pub formal_facts_ok: bool,
+    #[serde(skip)]
+    pub repair_hint_acceptable: bool,
     #[serde(skip)]
     pub started_at: String,
     #[serde(skip)]
@@ -324,7 +338,19 @@ fn run_single_case(
             case_category,
             repair_hint_quality: None,
             expected_failure_code: spec.expected_failure_code.clone(),
+            expected_certificate_status: spec.expected_certificate_status.clone(),
+            expected_repair_hint_kind: spec
+                .expected_repair_hint
+                .as_ref()
+                .map(|r| r.kind.clone()),
+            expected_responsible_component: spec
+                .expected_repair_hint
+                .as_ref()
+                .and_then(|r| r.responsible_component.clone()),
             expect_counterexample: spec.expect_counterexample,
+            expect_formal_facts: spec.expect_formal_facts,
+            formal_facts_ok: false,
+            repair_hint_acceptable: true,
             started_at: case_started.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
             completed_at: completed.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
             duration_ms: (completed - case_started).num_milliseconds().max(0) as u64,
@@ -358,6 +384,7 @@ fn run_single_case(
     );
 
     let mut errors = Vec::new();
+    let mut emitted_certificate = None;
     let (
         actual_status,
         actual_failure_code,
@@ -375,6 +402,7 @@ fn run_single_case(
             let status = outcome.certificate.status().to_string();
             let failure_code = outcome.failure_code.clone();
             let repair = evaluate_repair_hint_with_capture(profile, failure_code.as_deref(), &spec);
+            emitted_certificate = Some(outcome.certificate);
             (
                 Some(status),
                 failure_code,
@@ -403,6 +431,46 @@ fn run_single_case(
             )
         }
     };
+
+    let needs_formal_facts = spec.expect_formal_facts
+        || case_category.as_deref() == Some("formal_facts");
+    let mut formal_facts_ok = !needs_formal_facts;
+    if needs_formal_facts {
+        match emitted_certificate.as_ref() {
+            Some(cert) if actual_status.as_deref() == Some("CertificateChecked") => {
+                match crate::formal_facts::build_certificate_formal_facts(
+                    cert,
+                    profile,
+                    "certificate.json",
+                    actual_failure_code.as_deref(),
+                    None,
+                ) {
+                    Ok(facts) => {
+                        if let Err(e) =
+                            crate::pcs_schema::validate_certificate_formal_facts_schema(&facts)
+                        {
+                            errors.push(format!("formal facts schema: {e}"));
+                        } else {
+                            formal_facts_ok = true;
+                        }
+                    }
+                    Err(e) => errors.push(format!("formal facts: {e}")),
+                }
+            }
+            _ => errors.push("formal facts require CertificateChecked emit".into()),
+        }
+    }
+
+    let repair_hint_acceptable = if spec.expected_repair_hint.is_some()
+        || case_category.as_deref() == Some("repair_hint_quality")
+    {
+        repair_present && repair_kind_ok && repair_cmd_ok && responsible_ok
+    } else {
+        true
+    };
+    if !repair_hint_acceptable {
+        errors.push("repair hint quality below benchmark threshold".into());
+    }
 
     let cx_exists = cx_out.is_file();
     let expected_status = spec.expected_certificate_status.as_deref();
@@ -450,7 +518,9 @@ fn run_single_case(
         && repair_present
         && repair_kind_ok
         && repair_cmd_ok
-        && responsible_ok;
+        && responsible_ok
+        && formal_facts_ok
+        && repair_hint_acceptable;
 
     let case_completed = chrono::Utc::now();
     let repair_hint_quality = if spec.expected_repair_hint.is_some() || captured_hint.is_some() {
@@ -480,7 +550,19 @@ fn run_single_case(
         case_category,
         repair_hint_quality,
         expected_failure_code: spec.expected_failure_code.clone(),
+        expected_certificate_status: spec.expected_certificate_status.clone(),
+        expected_repair_hint_kind: spec
+            .expected_repair_hint
+            .as_ref()
+            .map(|r| r.kind.clone()),
+        expected_responsible_component: spec
+            .expected_repair_hint
+            .as_ref()
+            .and_then(|r| r.responsible_component.clone()),
         expect_counterexample: spec.expect_counterexample,
+        expect_formal_facts: spec.expect_formal_facts,
+        formal_facts_ok,
+        repair_hint_acceptable,
         started_at: case_started.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
         completed_at: case_completed.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
         duration_ms: (case_completed - case_started).num_milliseconds().max(0) as u64,
@@ -705,7 +787,7 @@ fn evaluate_repair_hint_from_actual(
 fn build_coverage_report(
     profile_id: &str,
     cases_dir: &Path,
-    profile: &PropertyProfile,
+    _profile: &PropertyProfile,
     results: &[CaseRunResult],
 ) -> CertificateCoverageReport {
     let valid_results: Vec<_> = results.iter().filter(|r| r.kind == "valid").collect();
@@ -815,7 +897,11 @@ fn build_coverage_report(
             templates_checked: true,
             valid_cases: valid_results.len(),
             invalid_cases: invalid_results.len(),
-            properties_covered: vec![profile.property_id.clone()],
+            properties_covered: results
+                .iter()
+                .filter(|r| r.passed)
+                .filter_map(|r| r.case_category.clone())
+                .collect(),
             counterexample_types_covered: counterexample_types,
             unsupported_cases: unsupported,
             coverage_score,

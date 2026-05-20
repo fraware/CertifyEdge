@@ -36,9 +36,26 @@ for name in (
 
 pcs_defs = json.loads((pcs_root / "common.defs.json").read_text(encoding="utf-8")).get("$defs", {})
 local_defs = json.loads((local_root / "common.defs.json").read_text(encoding="utf-8")).get("$defs", {})
-for key, value in pcs_defs.items():
-    if not key.startswith("benchmark_") and key != "conformance_run_ref":
-        continue
+PCS_BENCHMARK_DEF_KEYS = {
+    k
+    for k in pcs_defs
+    if k.startswith("benchmark_")
+    or k
+    in (
+        "conformance_run_ref",
+        "nullable_benchmark_responsible_component",
+        "nullable_benchmark_repair_hint_kind",
+        "system_admission_outcome",
+        "release_chain_status",
+        "certificate_status_value",
+        "scientific_memory_import_status",
+        "scientific_memory_render_status",
+        "metric_summary_applicability",
+    )
+}
+
+for key in PCS_BENCHMARK_DEF_KEYS:
+    value = pcs_defs[key]
     if local_defs.get(key) != value:
         errors.append(f"common.defs drift: {key}")
 

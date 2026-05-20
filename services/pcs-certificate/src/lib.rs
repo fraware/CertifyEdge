@@ -35,7 +35,8 @@ pub use certificate_benchmark::{
     PROFILE_COVERAGE_REPORT_SCHEMA,
 };
 pub use pcs_benchmark_bridge::{
-    build_json_summary, BenchmarkCertificatesJsonSummary, RepairHintQuality,
+    build_json_summary, validate_pcs_benchmark_output_dir, BenchmarkCertificatesJsonSummary,
+    RepairHintQuality,
     CERTIFICATE_BENCHMARK_SUITE_SCHEMA,
 };
 pub use computation_check::{
@@ -73,7 +74,9 @@ pub use pcs_schema::{
     validate_certificate_schema_for_type, validate_computation_witness_schema,
     validate_handoff_manifest_schema, validate_tool_use_certificate_schema,
     validate_benchmark_case_spec_schema, validate_benchmark_report_schema,
-    validate_benchmark_run_schema, validate_certificate_benchmark_suite_schema,
+    benchmark_run_core_from_certificate_run, validate_benchmark_run_schema,
+    validate_certificate_benchmark_run_schema,
+    validate_certificate_benchmark_suite_schema,
     validate_certificate_coverage_report_schema, validate_coverage_report_schema,
     validate_profile_coverage_report_schema, validate_tool_use_trace_schema,
     validate_trace_certificate_schema,

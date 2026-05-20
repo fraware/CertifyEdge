@@ -1,7 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pcs.sentinelops.ci/schemas/BenchmarkRun.v0.schema.json",
-  "title": "BenchmarkRun.v0",
+  "$id": "https://pcs.sentinelops.ci/schemas/CertificateBenchmarkRun.v0.schema.json",
+  "title": "CertificateBenchmarkRun.v0",
+  "description": "PCS BenchmarkRun.v0 superset for CertifyEdge certificate benchmarks (pcs-bench can read the embedded core fields).",
   "type": "object",
   "required": [
     "schema_version",
@@ -19,7 +20,11 @@
     "duration_ms",
     "source_repo",
     "source_commit",
-    "signature_or_digest"
+    "signature_or_digest",
+    "suite_id",
+    "workflow_id",
+    "workflow_profile_id",
+    "repair_hint_acceptable"
   ],
   "additionalProperties": false,
   "properties": {
@@ -45,24 +50,25 @@
     "observed_repair_hint": {
       "$ref": "common.defs.json#/$defs/nullable_benchmark_repair_hint_kind"
     },
-    "system_admission_outcome": {
-      "$ref": "common.defs.json#/$defs/system_admission_outcome"
-    },
-    "release_chain_status": {
-      "$ref": "common.defs.json#/$defs/release_chain_status"
-    },
     "certificate_status": {
       "$ref": "common.defs.json#/$defs/certificate_status_value"
-    },
-    "scientific_memory_import_status": {
-      "$ref": "common.defs.json#/$defs/scientific_memory_import_status"
-    },
-    "scientific_memory_render_status": {
-      "$ref": "common.defs.json#/$defs/scientific_memory_render_status"
     },
     "duration_ms": { "type": "integer", "minimum": 0 },
     "source_repo": { "type": "string", "format": "uri" },
     "source_commit": { "$ref": "common.defs.json#/$defs/git_commit" },
-    "signature_or_digest": { "$ref": "common.defs.json#/$defs/hex_digest" }
+    "signature_or_digest": { "$ref": "common.defs.json#/$defs/hex_digest" },
+    "suite_id": { "type": "string", "minLength": 1 },
+    "workflow_id": { "type": "string", "minLength": 1 },
+    "workflow_profile_id": { "type": "string", "minLength": 1 },
+    "expected_certificate_status": { "type": ["string", "null"] },
+    "expected_failure_code": { "type": ["string", "null"] },
+    "expected_responsible_component": { "type": ["string", "null"] },
+    "expected_repair_hint_kind": { "type": ["string", "null"] },
+    "repair_hint_acceptable": { "type": "boolean" },
+    "formal_facts_emitted": { "type": "boolean" },
+    "logs": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
   }
 }

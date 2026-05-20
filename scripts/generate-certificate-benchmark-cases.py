@@ -42,6 +42,7 @@ def write_case(
     expect_counterexample: bool,
     expect_cli_success: bool = True,
     repair_hint: dict | None = None,
+    expect_formal_facts: bool = False,
     handoff: dict,
     artifacts: dict[str, Path],
 ) -> None:
@@ -65,6 +66,8 @@ def write_case(
     }
     if repair_hint:
         spec["expected_repair_hint"] = repair_hint
+    if expect_formal_facts:
+        spec["expect_formal_facts"] = True
     write_json(case_dir / "case.json", spec)
 
 
@@ -191,6 +194,20 @@ def gen_hospital_lab() -> None:
         artifacts={"trace.json": valid_trace},
     )
 
+    write_case(
+        base / "valid" / "formal_facts",
+        case_id="formal_facts",
+        profile_id="hospital_lab.qc_release",
+        kind="valid",
+        case_category="formal_facts",
+        expected_status="CertificateChecked",
+        failure_code=None,
+        expect_counterexample=False,
+        expect_formal_facts=True,
+        handoff=labtrust_handoff(valid_trace, case_id="formal_facts", property_id="hospital_lab.qc_release", trace_hash=trace_hash, out_name="trace_certificate.json"),
+        artifacts={"trace.json": valid_trace},
+    )
+
     missing_qc = ROOT / "tests/labtrust/invalid_missing_qc_trace.json"
     t = json.loads(missing_qc.read_text(encoding="utf-8"))
     write_case(
@@ -208,6 +225,24 @@ def gen_hospital_lab() -> None:
             "responsible_component": "runtime_producer",
         },
         handoff=labtrust_handoff(missing_qc, case_id="rejected_certificate", property_id="hospital_lab.qc_release", trace_hash=t["trace_hash"], out_name="trace_certificate.json"),
+        artifacts={"trace.json": missing_qc},
+    )
+
+    write_case(
+        base / "invalid" / "repair_hint_quality",
+        case_id="repair_hint_quality",
+        profile_id="hospital_lab.qc_release",
+        kind="invalid",
+        case_category="repair_hint_quality",
+        expected_status="Rejected",
+        failure_code="temporal_check_failed",
+        expect_counterexample=True,
+        repair_hint={
+            "kind": "fix_trace_or_property",
+            "command_contains": "check-trace",
+            "responsible_component": "runtime_producer",
+        },
+        handoff=labtrust_handoff(missing_qc, case_id="repair_hint_quality", property_id="hospital_lab.qc_release", trace_hash=t["trace_hash"], out_name="trace_certificate.json"),
         artifacts={"trace.json": missing_qc},
     )
 
@@ -334,6 +369,20 @@ def gen_tool_use() -> None:
         expected_status="CertificateChecked",
         failure_code=None,
         expect_counterexample=False,
+        handoff=tool_use_handoff(valid_trace, property_id="agent_tool_use.safety_v0", trace_hash=trace["trace_hash"], policy_hash=trace.get("policy_hash")),
+        artifacts={"trace.json": valid_trace},
+    )
+
+    write_case(
+        base / "valid" / "formal_facts",
+        case_id="formal_facts",
+        profile_id="agent_tool_use.safety_v0",
+        kind="valid",
+        case_category="formal_facts",
+        expected_status="CertificateChecked",
+        failure_code=None,
+        expect_counterexample=False,
+        expect_formal_facts=True,
         handoff=tool_use_handoff(valid_trace, property_id="agent_tool_use.safety_v0", trace_hash=trace["trace_hash"], policy_hash=trace.get("policy_hash")),
         artifacts={"trace.json": valid_trace},
     )
@@ -506,6 +555,29 @@ def gen_tool_use() -> None:
         artifacts={"trace.json": rejected_path},
     )
 
+    write_case(
+        base / "invalid" / "repair_hint_quality",
+        case_id="repair_hint_quality",
+        profile_id="agent_tool_use.safety_v0",
+        kind="invalid",
+        case_category="repair_hint_quality",
+        expected_status="Rejected",
+        failure_code="unauthorized_tool_call",
+        expect_counterexample=True,
+        repair_hint={
+            "kind": "fix_trace_or_policy",
+            "command_contains": "regenerate",
+            "responsible_component": "runtime_producer",
+        },
+        handoff=tool_use_handoff(
+            rejected_path,
+            property_id="agent_tool_use.safety_v0",
+            trace_hash=rt["trace_hash"],
+            policy_hash=rt["policy_hash"],
+        ),
+        artifacts={"trace.json": rejected_path},
+    )
+
     hash_mismatch_handoff = tool_use_handoff(
         valid_trace,
         property_id="agent_tool_use.safety_v0",
@@ -568,6 +640,25 @@ def gen_computation() -> None:
         expected_status="CertificateChecked",
         failure_code=None,
         expect_counterexample=False,
+        handoff=computation_handoff(fixture, run_ok),
+        artifacts={
+            "computation_run_receipt.json": fixture / run_ok,
+            "dataset_receipt.json": fixture / "dataset_receipt.json",
+            "environment_receipt.json": fixture / "environment_receipt.json",
+            "result_artifact.json": fixture / "result_artifact.json",
+        },
+    )
+
+    write_case(
+        base / "valid" / "formal_facts",
+        case_id="formal_facts",
+        profile_id="scientific_computation.reproducibility_v0",
+        kind="valid",
+        case_category="formal_facts",
+        expected_status="CertificateChecked",
+        failure_code=None,
+        expect_counterexample=False,
+        expect_formal_facts=True,
         handoff=computation_handoff(fixture, run_ok),
         artifacts={
             "computation_run_receipt.json": fixture / run_ok,
@@ -708,6 +799,29 @@ def gen_computation() -> None:
         profile_id="scientific_computation.reproducibility_v0",
         kind="invalid",
         case_category="rejected_certificate",
+        expected_status="Rejected",
+        failure_code="nonzero_exit_code",
+        expect_counterexample=True,
+        repair_hint={
+            "kind": "fix_computation_run",
+            "command_contains": "exit_code",
+            "responsible_component": "runtime_producer",
+        },
+        handoff=rejected_handoff,
+        artifacts={
+            "computation_run_receipt.json": fixture / "invalid_exit_code_run_receipt.json",
+            "dataset_receipt.json": fixture / "dataset_receipt.json",
+            "environment_receipt.json": fixture / "environment_receipt.json",
+            "result_artifact.json": fixture / "result_artifact.json",
+        },
+    )
+
+    write_case(
+        base / "invalid" / "repair_hint_quality",
+        case_id="repair_hint_quality",
+        profile_id="scientific_computation.reproducibility_v0",
+        kind="invalid",
+        case_category="repair_hint_quality",
         expected_status="Rejected",
         failure_code="nonzero_exit_code",
         expect_counterexample=True,
