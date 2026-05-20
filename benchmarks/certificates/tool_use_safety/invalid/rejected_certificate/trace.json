@@ -1,0 +1,28 @@
+{
+  "schema_version": "v0",
+  "trace_id": "trace-tool-unauthorized-001",
+  "workflow_id": "wf-demo",
+  "agent_id": "agent-demo",
+  "policy_id": "policy-demo-v1",
+  "started_at": "2026-05-16T10:00:00Z",
+  "completed_at": "2026-05-16T10:05:00Z",
+  "tool_calls": [
+    {
+      "event_id": "evt-unauthorized-1",
+      "timestamp": "2026-05-16T10:01:00Z",
+      "tool_name": "delete_repo",
+      "tool_category": "write",
+      "input_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "output_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "authorization_status": "unauthorized",
+      "policy_refs": [
+        "policy/demo"
+      ]
+    }
+  ],
+  "trace_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "source_repo": "https://github.com/fraware/CertifyEdge",
+  "source_commit": "abcdef0123456789abcdef0123456789abcdef01",
+  "signature_or_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+  "policy_hash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+}

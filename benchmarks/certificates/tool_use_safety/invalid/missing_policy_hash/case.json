@@ -3,6 +3,7 @@
   "case_id": "missing_policy_hash",
   "profile_id": "agent_tool_use.safety_v0",
   "kind": "invalid",
+  "case_category": "missing_policy_hash",
   "handoff_file": "handoff.json",
   "expect_cli_success": true,
   "expected_certificate_status": "Rejected",

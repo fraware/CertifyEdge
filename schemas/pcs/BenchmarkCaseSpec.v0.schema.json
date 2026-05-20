@@ -15,7 +15,10 @@
     "schema_version": { "$ref": "common.defs.json#/$defs/schema_version" },
     "case_id": { "type": "string", "minLength": 1 },
     "profile_id": { "type": "string", "minLength": 1 },
-    "kind": { "$ref": "common.defs.json#/$defs/benchmark_case_kind" },
+    "kind": { "$ref": "common.defs.json#/$defs/certificate_benchmark_folder_kind" },
+    "case_category": {
+      "$ref": "common.defs.json#/$defs/certificate_benchmark_case_category"
+    },
     "handoff_file": { "type": "string", "minLength": 1 },
     "expect_cli_success": { "type": "boolean" },
     "expected_certificate_status": { "type": ["string", "null"] },

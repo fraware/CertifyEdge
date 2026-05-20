@@ -1,0 +1,17 @@
+{
+  "schema_version": "v0",
+  "case_id": "invalid_policy_or_property_violation",
+  "profile_id": "agent_tool_use.safety_v0",
+  "kind": "invalid",
+  "case_category": "invalid_policy_or_property_violation",
+  "handoff_file": "handoff.json",
+  "expect_cli_success": true,
+  "expected_certificate_status": "Rejected",
+  "expected_failure_code": "unknown_authorization_status",
+  "expect_counterexample": true,
+  "expected_repair_hint": {
+    "kind": "fix_trace_or_policy",
+    "command_contains": "authorization",
+    "responsible_component": "runtime_producer"
+  }
+}

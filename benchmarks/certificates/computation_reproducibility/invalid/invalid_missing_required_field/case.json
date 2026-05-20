@@ -1,0 +1,12 @@
+{
+  "schema_version": "v0",
+  "case_id": "invalid_missing_required_field",
+  "profile_id": "scientific_computation.reproducibility_v0",
+  "kind": "invalid",
+  "case_category": "invalid_missing_required_field",
+  "handoff_file": "handoff.json",
+  "expect_cli_success": false,
+  "expected_certificate_status": null,
+  "expected_failure_code": null,
+  "expect_counterexample": false
+}

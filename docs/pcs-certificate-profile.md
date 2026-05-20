@@ -92,12 +92,26 @@ certifyedge benchmark certificates \
   --out benchmark_runs/hospital_lab_qc_release
 ```
 
-Outputs: `benchmark_run.v0.json` (`BenchmarkRun.v0`) and
-`certificate_coverage_report.v0.json` (`CertificateCoverageReport.v0` with nested
-`ProfileCoverageReport.v0`). Metrics include failure-code accuracy, counterexample
-completeness, handoff validation, and repair-hint accuracy (`repair_hint_metrics`).
+Outputs under `--out` (validated against vendored pcs-core schemas):
 
-Regenerate cases from test fixtures: `python3 scripts/generate-certificate-benchmark-cases.py`.
+| File | Schema |
+|------|--------|
+| `benchmark_report.v0.json` | `BenchmarkReport.v0` (primary ingest for pcs-bench) |
+| `benchmark_run.<case_id>.v0.json` | `BenchmarkRun.v0` per case |
+| `certificate_coverage_report.v0.json` | `CoverageReport.v0` (`certificate_completeness`) |
+| `profile_coverage_report.v0.json` | `ProfileCoverageReport.v0` |
+| `repair_hint_quality_report.v0.json` | `CoverageReport.v0` (`repair_hint_quality`) |
+| `repair_hint_manifest.v0.json` | Per-case repair-hint quality map for scoring |
+| `certificate_benchmark_suite.v0.json` | CertifyEdge suite metrics + `repair_hint_quality` |
+| `benchmark_summary.v0.json` | Compact summary when `--json-summary` is set |
+
+Each rejected case with an expected repair hint records `repair_hint_quality` on the
+suite report (`repair_hint_present`, `repair_hint_kind`, `responsible_component`,
+`repair_command`).
+
+Regenerate cases: `python3 scripts/generate-certificate-benchmark-cases.py`  
+Sync benchmark schemas: `make sync-pcs-benchmark-schemas`  
+Drift check: `make check-pcs-benchmark-schemas`
 
 ## CLI
 

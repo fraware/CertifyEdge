@@ -3,6 +3,7 @@
   "case_id": "ok",
   "profile_id": "scientific_computation.reproducibility_v0",
   "kind": "valid",
+  "case_category": "valid",
   "handoff_file": "handoff.json",
   "expect_cli_success": true,
   "expected_certificate_status": "CertificateChecked",

@@ -3,6 +3,7 @@
   "case_id": "unknown_authorization_status",
   "profile_id": "agent_tool_use.safety_v0",
   "kind": "invalid",
+  "case_category": "unknown_authorization_status",
   "handoff_file": "handoff.json",
   "expect_cli_success": true,
   "expected_certificate_status": "Rejected",

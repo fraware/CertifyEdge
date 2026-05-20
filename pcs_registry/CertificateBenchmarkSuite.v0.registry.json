@@ -1,0 +1,33 @@
+{
+  "artifact_type": "CertificateBenchmarkSuite.v0",
+  "schema": "schemas/CertificateBenchmarkSuite.v0.schema.json",
+  "schema_owner": "CertifyEdge",
+  "runtime_producer": "CertifyEdge",
+  "allowed_runtime_producers": ["CertifyEdge", "certifyedge"],
+  "producer": "CertifyEdge",
+  "allowed_statuses": ["CertificateChecked"],
+  "required_release_fields": [
+    "schema_version",
+    "artifact",
+    "profile_id",
+    "cases_dir",
+    "out_dir",
+    "started_at",
+    "finished_at",
+    "cases_run",
+    "cases_passed",
+    "coverage"
+  ],
+  "semantic_checks": [
+    {
+      "check_id": "benchmark_cases_passed_equals_cases_run",
+      "severity": "release_blocking",
+      "responsible_component": "CertifyEdge",
+      "execution_required_in_release_mode": false,
+      "allowed_to_skip": true
+    }
+  ],
+  "consumer_repos": ["CertifyEdge", "pcs-bench"],
+  "canonical_hash_required": false,
+  "release_mode_required": false
+}

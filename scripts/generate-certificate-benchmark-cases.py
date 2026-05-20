@@ -36,6 +36,7 @@ def write_case(
     case_id: str,
     profile_id: str,
     kind: str,
+    case_category: str,
     expected_status: str | None,
     failure_code: str | None,
     expect_counterexample: bool,
@@ -55,6 +56,7 @@ def write_case(
         "case_id": case_id,
         "profile_id": profile_id,
         "kind": kind,
+        "case_category": case_category,
         "handoff_file": "handoff.json",
         "expect_cli_success": expect_cli_success,
         "expected_certificate_status": expected_status,
@@ -181,6 +183,7 @@ def gen_hospital_lab() -> None:
         case_id="ok",
         profile_id="hospital_lab.qc_release",
         kind="valid",
+        case_category="valid",
         expected_status="CertificateChecked",
         failure_code=None,
         expect_counterexample=False,
@@ -191,10 +194,29 @@ def gen_hospital_lab() -> None:
     missing_qc = ROOT / "tests/labtrust/invalid_missing_qc_trace.json"
     t = json.loads(missing_qc.read_text(encoding="utf-8"))
     write_case(
+        base / "invalid" / "rejected_certificate",
+        case_id="rejected_certificate",
+        profile_id="hospital_lab.qc_release",
+        kind="invalid",
+        case_category="rejected_certificate",
+        expected_status="Rejected",
+        failure_code="temporal_check_failed",
+        expect_counterexample=True,
+        repair_hint={
+            "kind": "fix_trace_or_property",
+            "command_contains": "check-trace",
+            "responsible_component": "runtime_producer",
+        },
+        handoff=labtrust_handoff(missing_qc, case_id="rejected_certificate", property_id="hospital_lab.qc_release", trace_hash=t["trace_hash"], out_name="trace_certificate.json"),
+        artifacts={"trace.json": missing_qc},
+    )
+
+    write_case(
         base / "invalid" / "missing_qc_event",
         case_id="missing_qc_event",
         profile_id="hospital_lab.qc_release",
         kind="invalid",
+        case_category="invalid_policy_or_property_violation",
         expected_status="Rejected",
         failure_code="temporal_check_failed",
         expect_counterexample=True,
@@ -214,6 +236,7 @@ def gen_hospital_lab() -> None:
         case_id="unauthorized_release",
         profile_id="hospital_lab.qc_release",
         kind="invalid",
+        case_category="invalid_policy_or_property_violation",
         expected_status="Rejected",
         failure_code="temporal_check_failed",
         expect_counterexample=True,
@@ -232,6 +255,7 @@ def gen_hospital_lab() -> None:
         case_id="trace_hash_mismatch",
         profile_id="hospital_lab.qc_release",
         kind="invalid",
+        case_category="invalid_hash_mismatch",
         expected_status=None,
         failure_code="trace_hash_mismatch",
         expect_counterexample=False,
@@ -245,11 +269,44 @@ def gen_hospital_lab() -> None:
     )
 
     unknown_prop = labtrust_handoff(valid_trace, case_id="property_id_mismatch", property_id="hospital_lab.unknown_domain", trace_hash=trace_hash, out_name="trace_certificate.json")
+    bad_handoff = labtrust_handoff(valid_trace, case_id="invalid_missing_required_field", property_id="hospital_lab.qc_release", trace_hash=trace_hash, out_name="trace_certificate.json")
+    bad_handoff["invariants"] = {}
+    write_case(
+        base / "invalid" / "invalid_missing_required_field",
+        case_id="invalid_missing_required_field",
+        profile_id="hospital_lab.qc_release",
+        kind="invalid",
+        case_category="invalid_missing_required_field",
+        expected_status=None,
+        failure_code=None,
+        expect_counterexample=False,
+        expect_cli_success=False,
+        handoff=bad_handoff,
+        artifacts={"trace.json": valid_trace},
+    )
+
+    stale_commit_handoff = labtrust_handoff(valid_trace, case_id="invalid_source_provenance", property_id="hospital_lab.qc_release", trace_hash=trace_hash, out_name="trace_certificate.json")
+    stale_commit_handoff["source_commit"] = "0000000000000000000000000000000000000000"
+    write_case(
+        base / "invalid" / "invalid_source_provenance",
+        case_id="invalid_source_provenance",
+        profile_id="hospital_lab.qc_release",
+        kind="invalid",
+        case_category="invalid_source_provenance",
+        expected_status=None,
+        failure_code=None,
+        expect_counterexample=False,
+        expect_cli_success=False,
+        handoff=stale_commit_handoff,
+        artifacts={"trace.json": valid_trace},
+    )
+
     write_case(
         base / "invalid" / "property_id_mismatch",
         case_id="property_id_mismatch",
         profile_id="hospital_lab.qc_release",
         kind="invalid",
+        case_category="invalid_source_provenance",
         expected_status=None,
         failure_code="unknown_property_id",
         expect_counterexample=False,
@@ -273,6 +330,7 @@ def gen_tool_use() -> None:
         case_id="ok",
         profile_id="agent_tool_use.safety_v0",
         kind="valid",
+        case_category="valid",
         expected_status="CertificateChecked",
         failure_code=None,
         expect_counterexample=False,
@@ -292,6 +350,7 @@ def gen_tool_use() -> None:
         case_id="unauthorized_tool_call",
         profile_id="agent_tool_use.safety_v0",
         kind="invalid",
+        case_category="unauthorized_tool_call",
         expected_status="Rejected",
         failure_code="unauthorized_tool_call",
         expect_counterexample=True,
@@ -316,6 +375,7 @@ def gen_tool_use() -> None:
         case_id="missing_policy_hash",
         profile_id="agent_tool_use.safety_v0",
         kind="invalid",
+        case_category="missing_policy_hash",
         expected_status="Rejected",
         failure_code="policy_hash_missing",
         expect_counterexample=True,
@@ -338,6 +398,7 @@ def gen_tool_use() -> None:
         case_id="unknown_authorization_status",
         profile_id="agent_tool_use.safety_v0",
         kind="invalid",
+        case_category="unknown_authorization_status",
         expected_status="Rejected",
         failure_code="unknown_authorization_status",
         expect_counterexample=True,
@@ -361,6 +422,7 @@ def gen_tool_use() -> None:
         case_id="policy_hash_mismatch",
         profile_id="agent_tool_use.safety_v0",
         kind="invalid",
+        case_category="policy_hash_mismatch",
         expected_status=None,
         failure_code="policy_hash_mismatch",
         expect_counterexample=False,
@@ -370,6 +432,124 @@ def gen_tool_use() -> None:
             "command_contains": "labtrust",
         },
         handoff=policy_mismatch_handoff,
+        artifacts={"trace.json": valid_trace},
+    )
+
+    bad_handoff = tool_use_handoff(
+        valid_trace,
+        property_id="agent_tool_use.safety_v0",
+        trace_hash=trace["trace_hash"],
+        policy_hash=trace.get("policy_hash"),
+    )
+    bad_handoff["invariants"] = {}
+    write_case(
+        base / "invalid" / "invalid_missing_required_field",
+        case_id="invalid_missing_required_field",
+        profile_id="agent_tool_use.safety_v0",
+        kind="invalid",
+        case_category="invalid_missing_required_field",
+        expected_status=None,
+        failure_code=None,
+        expect_counterexample=False,
+        expect_cli_success=False,
+        handoff=bad_handoff,
+        artifacts={"trace.json": valid_trace},
+    )
+
+    stale_handoff = tool_use_handoff(
+        valid_trace,
+        property_id="agent_tool_use.safety_v0",
+        trace_hash=trace["trace_hash"],
+        policy_hash=trace.get("policy_hash"),
+    )
+    stale_handoff["source_commit"] = "0000000000000000000000000000000000000000"
+    write_case(
+        base / "invalid" / "invalid_source_provenance",
+        case_id="invalid_source_provenance",
+        profile_id="agent_tool_use.safety_v0",
+        kind="invalid",
+        case_category="invalid_source_provenance",
+        expected_status=None,
+        failure_code=None,
+        expect_counterexample=False,
+        expect_cli_success=False,
+        handoff=stale_handoff,
+        artifacts={"trace.json": valid_trace},
+    )
+
+    rejected_trace = ROOT / "tests/tool_use/unauthorized_tool_trace.json"
+    rt = json.loads(rejected_trace.read_text(encoding="utf-8"))
+    rt["policy_hash"] = "sha256:" + "e" * 64
+    rejected_path = base / "invalid" / "rejected_certificate" / "trace.json"
+    rejected_path.parent.mkdir(parents=True, exist_ok=True)
+    rejected_path.write_text(json.dumps(rt, indent=2) + "\n", encoding="utf-8")
+    write_case(
+        base / "invalid" / "rejected_certificate",
+        case_id="rejected_certificate",
+        profile_id="agent_tool_use.safety_v0",
+        kind="invalid",
+        case_category="rejected_certificate",
+        expected_status="Rejected",
+        failure_code="unauthorized_tool_call",
+        expect_counterexample=True,
+        repair_hint={
+            "kind": "fix_trace_or_policy",
+            "command_contains": "regenerate",
+            "responsible_component": "runtime_producer",
+        },
+        handoff=tool_use_handoff(
+            rejected_path,
+            property_id="agent_tool_use.safety_v0",
+            trace_hash=rt["trace_hash"],
+            policy_hash=rt["policy_hash"],
+        ),
+        artifacts={"trace.json": rejected_path},
+    )
+
+    hash_mismatch_handoff = tool_use_handoff(
+        valid_trace,
+        property_id="agent_tool_use.safety_v0",
+        trace_hash="sha256:" + "f" * 64,
+        policy_hash=trace.get("policy_hash"),
+    )
+    write_case(
+        base / "invalid" / "invalid_policy_or_property_violation",
+        case_id="invalid_policy_or_property_violation",
+        profile_id="agent_tool_use.safety_v0",
+        kind="invalid",
+        case_category="invalid_policy_or_property_violation",
+        expected_status="Rejected",
+        failure_code="unknown_authorization_status",
+        expect_counterexample=True,
+        repair_hint={
+            "kind": "fix_trace_or_policy",
+            "command_contains": "authorization",
+            "responsible_component": "runtime_producer",
+        },
+        handoff=tool_use_handoff(
+            unknown_path,
+            property_id="agent_tool_use.safety_v0",
+            trace_hash=unknown_auth["trace_hash"],
+            policy_hash=unknown_auth.get("policy_hash"),
+        ),
+        artifacts={"trace.json": unknown_path},
+    )
+
+    write_case(
+        base / "invalid" / "invalid_hash_mismatch",
+        case_id="invalid_hash_mismatch",
+        profile_id="agent_tool_use.safety_v0",
+        kind="invalid",
+        case_category="invalid_hash_mismatch",
+        expected_status=None,
+        failure_code="trace_hash_mismatch",
+        expect_counterexample=False,
+        expect_cli_success=False,
+        repair_hint={
+            "kind": "regenerate_trace_or_handoff",
+            "command_contains": "labtrust",
+        },
+        handoff=hash_mismatch_handoff,
         artifacts={"trace.json": valid_trace},
     )
 
@@ -384,6 +564,7 @@ def gen_computation() -> None:
         case_id="ok",
         profile_id="scientific_computation.reproducibility_v0",
         kind="valid",
+        case_category="valid",
         expected_status="CertificateChecked",
         failure_code=None,
         expect_counterexample=False,
@@ -450,6 +631,13 @@ def gen_computation() -> None:
         "missing_code_commit": "missing_code_commit_run_receipt.json",
         "nonzero_exit_code": "invalid_exit_code_run_receipt.json",
     }
+    category_by_id = {
+        "dataset_hash_mismatch": "dataset_hash_mismatch",
+        "environment_digest_mismatch": "environment_digest_mismatch",
+        "result_hash_mismatch": "result_hash_mismatch",
+        "missing_code_commit": "missing_code_commit",
+        "nonzero_exit_code": "nonzero_exit_code",
+    }
     for case_id, failure_code, repair_hint in cases:
         run_name = run_files[case_id]
         write_case(
@@ -457,6 +645,7 @@ def gen_computation() -> None:
             case_id=case_id,
             profile_id="scientific_computation.reproducibility_v0",
             kind="invalid",
+            case_category=category_by_id[case_id],
             expected_status="Rejected",
             failure_code=failure_code,
             expect_counterexample=True,
@@ -469,6 +658,120 @@ def gen_computation() -> None:
                 "result_artifact.json": fixture / "result_artifact.json",
             },
         )
+
+    bad_handoff = computation_handoff(fixture, run_ok)
+    bad_handoff["invariants"] = {}
+    write_case(
+        base / "invalid" / "invalid_missing_required_field",
+        case_id="invalid_missing_required_field",
+        profile_id="scientific_computation.reproducibility_v0",
+        kind="invalid",
+        case_category="invalid_missing_required_field",
+        expected_status=None,
+        failure_code=None,
+        expect_counterexample=False,
+        expect_cli_success=False,
+        handoff=bad_handoff,
+        artifacts={
+            "computation_run_receipt.json": fixture / run_ok,
+            "dataset_receipt.json": fixture / "dataset_receipt.json",
+            "environment_receipt.json": fixture / "environment_receipt.json",
+            "result_artifact.json": fixture / "result_artifact.json",
+        },
+    )
+
+    stale_handoff = computation_handoff(fixture, run_ok)
+    stale_handoff["source_commit"] = "0000000000000000000000000000000000000000"
+    write_case(
+        base / "invalid" / "invalid_source_provenance",
+        case_id="invalid_source_provenance",
+        profile_id="scientific_computation.reproducibility_v0",
+        kind="invalid",
+        case_category="invalid_source_provenance",
+        expected_status=None,
+        failure_code=None,
+        expect_counterexample=False,
+        expect_cli_success=False,
+        handoff=stale_handoff,
+        artifacts={
+            "computation_run_receipt.json": fixture / run_ok,
+            "dataset_receipt.json": fixture / "dataset_receipt.json",
+            "environment_receipt.json": fixture / "environment_receipt.json",
+            "result_artifact.json": fixture / "result_artifact.json",
+        },
+    )
+
+    rejected_handoff = computation_handoff(fixture, "invalid_exit_code_run_receipt.json")
+    write_case(
+        base / "invalid" / "rejected_certificate",
+        case_id="rejected_certificate",
+        profile_id="scientific_computation.reproducibility_v0",
+        kind="invalid",
+        case_category="rejected_certificate",
+        expected_status="Rejected",
+        failure_code="nonzero_exit_code",
+        expect_counterexample=True,
+        repair_hint={
+            "kind": "fix_computation_run",
+            "command_contains": "exit_code",
+            "responsible_component": "runtime_producer",
+        },
+        handoff=rejected_handoff,
+        artifacts={
+            "computation_run_receipt.json": fixture / "invalid_exit_code_run_receipt.json",
+            "dataset_receipt.json": fixture / "dataset_receipt.json",
+            "environment_receipt.json": fixture / "environment_receipt.json",
+            "result_artifact.json": fixture / "result_artifact.json",
+        },
+    )
+
+    run_hash_bad = computation_handoff(fixture, run_ok)
+    run_hash_bad["invariants"]["run_hash"] = "sha256:" + "b" * 64
+    write_case(
+        base / "invalid" / "invalid_hash_mismatch",
+        case_id="invalid_hash_mismatch",
+        profile_id="scientific_computation.reproducibility_v0",
+        kind="invalid",
+        case_category="invalid_hash_mismatch",
+        expected_status=None,
+        failure_code="run_hash_mismatch",
+        expect_counterexample=False,
+        expect_cli_success=False,
+        repair_hint={
+            "kind": "regenerate_trace_or_handoff",
+            "command_contains": "handoff",
+        },
+        handoff=run_hash_bad,
+        artifacts={
+            "computation_run_receipt.json": fixture / run_ok,
+            "dataset_receipt.json": fixture / "dataset_receipt.json",
+            "environment_receipt.json": fixture / "environment_receipt.json",
+            "result_artifact.json": fixture / "result_artifact.json",
+        },
+    )
+
+    write_case(
+        base / "invalid" / "invalid_policy_or_property_violation",
+        case_id="invalid_policy_or_property_violation",
+        profile_id="scientific_computation.reproducibility_v0",
+        kind="invalid",
+        case_category="invalid_policy_or_property_violation",
+        expected_status="Rejected",
+        failure_code="dataset_hash_mismatch",
+        expect_counterexample=True,
+        repair_hint={
+            "kind": "fix_computation_receipts",
+            "command_contains": "dataset",
+            "responsible_component": "runtime_producer",
+        },
+        handoff=computation_handoff(fixture, "dataset_hash_mismatch_run_receipt.json"),
+        artifacts={
+            "computation_run_receipt.json": fixture / "dataset_hash_mismatch_run_receipt.json",
+            "dataset_receipt.json": fixture / "dataset_receipt.json",
+            "environment_receipt.json": fixture / "environment_receipt.json",
+            "result_artifact.json": fixture / "result_artifact.json",
+        },
+    )
 
 
 def main() -> None:

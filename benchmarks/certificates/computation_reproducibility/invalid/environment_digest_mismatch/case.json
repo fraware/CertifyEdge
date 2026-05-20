@@ -3,6 +3,7 @@
   "case_id": "environment_digest_mismatch",
   "profile_id": "scientific_computation.reproducibility_v0",
   "kind": "invalid",
+  "case_category": "environment_digest_mismatch",
   "handoff_file": "handoff.json",
   "expect_cli_success": true,
   "expected_certificate_status": "Rejected",

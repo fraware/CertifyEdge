@@ -3,6 +3,7 @@
   "case_id": "property_id_mismatch",
   "profile_id": "hospital_lab.qc_release",
   "kind": "invalid",
+  "case_category": "invalid_source_provenance",
   "handoff_file": "handoff.json",
   "expect_cli_success": false,
   "expected_certificate_status": null,

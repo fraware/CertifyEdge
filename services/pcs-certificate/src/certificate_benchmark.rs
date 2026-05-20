@@ -1,9 +1,14 @@
-//! Profile-driven certificate benchmark runner (`BenchmarkRun.v0` / coverage reports).
+//! Profile-driven certificate benchmark runner (pcs-core reports + CertifyEdge suite metrics).
 
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::pcs_benchmark_bridge::{
+    build_json_summary, emit_pcs_benchmark_artifacts, repair_hint_quality_from_hint,
+    BenchmarkCertificatesJsonSummary, PcsBenchmarkEmitInput, RepairHintQuality,
+    CERTIFICATE_BENCHMARK_SUITE_SCHEMA,
+};
 use crate::trace_certificate::counterexample_to_json;
 
 use crate::emitted_certificate::{default_certificate_output_name, emit_certificate_for_profile};
@@ -13,13 +18,12 @@ use crate::handoff::{
 };
 use crate::metadata::CertifyEdgeMetadata;
 use crate::property_profile::{PropertyProfile, PropertyProfileRegistry};
-use crate::repair_hint::{rejection_repair_context, CertificateFailure};
+use crate::repair_hint::{rejection_repair_context, CertificateFailure, RepairHint};
 
 fn default_expect_cli_success() -> bool {
     true
 }
 
-pub const BENCHMARK_RUN_SCHEMA: &str = "BenchmarkRun.v0";
 pub const CERTIFICATE_COVERAGE_REPORT_SCHEMA: &str = "CertificateCoverageReport.v0";
 pub const PROFILE_COVERAGE_REPORT_SCHEMA: &str = "ProfileCoverageReport.v0";
 pub const BENCHMARK_CASE_SPEC_SCHEMA: &str = "BenchmarkCaseSpec.v0";
@@ -47,6 +51,8 @@ pub struct BenchmarkCaseSpec {
     pub case_id: String,
     pub profile_id: String,
     pub kind: String,
+    #[serde(default)]
+    pub case_category: Option<String>,
     pub handoff_file: String,
     #[serde(default = "default_expect_cli_success")]
     pub expect_cli_success: bool,
@@ -87,10 +93,20 @@ pub struct CaseRunResult {
     pub responsible_component_correct: bool,
     pub actual_certificate_status: Option<String>,
     pub actual_failure_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub case_category: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub repair_hint_quality: Option<RepairHintQuality>,
     #[serde(skip)]
     pub expected_failure_code: Option<String>,
     #[serde(skip)]
     pub expect_counterexample: bool,
+    #[serde(skip)]
+    pub started_at: String,
+    #[serde(skip)]
+    pub completed_at: String,
+    #[serde(skip)]
+    pub duration_ms: u64,
     pub errors: Vec<String>,
 }
 
@@ -136,7 +152,7 @@ pub struct CertificateCoverageReport {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct BenchmarkRunV0 {
+pub struct CertificateBenchmarkSuiteV0 {
     pub schema_version: String,
     pub artifact: String,
     pub profile_id: String,
@@ -156,11 +172,17 @@ pub struct BenchmarkCertificatesOptions<'a> {
     pub certifyedge_root: &'a Path,
     pub profile_registry: Option<&'a Path>,
     pub release_mode: bool,
+    pub json_summary: bool,
+}
+
+pub struct CertificateBenchmarkOutcome {
+    pub suite: CertificateBenchmarkSuiteV0,
+    pub json_summary: Option<BenchmarkCertificatesJsonSummary>,
 }
 
 pub fn run_certificate_benchmark(
     opts: BenchmarkCertificatesOptions<'_>,
-) -> Result<BenchmarkRunV0, String> {
+) -> Result<CertificateBenchmarkOutcome, String> {
     let started_at = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
     std::fs::create_dir_all(opts.out_dir).map_err(|e| e.to_string())?;
 
@@ -206,9 +228,9 @@ pub fn run_certificate_benchmark(
     let cases_passed = case_results.iter().filter(|c| c.passed).count();
     let finished_at = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
 
-    let run = BenchmarkRunV0 {
+    let suite = CertificateBenchmarkSuiteV0 {
         schema_version: "v0".into(),
-        artifact: BENCHMARK_RUN_SCHEMA.into(),
+        artifact: CERTIFICATE_BENCHMARK_SUITE_SCHEMA.into(),
         profile_id: opts.profile_id.to_string(),
         cases_dir: opts.cases_dir.display().to_string(),
         out_dir: opts.out_dir.display().to_string(),
@@ -219,20 +241,43 @@ pub fn run_certificate_benchmark(
         coverage: coverage.clone(),
     };
 
-    let run_path = opts.out_dir.join("benchmark_run.v0.json");
-    let coverage_path = opts.out_dir.join("certificate_coverage_report.v0.json");
-    write_json(run_path.clone(), &run)?;
-    write_json(coverage_path.clone(), &coverage)?;
-    validate_benchmark_outputs(&run, &coverage)?;
+    let suite_path = opts.out_dir.join("certificate_benchmark_suite.v0.json");
+    write_json(suite_path, &suite)?;
+    validate_certifyedge_suite_outputs(&suite)?;
 
-    Ok(run)
+    let meta = CertifyEdgeMetadata::resolve(opts.release_mode)?;
+    emit_pcs_benchmark_artifacts(PcsBenchmarkEmitInput {
+        profile_id: opts.profile_id,
+        profile: &profile,
+        cases_dir: opts.cases_dir,
+        out_dir: opts.out_dir,
+        suite: &suite,
+        coverage: &coverage,
+        case_results: &case_results,
+        meta: &meta,
+    })?;
+
+    let json_summary = if opts.json_summary {
+        let summary = build_json_summary(opts.profile_id, opts.out_dir, &suite, &coverage);
+        write_json(opts.out_dir.join("benchmark_summary.v0.json"), &summary)?;
+        Some(summary)
+    } else {
+        None
+    };
+
+    Ok(CertificateBenchmarkOutcome {
+        suite,
+        json_summary,
+    })
 }
 
-fn validate_benchmark_outputs(run: &BenchmarkRunV0, coverage: &CertificateCoverageReport) -> Result<(), String> {
-    let run_value = serde_json::to_value(run).map_err(|e| e.to_string())?;
-    let coverage_value = serde_json::to_value(coverage).map_err(|e| e.to_string())?;
-    crate::pcs_schema::validate_benchmark_run_schema(&run_value)?;
-    crate::pcs_schema::validate_certificate_coverage_report_schema(&coverage_value)?;
+fn validate_certifyedge_suite_outputs(suite: &CertificateBenchmarkSuiteV0) -> Result<(), String> {
+    let suite_value = serde_json::to_value(suite).map_err(|e| e.to_string())?;
+    let coverage_value = serde_json::to_value(&suite.coverage).map_err(|e| e.to_string())?;
+    crate::pcs_schema::validate_certificate_benchmark_suite_schema(&suite_value)
+        .map_err(|e| format!("certificate benchmark suite schema: {e}"))?;
+    crate::pcs_schema::validate_certificate_coverage_report_schema(&coverage_value)
+        .map_err(|e| format!("certificate coverage report schema: {e}"))?;
     Ok(())
 }
 
@@ -253,7 +298,14 @@ fn run_single_case(
     crate::pcs_schema::validate_benchmark_case_spec_schema(&spec_value)
         .map_err(|e| format!("{}: case.json schema: {e}", case_dir.display()))?;
 
+    let case_started = chrono::Utc::now();
+    let case_category = spec
+        .case_category
+        .clone()
+        .or_else(|| infer_case_category(&spec.case_id, kind));
+
     if spec.unsupported {
+        let completed = chrono::Utc::now();
         return Ok(CaseRunResult {
             case_id: spec.case_id,
             kind: kind.to_string(),
@@ -269,8 +321,13 @@ fn run_single_case(
             responsible_component_correct: true,
             actual_certificate_status: None,
             actual_failure_code: Some("unsupported".into()),
+            case_category,
+            repair_hint_quality: None,
             expected_failure_code: spec.expected_failure_code.clone(),
             expect_counterexample: spec.expect_counterexample,
+            started_at: case_started.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+            completed_at: completed.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+            duration_ms: (completed - case_started).num_milliseconds().max(0) as u64,
             errors: vec!["skipped: case marked unsupported".into()],
         });
     }
@@ -308,6 +365,8 @@ fn run_single_case(
         repair_kind_ok,
         repair_cmd_ok,
         responsible_ok,
+        captured_hint,
+        captured_responsible,
     ) = match emit_result {
         Ok(outcome) => {
             if !spec.expect_cli_success {
@@ -315,21 +374,32 @@ fn run_single_case(
             }
             let status = outcome.certificate.status().to_string();
             let failure_code = outcome.failure_code.clone();
-            let repair = evaluate_repair_hint(profile, failure_code.as_deref(), &spec);
-            (Some(status), failure_code, repair.0, repair.1, repair.2, repair.3)
+            let repair = evaluate_repair_hint_with_capture(profile, failure_code.as_deref(), &spec);
+            (
+                Some(status),
+                failure_code,
+                repair.checks.0,
+                repair.checks.1,
+                repair.checks.2,
+                repair.checks.3,
+                repair.hint,
+                repair.responsible,
+            )
         }
         Err(err) => {
             if spec.expect_cli_success {
                 errors.push(format!("emit failed: {err}"));
             }
-            let (failure_code, repair) = parse_failure_from_error(&err, profile, &spec);
+            let parsed = parse_failure_from_error(&err, profile, &spec);
             (
                 None,
-                failure_code,
-                repair.0,
-                repair.1,
-                repair.2,
-                repair.3,
+                parsed.failure_code,
+                parsed.checks.0,
+                parsed.checks.1,
+                parsed.checks.2,
+                parsed.checks.3,
+                parsed.hint,
+                parsed.responsible,
             )
         }
     };
@@ -382,6 +452,16 @@ fn run_single_case(
         && repair_cmd_ok
         && responsible_ok;
 
+    let case_completed = chrono::Utc::now();
+    let repair_hint_quality = if spec.expected_repair_hint.is_some() || captured_hint.is_some() {
+        Some(repair_hint_quality_from_hint(
+            captured_hint.as_ref(),
+            captured_responsible.as_deref(),
+        ))
+    } else {
+        None
+    };
+
     Ok(CaseRunResult {
         case_id: spec.case_id,
         kind: kind.to_string(),
@@ -397,10 +477,42 @@ fn run_single_case(
         responsible_component_correct: responsible_ok,
         actual_certificate_status: actual_status,
         actual_failure_code,
+        case_category,
+        repair_hint_quality,
         expected_failure_code: spec.expected_failure_code.clone(),
         expect_counterexample: spec.expect_counterexample,
+        started_at: case_started.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+        completed_at: case_completed.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+        duration_ms: (case_completed - case_started).num_milliseconds().max(0) as u64,
         errors,
     })
+}
+
+fn infer_case_category(case_id: &str, folder_kind: &str) -> Option<String> {
+    if folder_kind == "valid" {
+        return Some("valid".into());
+    }
+    const MAP: &[(&str, &str)] = &[
+        ("missing_qc_event", "rejected_certificate"),
+        ("unauthorized_release", "invalid_policy_or_property_violation"),
+        ("trace_hash_mismatch", "invalid_hash_mismatch"),
+        ("property_id_mismatch", "invalid_source_provenance"),
+        ("unauthorized_tool_call", "unauthorized_tool_call"),
+        ("missing_policy_hash", "missing_policy_hash"),
+        ("unknown_authorization_status", "unknown_authorization_status"),
+        ("policy_hash_mismatch", "policy_hash_mismatch"),
+        ("dataset_hash_mismatch", "dataset_hash_mismatch"),
+        ("environment_digest_mismatch", "environment_digest_mismatch"),
+        ("result_hash_mismatch", "result_hash_mismatch"),
+        ("missing_code_commit", "missing_code_commit"),
+        ("nonzero_exit_code", "nonzero_exit_code"),
+    ];
+    for (id, category) in MAP {
+        if *id == case_id {
+            return Some(category.to_string());
+        }
+    }
+    Some("invalid_policy_or_property_violation".into())
 }
 
 fn default_counterexample_filename(profile: &PropertyProfile) -> String {
@@ -498,7 +610,7 @@ fn parse_failure_from_error(
     err: &str,
     profile: &PropertyProfile,
     spec: &BenchmarkCaseSpec,
-) -> (Option<String>, (bool, bool, bool, bool)) {
+) -> RepairEvalOutcome {
     if let Ok(failure) = serde_json::from_str::<CertificateFailure>(err) {
         let repair = evaluate_repair_hint_from_actual(
             profile,
@@ -506,28 +618,62 @@ fn parse_failure_from_error(
             Some(&failure.repair_hint),
             failure.responsible_component.as_deref(),
         );
-        return (Some(failure.failure_code), repair);
+        return RepairEvalOutcome {
+            checks: repair,
+            hint: Some(failure.repair_hint),
+            responsible: failure.responsible_component,
+            failure_code: Some(failure.failure_code),
+        };
     }
     let code = spec.expected_failure_code.clone();
-    let repair = evaluate_repair_hint(profile, code.as_deref(), spec);
-    (code, repair)
+    let mut outcome = evaluate_repair_hint_with_capture(profile, code.as_deref(), spec);
+    outcome.failure_code = code;
+    outcome
 }
 
-fn evaluate_repair_hint(
+struct RepairEvalOutcome {
+    checks: (bool, bool, bool, bool),
+    hint: Option<RepairHint>,
+    responsible: Option<String>,
+    failure_code: Option<String>,
+}
+
+fn evaluate_repair_hint_with_capture(
     profile: &PropertyProfile,
     failure_code: Option<&str>,
     spec: &BenchmarkCaseSpec,
-) -> (bool, bool, bool, bool) {
+) -> RepairEvalOutcome {
     let Some(_expected) = &spec.expected_repair_hint else {
-        return (true, true, true, true);
+        return RepairEvalOutcome {
+            checks: (true, true, true, true),
+            hint: None,
+            responsible: None,
+            failure_code: failure_code.map(str::to_string),
+        };
     };
     let Some(code) = failure_code else {
-        return (false, false, false, false);
+        return RepairEvalOutcome {
+            checks: (false, false, false, false),
+            hint: None,
+            responsible: None,
+            failure_code: None,
+        };
     };
     let Some((_code, responsible, hint)) = rejection_repair_context(profile, code) else {
-        return (false, false, false, false);
+        return RepairEvalOutcome {
+            checks: (false, false, false, false),
+            hint: None,
+            responsible: None,
+            failure_code: Some(code.to_string()),
+        };
     };
-    evaluate_repair_hint_from_actual(profile, spec, Some(&hint), responsible.as_deref())
+    let repair = evaluate_repair_hint_from_actual(profile, spec, Some(&hint), responsible.as_deref());
+    RepairEvalOutcome {
+        checks: repair,
+        hint: Some(hint),
+        responsible,
+        failure_code: Some(code.to_string()),
+    }
 }
 
 fn evaluate_repair_hint_from_actual(

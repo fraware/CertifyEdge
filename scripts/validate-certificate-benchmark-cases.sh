@@ -48,6 +48,57 @@ for path in sorted(profiles_dir.glob("*.json")):
         file=sys.stderr,
     )
 
+REQUIRED = {
+    "hospital_lab.qc_release": {
+        "valid",
+        "invalid_missing_required_field",
+        "invalid_hash_mismatch",
+        "invalid_policy_or_property_violation",
+        "invalid_source_provenance",
+        "rejected_certificate",
+    },
+    "agent_tool_use.safety_v0": {
+        "valid",
+        "invalid_missing_required_field",
+        "invalid_hash_mismatch",
+        "invalid_policy_or_property_violation",
+        "invalid_source_provenance",
+        "rejected_certificate",
+        "unauthorized_tool_call",
+        "missing_policy_hash",
+        "unknown_authorization_status",
+        "policy_hash_mismatch",
+    },
+    "scientific_computation.reproducibility_v0": {
+        "valid",
+        "invalid_missing_required_field",
+        "invalid_hash_mismatch",
+        "invalid_policy_or_property_violation",
+        "invalid_source_provenance",
+        "rejected_certificate",
+        "dataset_hash_mismatch",
+        "environment_digest_mismatch",
+        "result_hash_mismatch",
+        "missing_code_commit",
+        "nonzero_exit_code",
+    },
+}
+
+for pid, suite in expected.items():
+    found: set[str] = set()
+    for case_json in (bench_root / suite).glob("*/*/case.json"):
+        doc = json.loads(case_json.read_text(encoding="utf-8"))
+        cat = doc.get("case_category")
+        if cat:
+            found.add(cat)
+    missing = sorted(REQUIRED[pid] - found)
+    if missing:
+        print(
+            f"error: suite {suite} missing case categories: {', '.join(missing)}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
 print("OK certificate benchmark profile coverage")
 PY
 

@@ -176,4 +176,40 @@ mod tests {
         )
         .unwrap();
     }
+
+    #[test]
+    fn benchmark_report_contribution_validates() {
+        validate_registry_contribution_file(
+            &repo_root(),
+            "pcs_registry/BenchmarkReport.v0.registry.json",
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn coverage_report_contribution_validates() {
+        validate_registry_contribution_file(
+            &repo_root(),
+            "pcs_registry/CoverageReport.v0.registry.json",
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn profile_coverage_report_contribution_validates() {
+        validate_registry_contribution_file(
+            &repo_root(),
+            "pcs_registry/ProfileCoverageReport.v0.registry.json",
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn certificate_benchmark_suite_contribution_validates() {
+        validate_registry_contribution_file(
+            &repo_root(),
+            "pcs_registry/CertificateBenchmarkSuite.v0.registry.json",
+        )
+        .unwrap();
+    }
 }

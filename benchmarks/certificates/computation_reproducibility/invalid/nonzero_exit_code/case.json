@@ -3,6 +3,7 @@
   "case_id": "nonzero_exit_code",
   "profile_id": "scientific_computation.reproducibility_v0",
   "kind": "invalid",
+  "case_category": "nonzero_exit_code",
   "handoff_file": "handoff.json",
   "expect_cli_success": true,
   "expected_certificate_status": "Rejected",

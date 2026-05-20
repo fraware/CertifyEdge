@@ -125,6 +125,9 @@ pub enum BenchmarkCommands {
         out: PathBuf,
         #[arg(long, value_name = "DIR")]
         profile_registry: Option<PathBuf>,
+        /// Compact `benchmark_summary.v0.json` for pcs-bench ingestion.
+        #[arg(long)]
+        json_summary: bool,
     },
     /// Validate committed `benchmarks/certificates/**/case.json` files.
     ValidateCases,
@@ -314,9 +317,10 @@ pub fn cmd_benchmark(command: BenchmarkCommands) -> Result<(), String> {
             cases,
             out,
             profile_registry,
+            json_summary,
         } => {
             let root = certifyedge_root();
-            let run = run_certificate_benchmark(BenchmarkCertificatesOptions {
+            let outcome = run_certificate_benchmark(BenchmarkCertificatesOptions {
                 profile_id: &profile,
                 cases_dir: &cases,
                 out_dir: &out,
@@ -324,16 +328,30 @@ pub fn cmd_benchmark(command: BenchmarkCommands) -> Result<(), String> {
                 profile_registry: profile_registry.as_deref(),
                 // Certificate benchmarks exercise release-mode checks (policy_hash, handoff fields).
                 release_mode: true,
+                json_summary,
             })?;
+            let run = &outcome.suite;
             println!(
                 "benchmark complete: {}/{} cases passed",
                 run.cases_passed, run.cases_run
             );
-            println!("benchmark_run={}/benchmark_run.v0.json", out.display());
+            println!(
+                "benchmark_report={}/benchmark_report.v0.json",
+                out.display()
+            );
             println!(
                 "coverage_report={}/certificate_coverage_report.v0.json",
                 out.display()
             );
+            println!(
+                "profile_coverage={}/profile_coverage_report.v0.json",
+                out.display()
+            );
+            if json_summary {
+                if let Some(summary) = &outcome.json_summary {
+                    println!("{}", serde_json::to_string(summary).map_err(|e| e.to_string())?);
+                }
+            }
             if run.cases_passed != run.cases_run {
                 return Err(format!(
                     "certificate benchmark failed: {} of {} cases",

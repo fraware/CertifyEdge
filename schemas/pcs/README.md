@@ -1,6 +1,10 @@
 # PCS schemas (vendored from pcs-core)
 
-These files are copied from [pcs-core](https://github.com/SentinelOps-CI/pcs-core) `schemas/` for offline PCS validation in CertifyEdge:
+These files support offline PCS validation in CertifyEdge. Certificate and handoff
+schemas are synced from [pcs-core](https://github.com/SentinelOps-CI/pcs-core); benchmark
+report schemas follow the same contract as `pcs-bench`.
+
+## Certificate artifacts
 
 | Schema | Used by |
 |--------|---------|
@@ -8,14 +12,37 @@ These files are copied from [pcs-core](https://github.com/SentinelOps-CI/pcs-cor
 | `ToolUseCertificate.v0.schema.json` | `agent_tool_use.safety_v0` |
 | `ToolUseTrace.v0.schema.json` | Tool-use trace validation |
 | `ComputationWitness.v0.schema.json` | `scientific_computation.reproducibility_v0` |
-| `CertificateFormalFacts.v0.schema.json` | `--formal-facts-out` (Lean-fact sources; propose upstream to pcs-core) |
-| `BenchmarkCaseSpec.v0.schema.json` | `benchmarks/certificates/**/case.json` expectations |
-| `BenchmarkRun.v0.schema.json` | `certifyedge benchmark certificates` run summary |
-| `CertificateCoverageReport.v0.schema.json` | Per-profile benchmark metrics and repair-hint accuracy |
-| `ProfileCoverageReport.v0.schema.json` | Profile/template coverage nested in coverage reports |
+| `CertificateFormalFacts.v0.schema.json` | `--formal-facts-out` |
 | `HandoffManifest.v0.schema.json` | Runtime and certificate handoffs |
 | `ArtifactRegistry.v0.schema.json` | `pcs_registry/*.registry.json` entries |
 
-Run `make sync-pcs-schemas` when pcs-core schema versions change.
+## pcs-core benchmark contract (pcs-bench ingest)
 
-CertifyEdge validates traces and certificates in-process against the vendored schemas. `ComputationWitness.v0` uses in-process schema and registry contribution checks in release mode until pcs-core CLI registers the artifact type; LabTrust and tool-use artifacts still run optional `pcs validate` / `pcs registry check-artifact` when the pcs CLI is installed.
+| Schema | Output file |
+|--------|-------------|
+| `BenchmarkReport.v0.schema.json` | `benchmark_report.v0.json` |
+| `BenchmarkRun.v0.schema.json` | `benchmark_run.<case_id>.v0.json` |
+| `CoverageReport.v0.schema.json` | `certificate_coverage_report.v0.json`, `repair_hint_quality_report.v0.json` |
+| `ProfileCoverageReport.v0.schema.json` | `profile_coverage_report.v0.json` |
+
+## CertifyEdge benchmark extensions
+
+| Schema | Output file |
+|--------|-------------|
+| `BenchmarkCaseSpec.v0.schema.json` | `benchmarks/certificates/**/case.json` |
+| `CertificateBenchmarkSuite.v0.schema.json` | `certificate_benchmark_suite.v0.json` |
+| `CertificateCoverageReport.v0.schema.json` | Nested metrics inside the suite report |
+
+`repair_hint_manifest.v0.json` is a CertifyEdge aggregate of per-case `repair_hint_quality`
+objects for scoring (not a separate pcs-core schema yet).
+
+## Sync
+
+```bash
+make sync-pcs-schemas              # certificates + handoff + benchmark schemas
+make sync-pcs-benchmark-schemas    # benchmark-only refresh
+make check-pcs-benchmark-schemas   # drift gate (requires local pcs-core checkout)
+```
+
+`common.defs.json` merges pcs-core benchmark vocabulary with CertifyEdge-only defs
+(`certificate_benchmark_case_category`, `repair_hint_quality`, etc.).

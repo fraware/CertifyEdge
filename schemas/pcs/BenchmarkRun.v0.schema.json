@@ -5,27 +5,47 @@
   "type": "object",
   "required": [
     "schema_version",
-    "artifact",
-    "profile_id",
-    "cases_dir",
-    "out_dir",
+    "run_id",
+    "task_id",
+    "case_id",
     "started_at",
-    "finished_at",
-    "cases_run",
-    "cases_passed",
-    "coverage"
+    "completed_at",
+    "commands",
+    "artifacts_produced",
+    "observed_status",
+    "observed_failure_code",
+    "observed_responsible_component",
+    "observed_repair_hint",
+    "duration_ms",
+    "source_repo",
+    "source_commit",
+    "signature_or_digest"
   ],
   "additionalProperties": false,
   "properties": {
     "schema_version": { "$ref": "common.defs.json#/$defs/schema_version" },
-    "artifact": { "const": "BenchmarkRun.v0" },
-    "profile_id": { "type": "string", "minLength": 1 },
-    "cases_dir": { "type": "string", "minLength": 1 },
-    "out_dir": { "type": "string", "minLength": 1 },
+    "run_id": { "type": "string", "minLength": 1 },
+    "task_id": { "type": "string", "minLength": 1 },
+    "case_id": { "type": "string", "minLength": 1 },
     "started_at": { "$ref": "common.defs.json#/$defs/iso8601_datetime" },
-    "finished_at": { "$ref": "common.defs.json#/$defs/iso8601_datetime" },
-    "cases_run": { "type": "integer", "minimum": 0 },
-    "cases_passed": { "type": "integer", "minimum": 0 },
-    "coverage": { "$ref": "#/$defs/certificate_coverage_report_v0" }
+    "completed_at": { "$ref": "common.defs.json#/$defs/iso8601_datetime" },
+    "commands": {
+      "type": "array",
+      "items": { "$ref": "common.defs.json#/$defs/benchmark_command_entry" }
+    },
+    "artifacts_produced": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "observed_status": { "$ref": "common.defs.json#/$defs/benchmark_observed_status" },
+    "observed_failure_code": { "type": "string" },
+    "observed_responsible_component": {
+      "$ref": "common.defs.json#/$defs/benchmark_responsible_component"
+    },
+    "observed_repair_hint": { "type": "string" },
+    "duration_ms": { "type": "integer", "minimum": 0 },
+    "source_repo": { "type": "string", "format": "uri" },
+    "source_commit": { "$ref": "common.defs.json#/$defs/git_commit" },
+    "signature_or_digest": { "$ref": "common.defs.json#/$defs/hex_digest" }
   }
 }

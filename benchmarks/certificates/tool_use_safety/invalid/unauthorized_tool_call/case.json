@@ -3,6 +3,7 @@
   "case_id": "unauthorized_tool_call",
   "profile_id": "agent_tool_use.safety_v0",
   "kind": "invalid",
+  "case_category": "unauthorized_tool_call",
   "handoff_file": "handoff.json",
   "expect_cli_success": true,
   "expected_certificate_status": "Rejected",

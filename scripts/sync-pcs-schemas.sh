@@ -21,4 +21,5 @@ cp -f "$PCS_CORE/schemas/common.defs.json" "$DEST/"
 if [[ -f "$PCS_CORE/schemas/CertificateFormalFacts.v0.schema.json" ]]; then
   cp -f "$PCS_CORE/schemas/CertificateFormalFacts.v0.schema.json" "$DEST/"
 fi
+bash "$(dirname "${BASH_SOURCE[0]}")/sync-pcs-benchmark-schemas.sh"
 echo "Synced pcs-core schemas -> $DEST"

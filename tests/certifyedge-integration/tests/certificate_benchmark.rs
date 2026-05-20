@@ -19,21 +19,35 @@ fn run_suite(profile_id: &str, cases_subdir: &str) {
         .join("target")
         .join("certificate_benchmark")
         .join(cases_subdir);
-    let run = run_certificate_benchmark(BenchmarkCertificatesOptions {
+    let outcome = run_certificate_benchmark(BenchmarkCertificatesOptions {
         profile_id,
         cases_dir: &cases,
         out_dir: &out,
         certifyedge_root: &root,
         profile_registry: None,
         release_mode: true,
+        json_summary: false,
     })
     .unwrap_or_else(|e| panic!("benchmark {profile_id}: {e}"));
+    let run = &outcome.suite;
     assert_eq!(
         run.cases_passed, run.cases_run,
-        "benchmark {profile_id}: {}/{} passed; see {}/benchmark_run.v0.json",
+        "benchmark {profile_id}: {}/{} passed; see {}/benchmark_report.v0.json",
         run.cases_passed,
         run.cases_run,
         out.display()
+    );
+    assert!(
+        out.join("benchmark_report.v0.json").is_file(),
+        "missing pcs-core benchmark report"
+    );
+    assert!(
+        out.join("certificate_coverage_report.v0.json").is_file(),
+        "missing certificate coverage report"
+    );
+    assert!(
+        out.join("profile_coverage_report.v0.json").is_file(),
+        "missing profile coverage report"
     );
 }
 

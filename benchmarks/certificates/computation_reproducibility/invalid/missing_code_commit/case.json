@@ -3,6 +3,7 @@
   "case_id": "missing_code_commit",
   "profile_id": "scientific_computation.reproducibility_v0",
   "kind": "invalid",
+  "case_category": "missing_code_commit",
   "handoff_file": "handoff.json",
   "expect_cli_success": true,
   "expected_certificate_status": "Rejected",

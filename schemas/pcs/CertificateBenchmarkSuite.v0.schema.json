@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pcs.sentinelops.ci/schemas/CertificateBenchmarkSuite.v0.schema.json",
+  "title": "CertificateBenchmarkSuite.v0",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "artifact",
+    "profile_id",
+    "cases_dir",
+    "out_dir",
+    "started_at",
+    "finished_at",
+    "cases_run",
+    "cases_passed",
+    "coverage"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "$ref": "common.defs.json#/$defs/schema_version" },
+    "artifact": { "const": "CertificateBenchmarkSuite.v0" },
+    "profile_id": { "type": "string", "minLength": 1 },
+    "cases_dir": { "type": "string", "minLength": 1 },
+    "out_dir": { "type": "string", "minLength": 1 },
+    "started_at": { "$ref": "common.defs.json#/$defs/iso8601_datetime" },
+    "finished_at": { "$ref": "common.defs.json#/$defs/iso8601_datetime" },
+    "cases_run": { "type": "integer", "minimum": 0 },
+    "cases_passed": { "type": "integer", "minimum": 0 },
+    "coverage": { "$ref": "CertificateCoverageReport.v0.schema.json" }
+  }
+}
