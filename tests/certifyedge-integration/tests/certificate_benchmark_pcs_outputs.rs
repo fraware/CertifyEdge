@@ -48,6 +48,16 @@ fn pcs_benchmark_outputs_validate_for_all_profile_suites() {
             serde_json::from_str(&ingest_text).unwrap_or_else(|e| panic!("parse ingest: {e}"));
         validate_pcs_bench_ingest_schema(&ingest)
             .unwrap_or_else(|e| panic!("pcs_bench_ingest {profile_id}: {e}"));
+        assert_eq!(
+            ingest.get("workflow_id").and_then(|v| v.as_str()),
+            Some(*profile_id),
+            "ingest.workflow_id must match profile for {profile_id}"
+        );
+        assert!(
+            ingest.get("coverage_reports").and_then(|v| v.as_array()).map(|a| !a.is_empty())
+                == Some(true),
+            "ingest.coverage_reports empty for {profile_id}"
+        );
         assert!(
             !ingest
                 .get("benchmark_runs")
@@ -56,6 +66,15 @@ fn pcs_benchmark_outputs_validate_for_all_profile_suites() {
                 .unwrap_or(true),
             "ingest.benchmark_runs empty for {profile_id}"
         );
+        for run in ingest
+            .get("benchmark_runs")
+            .and_then(|v| v.as_array())
+            .into_iter()
+            .flatten()
+        {
+            pcs_certificate::validate_benchmark_run_schema(run)
+                .unwrap_or_else(|e| panic!("ingest BenchmarkRun.v0 {profile_id}: {e}"));
+        }
 
         let summary = outcome
             .json_summary

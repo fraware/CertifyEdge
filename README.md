@@ -72,7 +72,7 @@ cargo run -p certifyedge -- benchmark certificates \
   --cases benchmarks/certificates/hospital_lab_qc_release \
   --out benchmark_runs/hospital_lab_qc_release \
   --json-summary
-# pcs-bench primary ingest: benchmark_runs/<suite>/pcs_bench_ingest.v0.json
+# pcs-bench primary ingest (pcs-core PcsBenchIngest.v0): benchmark_runs/<suite>/pcs_bench_ingest.v0.json
 cargo run -p certifyedge -- benchmark validate-output \
   --out benchmark_runs/hospital_lab_qc_release
 ```

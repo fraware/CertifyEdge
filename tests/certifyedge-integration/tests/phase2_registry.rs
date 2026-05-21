@@ -217,7 +217,7 @@ fn test_registry_contribution_aligns_with_pcs_core_entry() {
 fn test_pcs_bench_ingest_registry_contribution_shape() {
     let entry = load_registry_contribution("PcsBenchIngest.v0");
     assert_eq!(entry["artifact_type"], "PcsBenchIngest.v0");
-    assert_eq!(entry["schema_owner"], "CertifyEdge");
+    assert_eq!(entry["schema_owner"], "pcs-core");
     assert_eq!(entry["runtime_producer"], "certifyedge");
     assert_eq!(entry["producer"], "certifyedge");
     assert!(entry["canonical_hash_required"].as_bool().unwrap());

@@ -5,7 +5,7 @@ SPEC ?= templates/hospital_lab/qc_release.stl
 TRACE ?= tests/labtrust/valid_trace.json
 CERT ?= trace_certificate.json
 
-.PHONY: build test pcs-test runbook clean-checkout clean-checkout-certified fixtures release-run sync-pcs-core-rc check-pcs-core-rc sync-pcs-schemas sync-pcs-benchmark-schemas check-pcs-benchmark-schemas sync-pcs-hash-vectors check-pcs-hash-vectors check-pcs-registry validate-profiles check-profiles write-handoff-fixture generate-certificate-benchmarks validate-certificate-benchmarks benchmark-certificates check-trace emit-certificate verify-certificate install-cli substrate-test bazel-pcs-test
+.PHONY: build test pcs-test runbook clean-checkout clean-checkout-certified fixtures release-run sync-pcs-core-rc check-pcs-core-rc sync-pcs-schemas sync-pcs-benchmark-schemas check-pcs-benchmark-schemas sync-pcs-hash-vectors check-pcs-hash-vectors check-pcs-registry validate-profiles check-profiles write-handoff-fixture generate-certificate-benchmarks validate-certificate-benchmarks benchmark-certificates validate-benchmark-outputs check-trace emit-certificate verify-certificate install-cli substrate-test bazel-pcs-test
 
 build:
 	$(CARGO) build -p certifyedge
@@ -57,7 +57,12 @@ sync-pcs-benchmark-schemas:
 	bash ./scripts/sync-pcs-benchmark-schemas.sh
 
 check-pcs-benchmark-schemas:
-	bash ./scripts/check-pcs-benchmark-schemas-drift.sh
+	@if [ -d "../pcs-core/schemas" ] || [ -n "$${PCS_CORE_PATH:-}" ]; then \
+		bash ./scripts/check-pcs-benchmark-schemas-drift.sh; \
+	else \
+		python3 scripts/merge-pcs-benchmark-defs.py 2>/dev/null || true; \
+		echo "skip check-pcs-benchmark-schemas-drift (no pcs-core checkout)"; \
+	fi
 
 sync-pcs-hash-vectors:
 	bash ./scripts/sync-pcs-hash-vectors.sh

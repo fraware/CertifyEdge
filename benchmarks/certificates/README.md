@@ -44,7 +44,7 @@ certifyedge benchmark certificates \
 | `certificate_benchmark_suite.v0.json` | CertifyEdge suite metrics + nested coverage |
 | `repair_hint_quality_report.v0.json` | pcs-core `CoverageReport.v0` for repair-hint scoring |
 | `repair_hint_manifest.v0.json` | Per-case repair-hint quality map |
-| `pcs_bench_ingest.v0.json` | Single-file pcs-bench ingest bundle (primary entry point) |
+| `pcs_bench_ingest.v0.json` | pcs-core `PcsBenchIngest.v0` bundle (primary entry point for pcs-bench) |
 | `benchmark_summary.v0.json` | pcs-bench-normalized summary when `--json-summary` is set |
 
 Optional: `--validate-pcs-core-output ../pcs-core` validates against an external pcs-core checkout.

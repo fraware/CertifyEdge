@@ -33,7 +33,10 @@ report schemas follow the same contract as `pcs-bench`.
 | `CertificateBenchmarkRun.v0.schema.json` | `runs/<case_id>.benchmark_run.v0.json` |
 | `CertificateBenchmarkSuite.v0.schema.json` | `certificate_benchmark_suite.v0.json` |
 | `CertificateCoverageReport.v0.schema.json` | `certificate_coverage_report.v0.json` |
-| `PcsBenchIngest.v0.schema.json` | `pcs_bench_ingest.v0.json` (primary pcs-bench entry point) |
+| `PcsBenchIngest.v0.schema.json` | pcs-core `pcs_bench_ingest.v0.json` (synced from pcs-core) |
+| `FailureLocalizationResult.v0.schema.json` | Per-case localization in ingest |
+| `ExplainQualityReport.v0.schema.json` | Per-case explain quality in ingest |
+| `BenchmarkArtifactRef.v0.schema.json` | Optional artifact refs in ingest |
 
 `repair_hint_manifest.v0.json` is a CertifyEdge aggregate of per-case `repair_hint_quality`
 objects for scoring (not a separate pcs-core schema yet).

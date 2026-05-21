@@ -79,6 +79,7 @@ pub use pcs_schema::{
     validate_certificate_benchmark_run_schema,
     validate_certificate_benchmark_suite_schema,
     validate_certificate_coverage_report_schema, validate_coverage_report_schema,
+    validate_explain_quality_report_schema, validate_failure_localization_result_schema,
     validate_pcs_bench_ingest_schema, validate_profile_coverage_report_schema,
     validate_tool_use_trace_schema,
     validate_trace_certificate_schema,

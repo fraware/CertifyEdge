@@ -17,6 +17,8 @@ static PROFILE_COVERAGE_REPORT_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 static CERTIFICATE_COVERAGE_REPORT_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 static CERTIFICATE_BENCHMARK_SUITE_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 static PCS_BENCH_INGEST_VALIDATOR: OnceLock<Validator> = OnceLock::new();
+static FAILURE_LOCALIZATION_VALIDATOR: OnceLock<Validator> = OnceLock::new();
+static EXPLAIN_QUALITY_REPORT_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 
 /// Merged TraceCertificate.v0 + common defs for self-contained JSON Schema validation.
 fn merged_trace_certificate_schema() -> Value {
@@ -49,18 +51,22 @@ fn rewrite_common_defs_refs(value: &mut Value) {
                     Some(format!("#/{suffix}"))
                 } else if reference == "ProfileCoverageReport.v0.schema.json" {
                     Some("#/$defs/profile_coverage_report_v0".to_string())
-                } else if reference == "CoverageReport.v0.schema.json"
-                    || reference == "ExplainQualityReport.v0.schema.json"
-                {
+                } else if reference == "CoverageReport.v0.schema.json" {
                     Some("#/$defs/coverage_report_v0".to_string())
+                } else if reference == "ExplainQualityReport.v0.schema.json" {
+                    Some("#/$defs/explain_quality_report_v0".to_string())
+                } else if reference == "FailureLocalizationResult.v0.schema.json" {
+                    Some("#/$defs/failure_localization_result_v0".to_string())
+                } else if reference == "BenchmarkRun.v0.schema.json" {
+                    Some("#/$defs/benchmark_run_v0".to_string())
+                } else if reference == "BenchmarkArtifactRef.v0.schema.json" {
+                    Some("#/$defs/benchmark_artifact_ref_v0".to_string())
                 } else if reference == "CertificateCoverageReport.v0.schema.json" {
                     Some("#/$defs/certificate_coverage_report_v0".to_string())
                 } else if reference == "CertificateBenchmarkSuite.v0.schema.json" {
                     Some("#/$defs/certificate_benchmark_suite_v0".to_string())
                 } else if reference == "CertificateBenchmarkRun.v0.schema.json" {
                     Some("#/$defs/certificate_benchmark_run_v0".to_string())
-                } else if reference == "PcsBenchIngest.v0.schema.json" {
-                    Some("#/$defs/pcs_bench_ingest_v0".to_string())
                 } else {
                     None
                 };
@@ -413,13 +419,20 @@ fn merged_benchmark_report_schema() -> Value {
         "../../../schemas/pcs/ProfileCoverageReport.v0.schema.json"
     ))
     .expect("ProfileCoverageReport.v0.schema.json");
+    let mut explain = read_nested_schema("ExplainQualityReport.v0.schema.json");
+    let explain_nested_defs = explain.get("$defs").cloned();
     strip_schema_metadata(&mut report);
     let mut coverage = coverage;
     let mut profile = profile;
     strip_schema_metadata(&mut coverage);
     strip_schema_metadata(&mut profile);
+    strip_schema_metadata(&mut explain);
     rewrite_common_defs_refs(&mut coverage);
     rewrite_common_defs_refs(&mut profile);
+    rewrite_common_defs_refs(&mut explain);
+    if let Some(obj) = explain.as_object_mut() {
+        obj.remove("$defs");
+    }
     let report_defs = report
         .as_object()
         .and_then(|obj| obj.get("$defs"))
@@ -436,8 +449,14 @@ fn merged_benchmark_report_schema() -> Value {
         for (k, v) in report_defs {
             defs_map.insert(k, v);
         }
+        if let Some(Value::Object(nested)) = explain_nested_defs {
+            for (k, v) in nested {
+                defs_map.insert(k.clone(), v.clone());
+            }
+        }
         defs_map.insert("coverage_report_v0".to_string(), coverage);
         defs_map.insert("profile_coverage_report_v0".to_string(), profile);
+        defs_map.insert("explain_quality_report_v0".to_string(), explain);
         obj.insert("$defs".to_string(), Value::Object(defs_map));
     }
     rewrite_common_defs_refs(&mut report);
@@ -520,6 +539,36 @@ fn certificate_benchmark_suite_validator() -> &'static Validator {
     })
 }
 
+fn read_nested_schema(relative: &str) -> Value {
+    match relative {
+        "BenchmarkRun.v0.schema.json" => serde_json::from_str(include_str!(
+            "../../../schemas/pcs/BenchmarkRun.v0.schema.json"
+        ))
+        .expect("BenchmarkRun.v0.schema.json"),
+        "CoverageReport.v0.schema.json" => serde_json::from_str(include_str!(
+            "../../../schemas/pcs/CoverageReport.v0.schema.json"
+        ))
+        .expect("CoverageReport.v0.schema.json"),
+        "ProfileCoverageReport.v0.schema.json" => serde_json::from_str(include_str!(
+            "../../../schemas/pcs/ProfileCoverageReport.v0.schema.json"
+        ))
+        .expect("ProfileCoverageReport.v0.schema.json"),
+        "FailureLocalizationResult.v0.schema.json" => serde_json::from_str(include_str!(
+            "../../../schemas/pcs/FailureLocalizationResult.v0.schema.json"
+        ))
+        .expect("FailureLocalizationResult.v0.schema.json"),
+        "ExplainQualityReport.v0.schema.json" => serde_json::from_str(include_str!(
+            "../../../schemas/pcs/ExplainQualityReport.v0.schema.json"
+        ))
+        .expect("ExplainQualityReport.v0.schema.json"),
+        "BenchmarkArtifactRef.v0.schema.json" => serde_json::from_str(include_str!(
+            "../../../schemas/pcs/BenchmarkArtifactRef.v0.schema.json"
+        ))
+        .expect("BenchmarkArtifactRef.v0.schema.json"),
+        other => panic!("unsupported nested schema: {other}"),
+    }
+}
+
 fn merged_pcs_bench_ingest_schema() -> Value {
     let common: Value = serde_json::from_str(include_str!("../../../schemas/pcs/common.defs.json"))
         .expect("common.defs.json");
@@ -527,26 +576,27 @@ fn merged_pcs_bench_ingest_schema() -> Value {
         "../../../schemas/pcs/PcsBenchIngest.v0.schema.json"
     ))
     .expect("PcsBenchIngest.v0.schema.json");
-    let mut cert_cov: Value = serde_json::from_str(include_str!(
-        "../../../schemas/pcs/CertificateCoverageReport.v0.schema.json"
-    ))
-    .expect("CertificateCoverageReport.v0.schema.json");
-    let mut profile_cov: Value = serde_json::from_str(include_str!(
-        "../../../schemas/pcs/ProfileCoverageReport.v0.schema.json"
-    ))
-    .expect("ProfileCoverageReport.v0.schema.json");
-    let mut coverage: Value = serde_json::from_str(include_str!(
-        "../../../schemas/pcs/CoverageReport.v0.schema.json"
-    ))
-    .expect("CoverageReport.v0.schema.json");
-    let mut cert_run: Value = serde_json::from_str(include_str!(
-        "../../../schemas/pcs/CertificateBenchmarkRun.v0.schema.json"
-    ))
-    .expect("CertificateBenchmarkRun.v0.schema.json");
+    let mut benchmark_run = read_nested_schema("BenchmarkRun.v0.schema.json");
+    let mut coverage = read_nested_schema("CoverageReport.v0.schema.json");
+    let mut profile_cov = read_nested_schema("ProfileCoverageReport.v0.schema.json");
+    let mut failure_loc = read_nested_schema("FailureLocalizationResult.v0.schema.json");
+    let mut explain = read_nested_schema("ExplainQualityReport.v0.schema.json");
+    let mut artifact_ref = read_nested_schema("BenchmarkArtifactRef.v0.schema.json");
+    let explain_nested_defs = explain.get("$defs").cloned();
     strip_schema_metadata(&mut ingest);
-    for doc in [&mut cert_cov, &mut profile_cov, &mut coverage, &mut cert_run] {
+    for doc in [
+        &mut benchmark_run,
+        &mut coverage,
+        &mut profile_cov,
+        &mut failure_loc,
+        &mut explain,
+        &mut artifact_ref,
+    ] {
         strip_schema_metadata(doc);
         rewrite_common_defs_refs(doc);
+    }
+    if let Some(obj) = explain.as_object_mut() {
+        obj.remove("$defs");
     }
     rewrite_common_defs_refs(&mut ingest);
     if let Some(obj) = ingest.as_object_mut() {
@@ -556,14 +606,68 @@ fn merged_pcs_bench_ingest_schema() -> Value {
                 defs_map.insert(k.clone(), v.clone());
             }
         }
-        defs_map.insert("certificate_coverage_report_v0".to_string(), cert_cov);
-        defs_map.insert("profile_coverage_report_v0".to_string(), profile_cov);
+        if let Some(Value::Object(nested)) = explain_nested_defs {
+            for (k, v) in nested {
+                defs_map.insert(k.clone(), v.clone());
+            }
+        }
+        defs_map.insert("benchmark_run_v0".to_string(), benchmark_run);
         defs_map.insert("coverage_report_v0".to_string(), coverage);
-        defs_map.insert("certificate_benchmark_run_v0".to_string(), cert_run);
+        defs_map.insert("profile_coverage_report_v0".to_string(), profile_cov);
+        defs_map.insert(
+            "failure_localization_result_v0".to_string(),
+            failure_loc,
+        );
+        defs_map.insert("explain_quality_report_v0".to_string(), explain);
+        defs_map.insert("benchmark_artifact_ref_v0".to_string(), artifact_ref);
         obj.insert("$defs".to_string(), Value::Object(defs_map));
     }
     rewrite_common_defs_refs(&mut ingest);
     ingest
+}
+
+fn failure_localization_validator() -> &'static Validator {
+    FAILURE_LOCALIZATION_VALIDATOR.get_or_init(|| {
+        let common: Value = serde_json::from_str(include_str!("../../../schemas/pcs/common.defs.json"))
+            .expect("common.defs.json");
+        let mut doc = read_nested_schema("FailureLocalizationResult.v0.schema.json");
+        strip_schema_metadata(&mut doc);
+        rewrite_common_defs_refs(&mut doc);
+        if let Some(obj) = doc.as_object_mut() {
+            if let Some(common_defs) = common.get("$defs") {
+                obj.insert("$defs".to_string(), common_defs.clone());
+            }
+        }
+        rewrite_common_defs_refs(&mut doc);
+        Validator::new(&doc).expect("FailureLocalizationResult.v0 schema compiles")
+    })
+}
+
+fn explain_quality_report_validator() -> &'static Validator {
+    EXPLAIN_QUALITY_REPORT_VALIDATOR.get_or_init(|| {
+        let common: Value = serde_json::from_str(include_str!("../../../schemas/pcs/common.defs.json"))
+            .expect("common.defs.json");
+        let mut doc = read_nested_schema("ExplainQualityReport.v0.schema.json");
+        let nested_defs = doc.get("$defs").cloned();
+        strip_schema_metadata(&mut doc);
+        rewrite_common_defs_refs(&mut doc);
+        if let Some(obj) = doc.as_object_mut() {
+            let mut defs_map = serde_json::Map::new();
+            if let Some(common_defs) = common.get("$defs").and_then(|v| v.as_object()) {
+                for (k, v) in common_defs {
+                    defs_map.insert(k.clone(), v.clone());
+                }
+            }
+            if let Some(Value::Object(nested)) = nested_defs {
+                for (k, v) in nested {
+                    defs_map.insert(k.clone(), v.clone());
+                }
+            }
+            obj.insert("$defs".to_string(), Value::Object(defs_map));
+        }
+        rewrite_common_defs_refs(&mut doc);
+        Validator::new(&doc).expect("ExplainQualityReport.v0 schema compiles")
+    })
 }
 
 fn pcs_bench_ingest_validator() -> &'static Validator {
@@ -662,6 +766,14 @@ pub fn validate_certificate_benchmark_suite_schema(value: &Value) -> Result<(), 
 
 pub fn validate_pcs_bench_ingest_schema(value: &Value) -> Result<(), String> {
     validate_with(pcs_bench_ingest_validator(), value)
+}
+
+pub fn validate_failure_localization_result_schema(value: &Value) -> Result<(), String> {
+    validate_with(failure_localization_validator(), value)
+}
+
+pub fn validate_explain_quality_report_schema(value: &Value) -> Result<(), String> {
+    validate_with(explain_quality_report_validator(), value)
 }
 
 pub fn validate_certificate_schema_for_type(
@@ -773,7 +885,7 @@ mod tests {
     }
 
     #[test]
-    fn pcs_bench_ingest_schema_accepts_minimal_shape() {
+    fn pcs_bench_ingest_schema_accepts_canonical_pcs_core_shape() {
         let run = json!({
             "schema_version": "v0",
             "run_id": "bench-run-ok",
@@ -790,19 +902,20 @@ mod tests {
             "duration_ms": 1,
             "source_repo": "https://github.com/fraware/CertifyEdge",
             "source_commit": "abcdef0123456789abcdef0123456789abcdef01",
-            "signature_or_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-            "suite_id": "certifyedge-tool-use-safety-v0",
-            "workflow_id": "agent_tool_use.safety_v0",
-            "workflow_profile_id": "agent_tool_use.safety_v0",
-            "repair_hint_acceptable": true,
-            "expected_benchmark_status": "passed",
-            "observed_benchmark_status": "passed",
-            "expected_system_outcome": "admitted",
-            "observed_system_outcome": "admitted",
-            "repair_hint_quality": null,
-            "logs": []
+            "signature_or_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
         });
-        let coverage = sample_coverage_report();
+        let coverage = json!({
+            "schema_version": "v0",
+            "coverage_id": "suite-cert",
+            "metric": "certificate_completeness",
+            "numerator": 1.0,
+            "denominator": 1.0,
+            "coverage_ratio": 1.0,
+            "details": { "profile_id": "agent_tool_use.safety_v0" },
+            "source_repo": "https://github.com/fraware/CertifyEdge",
+            "source_commit": "abcdef0123456789abcdef0123456789abcdef01",
+            "signature_or_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        });
         let profile_cov = json!({
             "schema_version": "v0",
             "coverage_id": "suite-profile",
@@ -826,28 +939,18 @@ mod tests {
             "source_commit": "abcdef0123456789abcdef0123456789abcdef01",
             "signature_or_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
         });
-        let repair = json!({
-            "schema_version": "v0",
-            "coverage_id": "suite-repair",
-            "metric": "repair_hint_quality",
-            "numerator": 1.0,
-            "denominator": 1.0,
-            "coverage_ratio": 1.0,
-            "details": {},
-            "source_repo": "https://github.com/fraware/CertifyEdge",
-            "source_commit": "abcdef0123456789abcdef0123456789abcdef01",
-            "signature_or_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
-        });
         let doc = json!({
             "schema_version": "v0",
-            "artifact": "PcsBenchIngest.v0",
-            "benchmark_suite_id": "certifyedge-tool-use-safety-v0",
-            "workflow_profile_id": "agent_tool_use.safety_v0",
             "producer_id": "certifyedge",
+            "suite_id": "certifyedge-tool-use-safety-v0",
+            "workflow_id": "agent_tool_use.safety_v0",
             "benchmark_runs": [run],
-            "certificate_coverage_report": coverage,
-            "profile_coverage_report": profile_cov,
-            "repair_hint_quality": repair,
+            "coverage_reports": [coverage],
+            "failure_localization_reports": [],
+            "explain_quality_reports": [],
+            "profile_coverage_reports": [profile_cov],
+            "commands": [{"command": "certifyedge benchmark certificates", "exit_code": 0}],
+            "logs": [],
             "source_repo": "https://github.com/fraware/CertifyEdge",
             "source_commit": "abcdef0123456789abcdef0123456789abcdef01",
             "signature_or_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"

@@ -25,6 +25,9 @@ for name in (
     "BenchmarkRun.v0.schema.json",
     "CoverageReport.v0.schema.json",
     "ProfileCoverageReport.v0.schema.json",
+    "PcsBenchIngest.v0.schema.json",
+    "FailureLocalizationResult.v0.schema.json",
+    "ExplainQualityReport.v0.schema.json",
 ):
     upstream = pcs_root / name
     local = local_root / name
@@ -40,6 +43,7 @@ PCS_BENCHMARK_DEF_KEYS = {
     k
     for k in pcs_defs
     if k.startswith("benchmark_")
+    or k.startswith("explain_quality")
     or k
     in (
         "conformance_run_ref",
@@ -53,6 +57,15 @@ PCS_BENCHMARK_DEF_KEYS = {
         "metric_summary_applicability",
     )
 }
+
+for name in ("BenchmarkArtifactRef.v0.schema.json",):
+    upstream = pcs_root / name
+    local = local_root / name
+    if upstream.is_file():
+        if not local.is_file():
+            errors.append(f"missing local schema: {local}")
+        elif upstream.read_text(encoding="utf-8") != local.read_text(encoding="utf-8"):
+            errors.append(f"schema drift: {name} (run: make sync-pcs-benchmark-schemas)")
 
 for key in PCS_BENCHMARK_DEF_KEYS:
     value = pcs_defs[key]

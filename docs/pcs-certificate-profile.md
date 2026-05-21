@@ -85,7 +85,8 @@ Each case includes `case.json` (`BenchmarkCaseSpec.v0`), `handoff.json`, and inp
 ```bash
 make validate-certificate-benchmarks   # schema + layout gates
 make benchmark-certificates            # run all three profile suites
-make validate-benchmark-outputs          # validate benchmark_runs/* (optional pcs-core)
+make validate-benchmark-outputs          # schema + canonical pcs_bench_ingest shape (optional pcs-core)
+make check-pcs-benchmark-schemas       # drift vs pcs-core when ../pcs-core present
 certifyedge benchmark validate-cases   # case.json schema only
 certifyedge benchmark certificates \
   --profile hospital_lab.qc_release \
@@ -104,7 +105,7 @@ Outputs under `--out` (validated against vendored pcs-core schemas):
 | `repair_hint_quality_report.v0.json` | `CoverageReport.v0` (`repair_hint_quality`) |
 | `repair_hint_manifest.v0.json` | Per-case repair-hint quality map for scoring |
 | `certificate_benchmark_suite.v0.json` | CertifyEdge suite metrics + nested coverage |
-| `pcs_bench_ingest.v0.json` | `PcsBenchIngest.v0` (primary pcs-bench entry point) |
+| `pcs_bench_ingest.v0.json` | pcs-core `PcsBenchIngest.v0` (primary pcs-bench entry point: `benchmark_runs`, `coverage_reports`, `profile_coverage_reports`, localization + explain arrays) |
 | `benchmark_summary.v0.json` | pcs-bench-normalized summary when `--json-summary` is set |
 
 Use `--validate-pcs-core-output ../pcs-core` when running benchmarks, or validate an existing tree:

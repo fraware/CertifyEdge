@@ -2,18 +2,19 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://pcs.sentinelops.ci/schemas/PcsBenchIngest.v0.schema.json",
   "title": "PcsBenchIngest.v0",
-  "description": "Single-file bundle for pcs-bench ingestion of CertifyEdge certificate benchmark output.",
   "type": "object",
   "required": [
     "schema_version",
-    "artifact",
-    "benchmark_suite_id",
-    "workflow_profile_id",
     "producer_id",
+    "suite_id",
+    "workflow_id",
     "benchmark_runs",
-    "certificate_coverage_report",
-    "profile_coverage_report",
-    "repair_hint_quality",
+    "coverage_reports",
+    "failure_localization_reports",
+    "explain_quality_reports",
+    "profile_coverage_reports",
+    "commands",
+    "logs",
     "source_repo",
     "source_commit",
     "signature_or_digest"
@@ -21,23 +22,40 @@
   "additionalProperties": false,
   "properties": {
     "schema_version": { "$ref": "common.defs.json#/$defs/schema_version" },
-    "artifact": { "const": "PcsBenchIngest.v0" },
-    "benchmark_suite_id": { "type": "string", "minLength": 1 },
-    "workflow_profile_id": { "type": "string", "minLength": 1 },
     "producer_id": { "$ref": "common.defs.json#/$defs/benchmark_producer_id" },
+    "suite_id": { "type": "string", "minLength": 1 },
+    "workflow_id": { "type": "string", "minLength": 1 },
     "benchmark_runs": {
       "type": "array",
-      "minItems": 1,
-      "items": { "$ref": "#/$defs/certificate_benchmark_run_v0" }
+      "items": { "$ref": "BenchmarkRun.v0.schema.json" }
     },
-    "certificate_coverage_report": {
-      "$ref": "#/$defs/certificate_coverage_report_v0"
+    "coverage_reports": {
+      "type": "array",
+      "items": { "$ref": "CoverageReport.v0.schema.json" }
     },
-    "profile_coverage_report": {
-      "$ref": "#/$defs/profile_coverage_report_v0"
+    "failure_localization_reports": {
+      "type": "array",
+      "items": { "$ref": "FailureLocalizationResult.v0.schema.json" }
     },
-    "repair_hint_quality": {
-      "$ref": "#/$defs/coverage_report_v0"
+    "explain_quality_reports": {
+      "type": "array",
+      "items": { "$ref": "ExplainQualityReport.v0.schema.json" }
+    },
+    "profile_coverage_reports": {
+      "type": "array",
+      "items": { "$ref": "ProfileCoverageReport.v0.schema.json" }
+    },
+    "commands": {
+      "type": "array",
+      "items": { "$ref": "common.defs.json#/$defs/benchmark_command_entry" }
+    },
+    "logs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "artifact_refs": {
+      "type": "array",
+      "items": { "$ref": "BenchmarkArtifactRef.v0.schema.json" }
     },
     "source_repo": { "type": "string", "format": "uri" },
     "source_commit": { "$ref": "common.defs.json#/$defs/git_commit" },

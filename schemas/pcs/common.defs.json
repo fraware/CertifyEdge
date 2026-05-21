@@ -36,7 +36,12 @@
     },
     "trace_certificate_status": {
       "type": "string",
-      "enum": ["CertificatePending", "CertificateChecked", "Rejected", "Stale"]
+      "enum": [
+        "CertificatePending",
+        "CertificateChecked",
+        "Rejected",
+        "Stale"
+      ]
     },
     "producer_metadata": {
       "type": "object",
@@ -51,23 +56,48 @@
         "signature_or_digest"
       ],
       "properties": {
-        "schema_version": { "$ref": "#/$defs/schema_version" },
-        "created_at": { "$ref": "#/$defs/iso8601_datetime" },
-        "producer": { "type": "string", "minLength": 1 },
-        "producer_version": { "type": "string", "minLength": 1 },
-        "source_repo": { "type": "string", "format": "uri" },
-        "source_commit": { "type": "string", "minLength": 7 },
-        "status": { "$ref": "#/$defs/artifact_status" },
-        "signature_or_digest": { "$ref": "#/$defs/hex_digest" }
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "created_at": {
+          "$ref": "#/$defs/iso8601_datetime"
+        },
+        "producer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "producer_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_repo": {
+          "type": "string",
+          "format": "uri"
+        },
+        "source_commit": {
+          "type": "string",
+          "minLength": 7
+        },
+        "status": {
+          "$ref": "#/$defs/artifact_status"
+        },
+        "signature_or_digest": {
+          "$ref": "#/$defs/hex_digest"
+        }
       }
     },
     "hash_map": {
       "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/hex_digest" }
+      "additionalProperties": {
+        "$ref": "#/$defs/hex_digest"
+      }
     },
     "ref_list": {
       "type": "array",
-      "items": { "type": "string", "minLength": 1 }
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     },
     "git_commit": {
       "type": "string",
@@ -75,7 +105,13 @@
     },
     "release_status": {
       "type": "string",
-      "enum": ["Draft", "Validated", "Rejected", "Stale", "Deprecated"]
+      "enum": [
+        "Draft",
+        "Validated",
+        "Rejected",
+        "Stale",
+        "Deprecated"
+      ]
     },
     "handoff_kind": {
       "type": "string",
@@ -89,24 +125,49 @@
     },
     "handoff_status": {
       "type": "string",
-      "enum": ["Draft", "Validated", "Rejected", "Stale", "Deprecated"]
+      "enum": [
+        "Draft",
+        "Validated",
+        "Rejected",
+        "Stale",
+        "Deprecated"
+      ]
     },
     "release_chain_validation_status": {
       "type": "string",
-      "enum": ["ProofChecked", "Rejected", "Stale"]
+      "enum": [
+        "ProofChecked",
+        "Rejected",
+        "Stale"
+      ]
     },
     "validation_check_status": {
       "type": "string",
-      "enum": ["passed", "failed", "warning", "skipped"]
+      "enum": [
+        "passed",
+        "failed",
+        "warning",
+        "skipped"
+      ]
     },
     "producer_repo_pin": {
       "type": "object",
-      "required": ["repo", "commit"],
+      "required": [
+        "repo",
+        "commit"
+      ],
       "additionalProperties": false,
       "properties": {
-        "repo": { "type": "string", "format": "uri" },
-        "commit": { "$ref": "#/$defs/git_commit" },
-        "local_dev": { "type": "boolean" }
+        "repo": {
+          "type": "string",
+          "format": "uri"
+        },
+        "commit": {
+          "$ref": "#/$defs/git_commit"
+        },
+        "local_dev": {
+          "type": "boolean"
+        }
       }
     },
     "manifest_artifact_entry": {
@@ -121,22 +182,47 @@
       ],
       "additionalProperties": false,
       "properties": {
-        "artifact_type": { "type": "string", "minLength": 1 },
-        "schema": { "type": "string", "minLength": 1 },
-        "producer": { "type": "string", "minLength": 1 },
-        "source_repo": { "type": "string", "format": "uri" },
-        "source_commit": { "$ref": "#/$defs/git_commit" },
-        "sha256": { "$ref": "#/$defs/hex_digest" },
-        "local_dev": { "type": "boolean" }
+        "artifact_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        },
+        "producer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_repo": {
+          "type": "string",
+          "format": "uri"
+        },
+        "source_commit": {
+          "$ref": "#/$defs/git_commit"
+        },
+        "sha256": {
+          "$ref": "#/$defs/hex_digest"
+        },
+        "local_dev": {
+          "type": "boolean"
+        }
       }
     },
     "handoff_artifact_ref": {
       "type": "object",
-      "required": ["artifact_type"],
+      "required": [
+        "artifact_type"
+      ],
       "additionalProperties": false,
       "properties": {
-        "artifact_type": { "type": "string", "minLength": 1 },
-        "sha256": { "$ref": "#/$defs/hex_digest" }
+        "artifact_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/hex_digest"
+        }
       }
     },
     "semantic_check_severity": {
@@ -161,11 +247,23 @@
       ],
       "additionalProperties": false,
       "properties": {
-        "check_id": { "type": "string", "minLength": 1 },
-        "severity": { "$ref": "#/$defs/semantic_check_severity" },
-        "responsible_component": { "type": "string", "minLength": 1 },
-        "execution_required_in_release_mode": { "type": "boolean" },
-        "allowed_to_skip": { "type": "boolean" }
+        "check_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "severity": {
+          "$ref": "#/$defs/semantic_check_severity"
+        },
+        "responsible_component": {
+          "type": "string",
+          "minLength": 1
+        },
+        "execution_required_in_release_mode": {
+          "type": "boolean"
+        },
+        "allowed_to_skip": {
+          "type": "boolean"
+        }
       }
     },
     "release_validation_check": {
@@ -179,13 +277,26 @@
       ],
       "additionalProperties": false,
       "properties": {
-        "check_id": { "type": "string", "minLength": 1 },
-        "description": { "type": "string", "minLength": 1 },
-        "status": { "$ref": "#/$defs/validation_check_status" },
-        "details": { "type": "object" },
+        "check_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "$ref": "#/$defs/validation_check_status"
+        },
+        "details": {
+          "type": "object"
+        },
         "registry_check_refs": {
           "type": "array",
-          "items": { "type": "string", "minLength": 1 }
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     },
@@ -199,19 +310,36 @@
       ],
       "additionalProperties": false,
       "properties": {
-        "trace_hash": { "$ref": "#/$defs/hex_digest" },
-        "certificate_id": { "type": "string", "minLength": 1 },
-        "certified_bundle_hash": { "$ref": "#/$defs/hex_digest" },
-        "signed_bundle_hash": { "$ref": "#/$defs/hex_digest" }
+        "trace_hash": {
+          "$ref": "#/$defs/hex_digest"
+        },
+        "certificate_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "certified_bundle_hash": {
+          "$ref": "#/$defs/hex_digest"
+        },
+        "signed_bundle_hash": {
+          "$ref": "#/$defs/hex_digest"
+        }
       }
     },
     "manifest_path_ref": {
       "type": "object",
-      "required": ["path", "sha256"],
+      "required": [
+        "path",
+        "sha256"
+      ],
       "additionalProperties": false,
       "properties": {
-        "path": { "type": "string", "minLength": 1 },
-        "sha256": { "$ref": "#/$defs/hex_digest" }
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/hex_digest"
+        }
       }
     },
     "limitations_notice": {
@@ -225,7 +353,10 @@
     },
     "certificate_benchmark_folder_kind": {
       "type": "string",
-      "enum": ["valid", "invalid"]
+      "enum": [
+        "valid",
+        "invalid"
+      ]
     },
     "certificate_benchmark_case_category": {
       "type": "string",
@@ -259,10 +390,21 @@
       ],
       "additionalProperties": false,
       "properties": {
-        "repair_hint_present": { "type": "boolean" },
-        "repair_hint_kind": { "type": "string", "minLength": 1 },
-        "responsible_component": { "type": "string", "minLength": 1 },
-        "repair_command": { "type": "string", "minLength": 0 }
+        "repair_hint_present": {
+          "type": "boolean"
+        },
+        "repair_hint_kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "responsible_component": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repair_command": {
+          "type": "string",
+          "minLength": 0
+        }
       }
     },
     "benchmark_case_kind": {
@@ -349,7 +491,12 @@
     },
     "benchmark_observed_status": {
       "type": "string",
-      "enum": ["passed", "failed", "skipped", "error"]
+      "enum": [
+        "passed",
+        "failed",
+        "skipped",
+        "error"
+      ]
     },
     "benchmark_system_outcome": {
       "type": "string",
@@ -359,7 +506,11 @@
         "stale",
         "import_failed",
         "render_failed",
-        "formal_failed"
+        "query_failed",
+        "comparison_failed",
+        "formal_failed",
+        "certificate_rejected",
+        "unknown"
       ]
     },
     "metric_summary_applicability": {
@@ -374,80 +525,156 @@
     },
     "system_admission_outcome": {
       "type": "string",
-      "enum": ["admitted", "rejected", "deferred", "not_evaluated"]
+      "enum": [
+        "admitted",
+        "rejected",
+        "deferred",
+        "not_evaluated"
+      ]
     },
     "release_chain_status": {
       "type": "string",
-      "enum": ["valid", "invalid", "not_applicable"]
+      "enum": [
+        "valid",
+        "invalid",
+        "not_applicable"
+      ]
     },
     "certificate_status_value": {
       "type": "string",
-      "enum": ["CertificateChecked", "Rejected", "Stale", "not_applicable"]
+      "enum": [
+        "CertificateChecked",
+        "Rejected",
+        "Stale",
+        "not_applicable"
+      ]
     },
     "scientific_memory_import_status": {
       "type": "string",
-      "enum": ["passed", "failed", "not_applicable"]
+      "enum": [
+        "passed",
+        "failed",
+        "not_applicable"
+      ]
     },
     "scientific_memory_render_status": {
       "type": "string",
-      "enum": ["rendered", "incomplete", "not_applicable"]
+      "enum": [
+        "rendered",
+        "incomplete",
+        "not_applicable"
+      ]
     },
     "nullable_benchmark_responsible_component": {
       "oneOf": [
-        { "type": "null" },
-        { "$ref": "#/$defs/benchmark_responsible_component" }
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/benchmark_responsible_component"
+        }
       ]
     },
     "nullable_benchmark_repair_hint_kind": {
       "oneOf": [
-        { "type": "null" },
-        { "$ref": "#/$defs/benchmark_repair_hint_kind" }
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/benchmark_repair_hint_kind"
+        }
       ]
     },
     "benchmark_input_artifact_ref": {
       "type": "object",
-      "required": ["path"],
+      "required": [
+        "path"
+      ],
       "additionalProperties": false,
       "properties": {
-        "path": { "type": "string", "minLength": 1 },
-        "artifact_type": { "type": "string", "minLength": 1 },
-        "role": { "type": "string", "minLength": 1 }
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "artifact_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "benchmark_command_entry": {
       "type": "object",
-      "required": ["command", "exit_code"],
+      "required": [
+        "command",
+        "exit_code"
+      ],
       "additionalProperties": false,
       "properties": {
-        "command": { "type": "string", "minLength": 1 },
-        "exit_code": { "type": "integer" },
-        "stdout_digest": { "$ref": "#/$defs/hex_digest" }
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exit_code": {
+          "type": "integer"
+        },
+        "stdout_digest": {
+          "$ref": "#/$defs/hex_digest"
+        }
       }
     },
     "conformance_run_ref": {
       "type": "object",
-      "required": ["suite", "run_id"],
+      "required": [
+        "suite",
+        "run_id"
+      ],
       "additionalProperties": false,
       "properties": {
-        "suite": { "type": "string", "minLength": 1 },
-        "run_id": { "type": "string", "minLength": 1 },
+        "suite": {
+          "type": "string",
+          "minLength": 1
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
         "status": {
           "type": "string",
-          "enum": ["passed", "failed"]
+          "enum": [
+            "passed",
+            "failed"
+          ]
         }
       }
     },
     "expected_repair_hint_spec": {
       "type": "object",
-      "required": ["kind"],
+      "required": [
+        "kind"
+      ],
       "additionalProperties": false,
       "properties": {
-        "kind": { "type": "string", "minLength": 1 },
-        "command_contains": { "type": "string", "minLength": 1 },
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "command_contains": {
+          "type": "string",
+          "minLength": 1
+        },
         "responsible_component": {
           "anyOf": [
-            { "type": "null" },
-            { "type": "string", "minLength": 1 }
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 1
+            }
           ]
         }
       }
@@ -471,32 +698,73 @@
       ],
       "additionalProperties": false,
       "properties": {
-        "case_id": { "type": "string", "minLength": 1 },
-        "kind": { "$ref": "#/$defs/certificate_benchmark_folder_kind" },
-        "passed": { "type": "boolean" },
-        "profile_resolution_ok": { "type": "boolean" },
-        "handoff_validation_ok": { "type": "boolean" },
-        "status_match": { "type": "boolean" },
-        "failure_code_match": { "type": "boolean" },
-        "counterexample_match": { "type": "boolean" },
-        "repair_hint_present": { "type": "boolean" },
-        "repair_hint_kind_correct": { "type": "boolean" },
-        "repair_hint_command_present": { "type": "boolean" },
-        "responsible_component_correct": { "type": "boolean" },
+        "case_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "$ref": "#/$defs/certificate_benchmark_folder_kind"
+        },
+        "passed": {
+          "type": "boolean"
+        },
+        "profile_resolution_ok": {
+          "type": "boolean"
+        },
+        "handoff_validation_ok": {
+          "type": "boolean"
+        },
+        "status_match": {
+          "type": "boolean"
+        },
+        "failure_code_match": {
+          "type": "boolean"
+        },
+        "counterexample_match": {
+          "type": "boolean"
+        },
+        "repair_hint_present": {
+          "type": "boolean"
+        },
+        "repair_hint_kind_correct": {
+          "type": "boolean"
+        },
+        "repair_hint_command_present": {
+          "type": "boolean"
+        },
+        "responsible_component_correct": {
+          "type": "boolean"
+        },
         "case_category": {
           "$ref": "#/$defs/certificate_benchmark_case_category"
         },
         "repair_hint_quality": {
           "oneOf": [
-            { "$ref": "#/$defs/repair_hint_quality" },
-            { "type": "null" }
+            {
+              "$ref": "#/$defs/repair_hint_quality"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
-        "actual_certificate_status": { "type": ["string", "null"] },
-        "actual_failure_code": { "type": ["string", "null"] },
+        "actual_certificate_status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "actual_failure_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "errors": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -510,14 +778,88 @@
       ],
       "additionalProperties": false,
       "properties": {
-        "repair_hint_accuracy": { "$ref": "#/$defs/unit_ratio" },
-        "cases_with_expected_repair_hint": { "type": "integer", "minimum": 0 },
-        "repair_hint_matches": { "type": "integer", "minimum": 0 },
+        "repair_hint_accuracy": {
+          "$ref": "#/$defs/unit_ratio"
+        },
+        "cases_with_expected_repair_hint": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "repair_hint_matches": {
+          "type": "integer",
+          "minimum": 0
+        },
         "missing_repair_hints": {
           "type": "array",
-          "items": { "type": "string", "minLength": 1 }
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
+    },
+    "benchmark_metric_applicability": {
+      "type": "string",
+      "enum": [
+        "measured",
+        "not_applicable",
+        "insufficient_cases",
+        "skipped",
+        "failed_to_measure"
+      ]
+    },
+    "explain_quality_section_id": {
+      "type": "string",
+      "enum": [
+        "provenance",
+        "hashes",
+        "handoffs",
+        "verification",
+        "formal_checks",
+        "limitations",
+        "lineage",
+        "repair_hints"
+      ]
+    },
+    "benchmark_detection_layer": {
+      "type": "string",
+      "enum": [
+        "runtime",
+        "certificate",
+        "verifier",
+        "registry",
+        "formal_kernel",
+        "scientific_memory",
+        "release_manifest",
+        "handoff",
+        "hashing",
+        "labtrust",
+        "certifyedge",
+        "provability_fabric",
+        "pcs_core",
+        "unknown"
+      ]
+    },
+    "benchmark_artifact_ref_type": {
+      "type": "string",
+      "enum": [
+        "BenchmarkCase.v0",
+        "BenchmarkRun.v0",
+        "CoverageReport.v0",
+        "FailureLocalizationResult.v0",
+        "ExplainQualityReport.v0",
+        "ProfileCoverageReport.v0",
+        "MetricSummary.v0"
+      ]
+    },
+    "benchmark_artifact_ref_role": {
+      "type": "string",
+      "enum": [
+        "producer_export",
+        "ingest_bundle",
+        "primary"
+      ]
     }
-  }
+  },
+  "": {}
 }

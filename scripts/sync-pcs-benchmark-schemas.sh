@@ -15,7 +15,10 @@ for name in \
   BenchmarkReport.v0.schema.json \
   BenchmarkRun.v0.schema.json \
   CoverageReport.v0.schema.json \
-  ProfileCoverageReport.v0.schema.json
+  ProfileCoverageReport.v0.schema.json \
+  PcsBenchIngest.v0.schema.json \
+  FailureLocalizationResult.v0.schema.json \
+  ExplainQualityReport.v0.schema.json
 do
   cp -f "$PCS_CORE/schemas/$name" "$DEST/"
 done
@@ -36,6 +39,7 @@ MERGE_KEYS = [
     k
     for k in pcs_defs
     if k.startswith("benchmark_")
+    or k.startswith("explain_quality")
     or k
     in (
         "conformance_run_ref",
@@ -57,6 +61,8 @@ for key in MERGE_KEYS:
 local_path.write_text(json.dumps(local, indent=2) + "\n", encoding="utf-8")
 print(f"Merged {len(MERGE_KEYS)} benchmark defs into {local_path}")
 PY
+
+python3 "$(dirname "${BASH_SOURCE[0]}")/merge-pcs-benchmark-defs.py" "$PCS_CORE"
 
 echo "Synced pcs-core benchmark schemas -> $DEST"
 echo "Preserved CertifyEdge-only: BenchmarkCaseSpec, CertificateBenchmarkRun, CertificateCoverageReport, CertificateBenchmarkSuite"

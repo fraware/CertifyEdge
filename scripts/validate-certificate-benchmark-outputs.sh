@@ -22,4 +22,6 @@ for suite in hospital_lab_qc_release tool_use_safety computation_reproducibility
   cargo run -p certifyedge --quiet -- benchmark validate-output --out "$out" "${EXTRA[@]}"
 done
 
+python3 "$ROOT/scripts/validate-pcs-bench-ingest-shape.py" "$ROOT"
+
 echo "OK certificate benchmark output trees"

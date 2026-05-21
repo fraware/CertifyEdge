@@ -74,6 +74,9 @@
     "observed_benchmark_status": { "$ref": "common.defs.json#/$defs/benchmark_observed_status" },
     "expected_system_outcome": { "$ref": "common.defs.json#/$defs/system_admission_outcome" },
     "observed_system_outcome": { "$ref": "common.defs.json#/$defs/system_admission_outcome" },
+    "system_admission_outcome": {
+      "$ref": "common.defs.json#/$defs/system_admission_outcome"
+    },
     "repair_hint_quality": {
       "oneOf": [
         { "type": "null" },
