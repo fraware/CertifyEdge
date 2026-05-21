@@ -37,14 +37,17 @@ certifyedge benchmark certificates \
 
 | File | Role |
 |------|------|
-| `benchmark_report.v0.json` | pcs-core suite aggregate (primary pcs-bench ingest) |
+| `benchmark_report.v0.json` | pcs-core suite aggregate |
 | `runs/<case_id>.benchmark_run.v0.json` | Per-case `CertificateBenchmarkRun.v0` (pcs `BenchmarkRun` core + extensions) |
 | `certificate_coverage_report.v0.json` | CertifyEdge-native `CertificateCoverageReport.v0` |
 | `profile_coverage_report.v0.json` | pcs-core `ProfileCoverageReport.v0` |
 | `certificate_benchmark_suite.v0.json` | CertifyEdge suite metrics + nested coverage |
 | `repair_hint_quality_report.v0.json` | pcs-core `CoverageReport.v0` for repair-hint scoring |
 | `repair_hint_manifest.v0.json` | Per-case repair-hint quality map |
+| `pcs_bench_ingest.v0.json` | Single-file pcs-bench ingest bundle (primary entry point) |
 | `benchmark_summary.v0.json` | pcs-bench-normalized summary when `--json-summary` is set |
+
+Optional: `--validate-pcs-core-output ../pcs-core` validates against an external pcs-core checkout.
 
 Validate the committed case tree without running emit:
 

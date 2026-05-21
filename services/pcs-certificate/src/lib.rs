@@ -13,6 +13,7 @@ pub mod handoff;
 pub mod hash;
 pub mod metadata;
 pub mod pcs_schema;
+pub mod pcs_schema_external;
 pub mod pcs_validate;
 pub mod property_profile;
 pub mod registry_contribution;
@@ -36,9 +37,9 @@ pub use certificate_benchmark::{
 };
 pub use pcs_benchmark_bridge::{
     build_json_summary, validate_pcs_benchmark_output_dir, BenchmarkCertificatesJsonSummary,
-    RepairHintQuality,
-    CERTIFICATE_BENCHMARK_SUITE_SCHEMA,
+    RepairHintQuality, CERTIFICATE_BENCHMARK_SUITE_SCHEMA,
 };
+pub use pcs_schema_external::validate_pcs_core_output_dir;
 pub use computation_check::{
     check_computation_reproducibility, ComputationCheckResult, ComputationPropertySpec,
 };
@@ -78,7 +79,8 @@ pub use pcs_schema::{
     validate_certificate_benchmark_run_schema,
     validate_certificate_benchmark_suite_schema,
     validate_certificate_coverage_report_schema, validate_coverage_report_schema,
-    validate_profile_coverage_report_schema, validate_tool_use_trace_schema,
+    validate_pcs_bench_ingest_schema, validate_profile_coverage_report_schema,
+    validate_tool_use_trace_schema,
     validate_trace_certificate_schema,
 };
 pub use pcs_validate::{

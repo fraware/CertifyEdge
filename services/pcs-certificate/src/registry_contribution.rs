@@ -178,6 +178,15 @@ mod tests {
     }
 
     #[test]
+    fn pcs_bench_ingest_contribution_validates() {
+        validate_registry_contribution_file(
+            &repo_root(),
+            "pcs_registry/PcsBenchIngest.v0.registry.json",
+        )
+        .unwrap();
+    }
+
+    #[test]
     fn certificate_coverage_report_contribution_validates() {
         validate_registry_contribution_file(
             &repo_root(),

@@ -132,6 +132,11 @@ jobs:
           PCS_CORE_PATH: ${{ github.workspace }}/pcs-core
         run: bash ./scripts/check-pcs-benchmark-schemas-drift.sh
 
+      - name: Validate certificate benchmark outputs (pcs-core schemas)
+        env:
+          PCS_CORE_PATH: ${{ github.workspace }}/pcs-core
+        run: bash ./scripts/validate-certificate-benchmark-outputs.sh
+
       - name: Assert PCS registry contribution matches pcs-core (no drift)
         env:
           PCS_CORE_PATH: ${{ github.workspace }}/pcs-core

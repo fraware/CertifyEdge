@@ -128,9 +128,19 @@ pub enum BenchmarkCommands {
         /// Compact `benchmark_summary.v0.json` for pcs-bench ingestion.
         #[arg(long)]
         json_summary: bool,
+        /// Validate normalized outputs against schemas in a pcs-core checkout.
+        #[arg(long, value_name = "PCS_CORE_ROOT")]
+        validate_pcs_core_output: Option<PathBuf>,
     },
     /// Validate committed `benchmarks/certificates/**/case.json` files.
     ValidateCases,
+    /// Validate an existing benchmark output directory (CertifyEdge + optional pcs-core schemas).
+    ValidateOutput {
+        #[arg(long)]
+        out: PathBuf,
+        #[arg(long, value_name = "PCS_CORE_ROOT")]
+        validate_pcs_core_output: Option<PathBuf>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -312,12 +322,28 @@ pub fn cmd_benchmark(command: BenchmarkCommands) -> Result<(), String> {
             println!("OK certificate benchmark case tree under benchmarks/certificates/");
             Ok(())
         }
+        BenchmarkCommands::ValidateOutput {
+            out,
+            validate_pcs_core_output,
+        } => {
+            pcs_certificate::validate_pcs_benchmark_output_dir(&out)?;
+            if let Some(pcs_core) = validate_pcs_core_output {
+                pcs_certificate::validate_pcs_core_output_dir(&pcs_core, &out)?;
+                println!(
+                    "OK benchmark outputs validated against pcs-core ({})",
+                    pcs_core.display()
+                );
+            }
+            println!("OK benchmark outputs under {}", out.display());
+            Ok(())
+        }
         BenchmarkCommands::Certificates {
             profile,
             cases,
             out,
             profile_registry,
             json_summary,
+            validate_pcs_core_output,
         } => {
             let root = certifyedge_root();
             let outcome = run_certificate_benchmark(BenchmarkCertificatesOptions {
@@ -329,6 +355,7 @@ pub fn cmd_benchmark(command: BenchmarkCommands) -> Result<(), String> {
                 // Certificate benchmarks exercise release-mode checks (policy_hash, handoff fields).
                 release_mode: true,
                 json_summary,
+                validate_pcs_core_output,
             })?;
             let run = &outcome.suite;
             println!(
@@ -345,6 +372,10 @@ pub fn cmd_benchmark(command: BenchmarkCommands) -> Result<(), String> {
             );
             println!(
                 "profile_coverage={}/profile_coverage_report.v0.json",
+                out.display()
+            );
+            println!(
+                "pcs_bench_ingest={}/pcs_bench_ingest.v0.json",
                 out.display()
             );
             if json_summary {

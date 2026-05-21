@@ -24,7 +24,11 @@
     "suite_id",
     "workflow_id",
     "workflow_profile_id",
-    "repair_hint_acceptable"
+    "repair_hint_acceptable",
+    "expected_benchmark_status",
+    "observed_benchmark_status",
+    "expected_system_outcome",
+    "observed_system_outcome"
   ],
   "additionalProperties": false,
   "properties": {
@@ -66,6 +70,16 @@
     "expected_repair_hint_kind": { "type": ["string", "null"] },
     "repair_hint_acceptable": { "type": "boolean" },
     "formal_facts_emitted": { "type": "boolean" },
+    "expected_benchmark_status": { "$ref": "common.defs.json#/$defs/benchmark_observed_status" },
+    "observed_benchmark_status": { "$ref": "common.defs.json#/$defs/benchmark_observed_status" },
+    "expected_system_outcome": { "$ref": "common.defs.json#/$defs/system_admission_outcome" },
+    "observed_system_outcome": { "$ref": "common.defs.json#/$defs/system_admission_outcome" },
+    "repair_hint_quality": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "common.defs.json#/$defs/repair_hint_quality" }
+      ]
+    },
     "logs": {
       "type": "array",
       "items": { "type": "string" }

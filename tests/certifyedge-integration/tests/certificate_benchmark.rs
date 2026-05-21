@@ -27,6 +27,7 @@ fn run_suite(profile_id: &str, cases_subdir: &str) {
         profile_registry: None,
         release_mode: true,
         json_summary: false,
+        validate_pcs_core_output: None,
     })
     .unwrap_or_else(|e| panic!("benchmark {profile_id}: {e}"));
     let run = &outcome.suite;
@@ -48,6 +49,10 @@ fn run_suite(profile_id: &str, cases_subdir: &str) {
     assert!(
         out.join("profile_coverage_report.v0.json").is_file(),
         "missing profile coverage report"
+    );
+    assert!(
+        out.join("pcs_bench_ingest.v0.json").is_file(),
+        "missing pcs_bench_ingest bundle"
     );
 }
 

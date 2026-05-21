@@ -187,6 +187,7 @@ pub struct BenchmarkCertificatesOptions<'a> {
     pub profile_registry: Option<&'a Path>,
     pub release_mode: bool,
     pub json_summary: bool,
+    pub validate_pcs_core_output: Option<std::path::PathBuf>,
 }
 
 pub struct CertificateBenchmarkOutcome {
@@ -270,6 +271,10 @@ pub fn run_certificate_benchmark(
         case_results: &case_results,
         meta: &meta,
     })?;
+
+    if let Some(pcs_core_root) = &opts.validate_pcs_core_output {
+        crate::pcs_schema_external::validate_pcs_core_output_dir(pcs_core_root, opts.out_dir)?;
+    }
 
     let json_summary = if opts.json_summary {
         let summary = build_json_summary(opts.profile_id, opts.out_dir, &suite, &coverage);

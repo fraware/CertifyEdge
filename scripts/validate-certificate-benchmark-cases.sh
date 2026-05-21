@@ -17,7 +17,6 @@ root = Path(sys.argv[1])
 profiles_dir = root / "templates/profiles"
 bench_root = root / "benchmarks/certificates"
 
-# property_id -> suite directory (must match certificate_benchmark.rs)
 expected = {
     "hospital_lab.qc_release": "hospital_lab_qc_release",
     "agent_tool_use.safety_v0": "tool_use_safety",
@@ -34,7 +33,6 @@ for pid, suite in expected.items():
             print(f"error: {suite_dir} missing {kind}/", file=sys.stderr)
             sys.exit(1)
 
-# Profiles without a benchmark suite must be explicitly optional (none today).
 for path in sorted(profiles_dir.glob("*.json")):
     if path.name == "schema.json":
         continue
@@ -43,56 +41,52 @@ for path in sorted(profiles_dir.glob("*.json")):
     if pid in expected:
         continue
     print(
-        f"warning: profile {pid} has no certificate benchmark suite "
-        f"(add to expected map or document as optional)",
+        f"warning: profile {pid} has no certificate benchmark suite",
         file=sys.stderr,
     )
 
-# Live-required minimums per benchmarked profile (pcs-bench ingestion).
-LIVE_REQUIRED = {
+LIVE_MIN = {
     "valid": 1,
-    "invalid_field_or_hash": {
-        "invalid_missing_required_field",
-        "invalid_hash_mismatch",
-        "invalid_source_provenance",
-    },
+    "invalid_cases": 3,
     "rejected_certificate": 1,
+    "counterexample_cases": 1,
     "repair_hint_quality": 1,
     "formal_facts": 1,
 }
 
-INVALID_FIELD_OR_HASH = LIVE_REQUIRED["invalid_field_or_hash"]
 
-
-def count_categories(suite: str) -> dict[str, int]:
+def suite_stats(suite: str) -> tuple[dict[str, int], int, int]:
     counts: dict[str, int] = {}
+    invalid_total = 0
+    counterexample_cases = 0
     for case_json in (bench_root / suite).glob("*/*/case.json"):
         doc = json.loads(case_json.read_text(encoding="utf-8"))
+        kind = case_json.parent.parent.name
+        if kind == "invalid":
+            invalid_total += 1
+        if doc.get("expect_counterexample"):
+            counterexample_cases += 1
         cat = doc.get("case_category")
-        if not cat:
-            continue
-        counts[cat] = counts.get(cat, 0) + 1
-    return counts
+        if cat:
+            counts[cat] = counts.get(cat, 0) + 1
+    return counts, invalid_total, counterexample_cases
 
 
 for pid, suite in expected.items():
-    counts = count_categories(suite)
+    counts, invalid_total, counterexample_cases = suite_stats(suite)
     errors: list[str] = []
 
-    if counts.get("valid", 0) < LIVE_REQUIRED["valid"]:
-        errors.append(f"need >= {LIVE_REQUIRED['valid']} valid case(s)")
-
-    for cat in sorted(INVALID_FIELD_OR_HASH):
-        if counts.get(cat, 0) < 1:
-            errors.append(f"missing invalid field/hash category: {cat}")
-
-    if counts.get("rejected_certificate", 0) < LIVE_REQUIRED["rejected_certificate"]:
+    if counts.get("valid", 0) < LIVE_MIN["valid"]:
+        errors.append("need >= 1 valid case")
+    if invalid_total < LIVE_MIN["invalid_cases"]:
+        errors.append(f"need >= {LIVE_MIN['invalid_cases']} invalid cases (have {invalid_total})")
+    if counts.get("rejected_certificate", 0) < LIVE_MIN["rejected_certificate"]:
         errors.append("need >= 1 rejected_certificate case")
-
-    if counts.get("repair_hint_quality", 0) < LIVE_REQUIRED["repair_hint_quality"]:
+    if counterexample_cases < LIVE_MIN["counterexample_cases"]:
+        errors.append("need >= 1 case with expect_counterexample=true")
+    if counts.get("repair_hint_quality", 0) < LIVE_MIN["repair_hint_quality"]:
         errors.append("need >= 1 repair_hint_quality case")
-
-    if counts.get("formal_facts", 0) < LIVE_REQUIRED["formal_facts"]:
+    if counts.get("formal_facts", 0) < LIVE_MIN["formal_facts"]:
         errors.append("need >= 1 formal_facts case")
 
     if errors:

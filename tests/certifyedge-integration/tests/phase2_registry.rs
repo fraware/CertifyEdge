@@ -214,6 +214,24 @@ fn test_registry_contribution_aligns_with_pcs_core_entry() {
 }
 
 #[test]
+fn test_pcs_bench_ingest_registry_contribution_shape() {
+    let entry = load_registry_contribution("PcsBenchIngest.v0");
+    assert_eq!(entry["artifact_type"], "PcsBenchIngest.v0");
+    assert_eq!(entry["schema_owner"], "CertifyEdge");
+    assert_eq!(entry["runtime_producer"], "certifyedge");
+    assert_eq!(entry["producer"], "certifyedge");
+    assert!(entry["canonical_hash_required"].as_bool().unwrap());
+    assert!(!entry["release_mode_required"].as_bool().unwrap());
+    let consumers = entry["consumer_repos"].as_array().unwrap();
+    assert!(consumers.iter().any(|v| v.as_str() == Some("pcs-bench")));
+    assert!(consumers.iter().any(|v| v.as_str() == Some("CertifyEdge")));
+    let required = entry["required_release_fields"].as_array().unwrap();
+    assert!(required
+        .iter()
+        .any(|v| v.as_str() == Some("benchmark_runs")));
+}
+
+#[test]
 fn test_registry_check_artifact_passes_for_certificate() {
     if !pcs_cli_available() {
         eprintln!("skip: pcs CLI not on PATH");

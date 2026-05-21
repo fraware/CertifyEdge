@@ -16,6 +16,7 @@ static COVERAGE_REPORT_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 static PROFILE_COVERAGE_REPORT_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 static CERTIFICATE_COVERAGE_REPORT_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 static CERTIFICATE_BENCHMARK_SUITE_VALIDATOR: OnceLock<Validator> = OnceLock::new();
+static PCS_BENCH_INGEST_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 
 /// Merged TraceCertificate.v0 + common defs for self-contained JSON Schema validation.
 fn merged_trace_certificate_schema() -> Value {
@@ -56,6 +57,10 @@ fn rewrite_common_defs_refs(value: &mut Value) {
                     Some("#/$defs/certificate_coverage_report_v0".to_string())
                 } else if reference == "CertificateBenchmarkSuite.v0.schema.json" {
                     Some("#/$defs/certificate_benchmark_suite_v0".to_string())
+                } else if reference == "CertificateBenchmarkRun.v0.schema.json" {
+                    Some("#/$defs/certificate_benchmark_run_v0".to_string())
+                } else if reference == "PcsBenchIngest.v0.schema.json" {
+                    Some("#/$defs/pcs_bench_ingest_v0".to_string())
                 } else {
                     None
                 };
@@ -515,6 +520,58 @@ fn certificate_benchmark_suite_validator() -> &'static Validator {
     })
 }
 
+fn merged_pcs_bench_ingest_schema() -> Value {
+    let common: Value = serde_json::from_str(include_str!("../../../schemas/pcs/common.defs.json"))
+        .expect("common.defs.json");
+    let mut ingest: Value = serde_json::from_str(include_str!(
+        "../../../schemas/pcs/PcsBenchIngest.v0.schema.json"
+    ))
+    .expect("PcsBenchIngest.v0.schema.json");
+    let mut cert_cov: Value = serde_json::from_str(include_str!(
+        "../../../schemas/pcs/CertificateCoverageReport.v0.schema.json"
+    ))
+    .expect("CertificateCoverageReport.v0.schema.json");
+    let mut profile_cov: Value = serde_json::from_str(include_str!(
+        "../../../schemas/pcs/ProfileCoverageReport.v0.schema.json"
+    ))
+    .expect("ProfileCoverageReport.v0.schema.json");
+    let mut coverage: Value = serde_json::from_str(include_str!(
+        "../../../schemas/pcs/CoverageReport.v0.schema.json"
+    ))
+    .expect("CoverageReport.v0.schema.json");
+    let mut cert_run: Value = serde_json::from_str(include_str!(
+        "../../../schemas/pcs/CertificateBenchmarkRun.v0.schema.json"
+    ))
+    .expect("CertificateBenchmarkRun.v0.schema.json");
+    strip_schema_metadata(&mut ingest);
+    for doc in [&mut cert_cov, &mut profile_cov, &mut coverage, &mut cert_run] {
+        strip_schema_metadata(doc);
+        rewrite_common_defs_refs(doc);
+    }
+    rewrite_common_defs_refs(&mut ingest);
+    if let Some(obj) = ingest.as_object_mut() {
+        let mut defs_map = serde_json::Map::new();
+        if let Some(common_defs) = common.get("$defs").and_then(|v| v.as_object()) {
+            for (k, v) in common_defs {
+                defs_map.insert(k.clone(), v.clone());
+            }
+        }
+        defs_map.insert("certificate_coverage_report_v0".to_string(), cert_cov);
+        defs_map.insert("profile_coverage_report_v0".to_string(), profile_cov);
+        defs_map.insert("coverage_report_v0".to_string(), coverage);
+        defs_map.insert("certificate_benchmark_run_v0".to_string(), cert_run);
+        obj.insert("$defs".to_string(), Value::Object(defs_map));
+    }
+    rewrite_common_defs_refs(&mut ingest);
+    ingest
+}
+
+fn pcs_bench_ingest_validator() -> &'static Validator {
+    PCS_BENCH_INGEST_VALIDATOR.get_or_init(|| {
+        Validator::new(&merged_pcs_bench_ingest_schema()).expect("PcsBenchIngest.v0 schema compiles")
+    })
+}
+
 fn validate_with(validator: &Validator, value: &Value) -> Result<(), String> {
     let errors: Vec<String> = validator
         .iter_errors(value)
@@ -576,6 +633,14 @@ pub fn benchmark_run_core_from_certificate_run(value: &Value) -> Value {
             }
         }
     }
+    if !out.contains_key("system_admission_outcome") {
+        if let Some(Value::String(outcome)) = value.get("observed_system_outcome") {
+            out.insert(
+                "system_admission_outcome".to_string(),
+                Value::String(outcome.clone()),
+            );
+        }
+    }
     Value::Object(out)
 }
 
@@ -593,6 +658,10 @@ pub fn validate_profile_coverage_report_schema(value: &Value) -> Result<(), Stri
 
 pub fn validate_certificate_benchmark_suite_schema(value: &Value) -> Result<(), String> {
     validate_with(certificate_benchmark_suite_validator(), value)
+}
+
+pub fn validate_pcs_bench_ingest_schema(value: &Value) -> Result<(), String> {
+    validate_with(pcs_bench_ingest_validator(), value)
 }
 
 pub fn validate_certificate_schema_for_type(
@@ -691,11 +760,99 @@ mod tests {
             "workflow_profile_id": "agent_tool_use.safety_v0",
             "repair_hint_acceptable": true,
             "formal_facts_emitted": false,
+            "expected_benchmark_status": "passed",
+            "observed_benchmark_status": "passed",
+            "expected_system_outcome": "admitted",
+            "observed_system_outcome": "admitted",
+            "repair_hint_quality": null,
             "logs": []
         });
         validate_certificate_benchmark_run_schema(&doc).unwrap();
         let core = benchmark_run_core_from_certificate_run(&doc);
         validate_benchmark_run_schema(&core).unwrap();
+    }
+
+    #[test]
+    fn pcs_bench_ingest_schema_accepts_minimal_shape() {
+        let run = json!({
+            "schema_version": "v0",
+            "run_id": "bench-run-ok",
+            "task_id": "agent_tool_use.safety_v0",
+            "case_id": "ok",
+            "started_at": "2026-05-19T12:00:00Z",
+            "completed_at": "2026-05-19T12:00:01Z",
+            "commands": [{"command": "certifyedge emit-pcs-certificate", "exit_code": 0}],
+            "artifacts_produced": ["certificate.json"],
+            "observed_status": "passed",
+            "observed_failure_code": null,
+            "observed_responsible_component": null,
+            "observed_repair_hint": null,
+            "duration_ms": 1,
+            "source_repo": "https://github.com/fraware/CertifyEdge",
+            "source_commit": "abcdef0123456789abcdef0123456789abcdef01",
+            "signature_or_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "suite_id": "certifyedge-tool-use-safety-v0",
+            "workflow_id": "agent_tool_use.safety_v0",
+            "workflow_profile_id": "agent_tool_use.safety_v0",
+            "repair_hint_acceptable": true,
+            "expected_benchmark_status": "passed",
+            "observed_benchmark_status": "passed",
+            "expected_system_outcome": "admitted",
+            "observed_system_outcome": "admitted",
+            "repair_hint_quality": null,
+            "logs": []
+        });
+        let coverage = sample_coverage_report();
+        let profile_cov = json!({
+            "schema_version": "v0",
+            "coverage_id": "suite-profile",
+            "workflow_profile_id": "agent_tool_use.safety_v0",
+            "producer_id": "certifyedge",
+            "artifact_types_required": ["ToolUseCertificate.v0"],
+            "artifact_types_covered": ["ToolUseCertificate.v0"],
+            "semantic_checks_required": ["unauthorized_tool_call"],
+            "semantic_checks_covered": ["unauthorized_tool_call"],
+            "handoff_steps_required": ["runtime_to_certificate"],
+            "handoff_steps_covered": ["runtime_to_certificate"],
+            "numerator": 1.0,
+            "denominator": 1.0,
+            "coverage_ratio": 1.0,
+            "details": {
+                "templates_checked": true,
+                "release_mode_required_fields": ["policy_hash"],
+                "counterexample_types_covered": []
+            },
+            "source_repo": "https://github.com/fraware/CertifyEdge",
+            "source_commit": "abcdef0123456789abcdef0123456789abcdef01",
+            "signature_or_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        });
+        let repair = json!({
+            "schema_version": "v0",
+            "coverage_id": "suite-repair",
+            "metric": "repair_hint_quality",
+            "numerator": 1.0,
+            "denominator": 1.0,
+            "coverage_ratio": 1.0,
+            "details": {},
+            "source_repo": "https://github.com/fraware/CertifyEdge",
+            "source_commit": "abcdef0123456789abcdef0123456789abcdef01",
+            "signature_or_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        });
+        let doc = json!({
+            "schema_version": "v0",
+            "artifact": "PcsBenchIngest.v0",
+            "benchmark_suite_id": "certifyedge-tool-use-safety-v0",
+            "workflow_profile_id": "agent_tool_use.safety_v0",
+            "producer_id": "certifyedge",
+            "benchmark_runs": [run],
+            "certificate_coverage_report": coverage,
+            "profile_coverage_report": profile_cov,
+            "repair_hint_quality": repair,
+            "source_repo": "https://github.com/fraware/CertifyEdge",
+            "source_commit": "abcdef0123456789abcdef0123456789abcdef01",
+            "signature_or_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        });
+        validate_pcs_bench_ingest_schema(&doc).unwrap();
     }
 
     #[test]

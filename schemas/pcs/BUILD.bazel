@@ -11,6 +11,7 @@ filegroup(
         "BenchmarkReport.v0.schema.json",
         "BenchmarkRun.v0.schema.json",
         "CertificateBenchmarkRun.v0.schema.json",
+        "PcsBenchIngest.v0.schema.json",
         "CoverageReport.v0.schema.json",
         "ProfileCoverageReport.v0.schema.json",
         "CertificateCoverageReport.v0.schema.json",

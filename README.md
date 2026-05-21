@@ -64,10 +64,16 @@ cargo run -p certifyedge -- explain-counterexample counterexample.json
 
 # Profile-driven certificate benchmarks (all three profiles)
 make benchmark-certificates
+# Validate output trees (after make benchmark-certificates)
+make validate-benchmark-outputs
 # Or one suite:
 cargo run -p certifyedge -- benchmark certificates \
   --profile hospital_lab.qc_release \
   --cases benchmarks/certificates/hospital_lab_qc_release \
+  --out benchmark_runs/hospital_lab_qc_release \
+  --json-summary
+# pcs-bench primary ingest: benchmark_runs/<suite>/pcs_bench_ingest.v0.json
+cargo run -p certifyedge -- benchmark validate-output \
   --out benchmark_runs/hospital_lab_qc_release
 ```
 

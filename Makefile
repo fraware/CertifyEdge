@@ -29,6 +29,7 @@ pcs-test: build test
 	bash ./scripts/validate-profiles.sh
 	bash ./scripts/validate-certificate-benchmark-cases.sh
 	bash ./scripts/check-pcs-optional.sh all
+	$(CARGO) test -p certifyedge-integration --test certificate_benchmark_pcs_outputs -- --nocapture
 	@if [ -d "../pcs-core/schemas" ] || [ -n "$${PCS_CORE_PATH:-}" ]; then bash ./scripts/check-pcs-benchmark-schemas-drift.sh; else echo "skip check-pcs-benchmark-schemas (no pcs-core checkout)"; fi
 
 runbook: build
@@ -75,22 +76,27 @@ validate-certificate-benchmarks: build
 	bash ./scripts/check-certificate-benchmark-cases-drift.sh
 	@if [ -d "../pcs-core/schemas" ] || [ -n "$${PCS_CORE_PATH:-}" ]; then bash ./scripts/check-pcs-benchmark-schemas-drift.sh; else echo "skip check-pcs-benchmark-schemas (no pcs-core checkout)"; fi
 
+BENCHMARK_PCS_CORE_VALIDATE := $(if $(wildcard ../pcs-core/schemas),--validate-pcs-core-output ../pcs-core,)
+
 benchmark-certificates: build generate-certificate-benchmarks validate-certificate-benchmarks
 	$(CARGO) run -p certifyedge -- benchmark certificates \
 		--profile hospital_lab.qc_release \
 		--cases benchmarks/certificates/hospital_lab_qc_release \
 		--out benchmark_runs/hospital_lab_qc_release \
-		--json-summary
+		--json-summary $(BENCHMARK_PCS_CORE_VALIDATE)
 	$(CARGO) run -p certifyedge -- benchmark certificates \
 		--profile agent_tool_use.safety_v0 \
 		--cases benchmarks/certificates/tool_use_safety \
 		--out benchmark_runs/tool_use_safety \
-		--json-summary
+		--json-summary $(BENCHMARK_PCS_CORE_VALIDATE)
 	$(CARGO) run -p certifyedge -- benchmark certificates \
 		--profile scientific_computation.reproducibility_v0 \
 		--cases benchmarks/certificates/computation_reproducibility \
 		--out benchmark_runs/computation_reproducibility \
-		--json-summary
+		--json-summary $(BENCHMARK_PCS_CORE_VALIDATE)
+
+validate-benchmark-outputs: build
+	bash ./scripts/validate-certificate-benchmark-outputs.sh
 
 validate-profiles: build
 	$(CARGO) run -p certifyedge -- profiles list
