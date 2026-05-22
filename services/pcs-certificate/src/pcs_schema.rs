@@ -19,6 +19,7 @@ static CERTIFICATE_BENCHMARK_SUITE_VALIDATOR: OnceLock<Validator> = OnceLock::ne
 static PCS_BENCH_INGEST_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 static FAILURE_LOCALIZATION_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 static EXPLAIN_QUALITY_REPORT_VALIDATOR: OnceLock<Validator> = OnceLock::new();
+static BENCHMARK_ARTIFACT_REF_VALIDATOR: OnceLock<Validator> = OnceLock::new();
 
 /// Merged TraceCertificate.v0 + common defs for self-contained JSON Schema validation.
 fn merged_trace_certificate_schema() -> Value {
@@ -67,6 +68,8 @@ fn rewrite_common_defs_refs(value: &mut Value) {
                     Some("#/$defs/certificate_benchmark_suite_v0".to_string())
                 } else if reference == "CertificateBenchmarkRun.v0.schema.json" {
                     Some("#/$defs/certificate_benchmark_run_v0".to_string())
+                } else if reference == "MetricSummary.v0.schema.json" {
+                    Some("#/$defs/metric_summary_v0".to_string())
                 } else {
                     None
                 };
@@ -420,8 +423,13 @@ fn merged_benchmark_report_schema() -> Value {
     ))
     .expect("ProfileCoverageReport.v0.schema.json");
     let mut explain = read_nested_schema("ExplainQualityReport.v0.schema.json");
+    let mut metric_summary: Value = serde_json::from_str(include_str!(
+        "../../../schemas/pcs/MetricSummary.v0.schema.json"
+    ))
+    .expect("MetricSummary.v0.schema.json");
     let explain_nested_defs = explain.get("$defs").cloned();
     strip_schema_metadata(&mut report);
+    strip_schema_metadata(&mut metric_summary);
     let mut coverage = coverage;
     let mut profile = profile;
     strip_schema_metadata(&mut coverage);
@@ -430,6 +438,7 @@ fn merged_benchmark_report_schema() -> Value {
     rewrite_common_defs_refs(&mut coverage);
     rewrite_common_defs_refs(&mut profile);
     rewrite_common_defs_refs(&mut explain);
+    rewrite_common_defs_refs(&mut metric_summary);
     if let Some(obj) = explain.as_object_mut() {
         obj.remove("$defs");
     }
@@ -457,6 +466,7 @@ fn merged_benchmark_report_schema() -> Value {
         defs_map.insert("coverage_report_v0".to_string(), coverage);
         defs_map.insert("profile_coverage_report_v0".to_string(), profile);
         defs_map.insert("explain_quality_report_v0".to_string(), explain);
+        defs_map.insert("metric_summary_v0".to_string(), metric_summary);
         obj.insert("$defs".to_string(), Value::Object(defs_map));
     }
     rewrite_common_defs_refs(&mut report);
@@ -626,6 +636,23 @@ fn merged_pcs_bench_ingest_schema() -> Value {
     ingest
 }
 
+fn benchmark_artifact_ref_validator() -> &'static Validator {
+    BENCHMARK_ARTIFACT_REF_VALIDATOR.get_or_init(|| {
+        let common: Value = serde_json::from_str(include_str!("../../../schemas/pcs/common.defs.json"))
+            .expect("common.defs.json");
+        let mut doc = read_nested_schema("BenchmarkArtifactRef.v0.schema.json");
+        strip_schema_metadata(&mut doc);
+        rewrite_common_defs_refs(&mut doc);
+        if let Some(obj) = doc.as_object_mut() {
+            if let Some(common_defs) = common.get("$defs") {
+                obj.insert("$defs".to_string(), common_defs.clone());
+            }
+        }
+        rewrite_common_defs_refs(&mut doc);
+        Validator::new(&doc).expect("BenchmarkArtifactRef.v0 schema compiles")
+    })
+}
+
 fn failure_localization_validator() -> &'static Validator {
     FAILURE_LOCALIZATION_VALIDATOR.get_or_init(|| {
         let common: Value = serde_json::from_str(include_str!("../../../schemas/pcs/common.defs.json"))
@@ -745,7 +772,38 @@ pub fn benchmark_run_core_from_certificate_run(value: &Value) -> Value {
             );
         }
     }
+    // pcs-core ingest semantics: passed runs must not carry failure localization fields.
+    if out.get("observed_status").and_then(|v| v.as_str()) == Some("passed") {
+        for key in [
+            "observed_failure_code",
+            "observed_responsible_component",
+            "observed_repair_hint",
+        ] {
+            out.insert(key.to_string(), Value::Null);
+        }
+    }
     Value::Object(out)
+}
+
+/// Core `BenchmarkRun.v0` projection for pcs-bench ingest (normalized + canonical digest).
+pub fn benchmark_run_core_for_ingest(value: &Value) -> Value {
+    let mut core = benchmark_run_core_from_certificate_run(value);
+    if let Some(obj) = core.as_object_mut() {
+        obj.insert("signature_or_digest".to_string(), Value::String(String::new()));
+        let digest = crate::hash::canonical_hash(&Value::Object(obj.clone()));
+        obj.insert("signature_or_digest".to_string(), Value::String(digest));
+    }
+    core
+}
+
+pub fn validate_metric_summary_schema(value: &Value) -> Result<(), String> {
+    validate_with(
+        &Validator::new(&merged_schema_with_common_defs(include_str!(
+            "../../../schemas/pcs/MetricSummary.v0.schema.json"
+        )))
+        .expect("MetricSummary.v0 schema compiles"),
+        value,
+    )
 }
 
 pub fn validate_benchmark_report_schema(value: &Value) -> Result<(), String> {
@@ -766,6 +824,10 @@ pub fn validate_certificate_benchmark_suite_schema(value: &Value) -> Result<(), 
 
 pub fn validate_pcs_bench_ingest_schema(value: &Value) -> Result<(), String> {
     validate_with(pcs_bench_ingest_validator(), value)
+}
+
+pub fn validate_benchmark_artifact_ref_schema(value: &Value) -> Result<(), String> {
+    validate_with(benchmark_artifact_ref_validator(), value)
 }
 
 pub fn validate_failure_localization_result_schema(value: &Value) -> Result<(), String> {
@@ -882,6 +944,36 @@ mod tests {
         validate_certificate_benchmark_run_schema(&doc).unwrap();
         let core = benchmark_run_core_from_certificate_run(&doc);
         validate_benchmark_run_schema(&core).unwrap();
+    }
+
+    #[test]
+    fn benchmark_run_core_clears_failure_fields_for_passed_runs() {
+        let doc = json!({
+            "schema_version": "v0",
+            "run_id": "bench-run-pass",
+            "task_id": "agent_tool_use.safety_v0",
+            "case_id": "ok",
+            "started_at": "2026-05-19T12:00:00Z",
+            "completed_at": "2026-05-19T12:00:01Z",
+            "commands": [{"command": "certifyedge emit-pcs-certificate", "exit_code": 0}],
+            "artifacts_produced": ["certificate.json"],
+            "observed_status": "passed",
+            "observed_failure_code": "trace_hash_mismatch",
+            "observed_responsible_component": "runtime_producer",
+            "observed_repair_hint": "align_hash",
+            "duration_ms": 1,
+            "source_repo": "https://github.com/fraware/CertifyEdge",
+            "source_commit": "abcdef0123456789abcdef0123456789abcdef01",
+            "signature_or_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        });
+        let core = benchmark_run_core_from_certificate_run(&doc);
+        assert!(core.get("observed_failure_code").map(|v| v.is_null()).unwrap_or(false));
+        assert!(
+            core.get("observed_responsible_component")
+                .map(|v| v.is_null())
+                .unwrap_or(false)
+        );
+        assert!(core.get("observed_repair_hint").map(|v| v.is_null()).unwrap_or(false));
     }
 
     #[test]

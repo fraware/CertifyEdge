@@ -137,6 +137,15 @@ jobs:
           PCS_CORE_PATH: ${{ github.workspace }}/pcs-core
         run: bash ./scripts/validate-certificate-benchmark-outputs.sh
 
+      - name: Validate pcs_bench_ingest consumer contract (pcs-core / pcs-bench)
+        env:
+          PCS_CORE_PATH: ${{ github.workspace }}/pcs-core
+        run: |
+          bash ./scripts/validate-pcs-bench-ingest-consumer.sh benchmark_runs/tool_use_safety/pcs_bench_ingest.v0.json
+          for suite in hospital_lab_qc_release computation_reproducibility; do
+            bash ./scripts/validate-pcs-bench-ingest-consumer.sh "benchmark_runs/${suite}/pcs_bench_ingest.v0.json"
+          done
+
       - name: Assert PCS registry contribution matches pcs-core (no drift)
         env:
           PCS_CORE_PATH: ${{ github.workspace }}/pcs-core

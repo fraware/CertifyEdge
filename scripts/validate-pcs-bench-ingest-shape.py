@@ -88,6 +88,31 @@ def validate_ingest(path: Path) -> list[str]:
     elif workflow_id == doc.get("workflow_profile_id"):
         errors.append(f"{path}: workflow_id must not duplicate legacy workflow_profile_id")
 
+    producer_id = doc.get("producer_id")
+    if producer_id == "certifyedge":
+        refs = doc.get("artifact_refs")
+        if not isinstance(refs, list) or not refs:
+            errors.append(f"{path}: certifyedge producer requires non-empty artifact_refs")
+        else:
+            paths = {
+                r.get("path")
+                for r in refs
+                if isinstance(r, dict) and isinstance(r.get("path"), str)
+            }
+            for required_path in (
+                "profile_coverage_report.v0.json",
+                "repair_hint_quality_report.v0.json",
+            ):
+                if required_path not in paths:
+                    errors.append(
+                        f"{path}: artifact_refs missing path {required_path!r}"
+                    )
+            if not any(
+                isinstance(p, str) and p.startswith("runs/") and p.endswith(".benchmark_run.v0.json")
+                for p in paths
+            ):
+                errors.append(f"{path}: artifact_refs missing runs/*.benchmark_run.v0.json")
+
     return errors
 
 

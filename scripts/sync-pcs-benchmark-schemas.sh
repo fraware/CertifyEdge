@@ -18,7 +18,9 @@ for name in \
   ProfileCoverageReport.v0.schema.json \
   PcsBenchIngest.v0.schema.json \
   FailureLocalizationResult.v0.schema.json \
-  ExplainQualityReport.v0.schema.json
+  ExplainQualityReport.v0.schema.json \
+  MetricSummary.v0.schema.json \
+  BenchmarkArtifactRef.v0.schema.json
 do
   cp -f "$PCS_CORE/schemas/$name" "$DEST/"
 done

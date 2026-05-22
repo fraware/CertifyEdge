@@ -5,7 +5,7 @@ SPEC ?= templates/hospital_lab/qc_release.stl
 TRACE ?= tests/labtrust/valid_trace.json
 CERT ?= trace_certificate.json
 
-.PHONY: build test pcs-test runbook clean-checkout clean-checkout-certified fixtures release-run sync-pcs-core-rc check-pcs-core-rc sync-pcs-schemas sync-pcs-benchmark-schemas check-pcs-benchmark-schemas sync-pcs-hash-vectors check-pcs-hash-vectors check-pcs-registry validate-profiles check-profiles write-handoff-fixture generate-certificate-benchmarks validate-certificate-benchmarks benchmark-certificates validate-benchmark-outputs check-trace emit-certificate verify-certificate install-cli substrate-test bazel-pcs-test
+.PHONY: build test pcs-test runbook clean-checkout clean-checkout-certified fixtures release-run sync-pcs-core-rc check-pcs-core-rc sync-pcs-schemas sync-pcs-benchmark-schemas check-pcs-benchmark-schemas sync-pcs-hash-vectors check-pcs-hash-vectors check-pcs-registry validate-profiles check-profiles write-handoff-fixture generate-certificate-benchmarks validate-certificate-benchmarks benchmark-certificates validate-benchmark-outputs pcs-bench-producer validate-pcs-bench-ingest check-trace emit-certificate verify-certificate install-cli substrate-test bazel-pcs-test
 
 build:
 	$(CARGO) build -p certifyedge
@@ -31,6 +31,7 @@ pcs-test: build test
 	bash ./scripts/check-pcs-optional.sh all
 	$(CARGO) test -p certifyedge-integration --test certificate_benchmark_pcs_outputs -- --nocapture
 	@if [ -d "../pcs-core/schemas" ] || [ -n "$${PCS_CORE_PATH:-}" ]; then bash ./scripts/check-pcs-benchmark-schemas-drift.sh; else echo "skip check-pcs-benchmark-schemas (no pcs-core checkout)"; fi
+	@if [ -f "benchmark_runs/tool_use_safety/pcs_bench_ingest.v0.json" ]; then $(MAKE) validate-pcs-bench-ingest; else echo "skip validate-pcs-bench-ingest (run: make benchmark-certificates)"; fi
 
 runbook: build
 	./scripts/pcs-runbook.sh
@@ -102,6 +103,30 @@ benchmark-certificates: build generate-certificate-benchmarks validate-certifica
 
 validate-benchmark-outputs: build
 	bash ./scripts/validate-certificate-benchmark-outputs.sh
+
+PCS_BENCH_PCS_CORE_VALIDATE := $(if $(wildcard ../pcs-core/schemas),--validate-pcs-core-output ../pcs-core,)
+
+pcs-bench-producer: build generate-certificate-benchmarks validate-certificate-benchmarks
+	$(CARGO) run -p certifyedge -- benchmark certificates \
+		--profile agent_tool_use.safety_v0 \
+		--cases benchmarks/certificates/tool_use_safety \
+		--out benchmark_runs/tool_use_safety \
+		--json-summary $(PCS_BENCH_PCS_CORE_VALIDATE)
+	$(CARGO) run -p certifyedge -- benchmark certificates \
+		--profile hospital_lab.qc_release \
+		--cases benchmarks/certificates/hospital_lab_qc_release \
+		--out benchmark_runs/hospital_lab_qc_release \
+		--json-summary $(PCS_BENCH_PCS_CORE_VALIDATE)
+	$(CARGO) run -p certifyedge -- benchmark certificates \
+		--profile scientific_computation.reproducibility_v0 \
+		--cases benchmarks/certificates/computation_reproducibility \
+		--out benchmark_runs/computation_reproducibility \
+		--json-summary $(PCS_BENCH_PCS_CORE_VALIDATE)
+
+validate-pcs-bench-ingest:
+	@for suite in hospital_lab_qc_release tool_use_safety computation_reproducibility; do \
+		bash ./scripts/validate-pcs-bench-ingest-consumer.sh "benchmark_runs/$$suite/pcs_bench_ingest.v0.json"; \
+	done
 
 validate-profiles: build
 	$(CARGO) run -p certifyedge -- profiles list

@@ -35,6 +35,8 @@ fn rewrite_external_refs(value: &mut Value) {
                     Some("#/$defs/explain_quality_report_v0".to_string())
                 } else if reference == "BenchmarkArtifactRef.v0.schema.json" {
                     Some("#/$defs/benchmark_artifact_ref_v0".to_string())
+                } else if reference == "MetricSummary.v0.schema.json" {
+                    Some("#/$defs/metric_summary_v0".to_string())
                 } else {
                     None
                 };
@@ -166,9 +168,65 @@ fn validator_for_explain_quality(schemas_dir: &Path) -> Result<Validator, String
     Validator::new(&doc).map_err(|e| format!("compile pcs-core ExplainQualityReport.v0: {e}"))
 }
 
+fn load_merged_benchmark_report_schema(schemas_dir: &Path) -> Result<Value, String> {
+    let common = read_schema_file(schemas_dir, "common.defs.json")?;
+    let mut report = read_schema_file(schemas_dir, "BenchmarkReport.v0.schema.json")?;
+    let mut coverage = read_schema_file(schemas_dir, "CoverageReport.v0.schema.json")?;
+    let mut profile = read_schema_file(schemas_dir, "ProfileCoverageReport.v0.schema.json")?;
+    let mut metric_summary = read_schema_file(schemas_dir, "MetricSummary.v0.schema.json")?;
+    let mut explain = read_schema_file(schemas_dir, "ExplainQualityReport.v0.schema.json")?;
+    let explain_nested_defs = explain.get("$defs").cloned();
+    strip_schema_metadata(&mut report);
+    strip_schema_metadata(&mut coverage);
+    strip_schema_metadata(&mut profile);
+    strip_schema_metadata(&mut metric_summary);
+    strip_schema_metadata(&mut explain);
+    rewrite_external_refs(&mut report);
+    rewrite_external_refs(&mut coverage);
+    rewrite_external_refs(&mut profile);
+    rewrite_external_refs(&mut metric_summary);
+    rewrite_external_refs(&mut explain);
+    if let Some(obj) = explain.as_object_mut() {
+        obj.remove("$defs");
+    }
+    let report_defs = report
+        .as_object()
+        .and_then(|obj| obj.get("$defs"))
+        .and_then(|v| v.as_object())
+        .cloned()
+        .unwrap_or_default();
+    if let Some(obj) = report.as_object_mut() {
+        let mut defs_map = serde_json::Map::new();
+        if let Some(common_defs) = common.get("$defs").and_then(|v| v.as_object()) {
+            for (k, v) in common_defs {
+                defs_map.insert(k.clone(), v.clone());
+            }
+        }
+        for (k, v) in report_defs {
+            defs_map.insert(k, v);
+        }
+        defs_map.insert("coverage_report_v0".to_string(), coverage);
+        defs_map.insert("profile_coverage_report_v0".to_string(), profile);
+        defs_map.insert("metric_summary_v0".to_string(), metric_summary);
+        if let Some(Value::Object(nested)) = explain_nested_defs {
+            for (k, v) in nested {
+                defs_map.insert(k.clone(), v.clone());
+            }
+        }
+        defs_map.insert("explain_quality_report_v0".to_string(), explain);
+        obj.insert("$defs".to_string(), Value::Object(defs_map));
+    }
+    rewrite_external_refs(&mut report);
+    Ok(report)
+}
+
 fn validator_for(schemas_dir: &Path, name: &str) -> Result<Validator, String> {
     if name == "ExplainQualityReport.v0.schema.json" {
         return validator_for_explain_quality(schemas_dir);
+    }
+    if name == "BenchmarkReport.v0.schema.json" {
+        let schema = load_merged_benchmark_report_schema(schemas_dir)?;
+        return Validator::new(&schema).map_err(|e| format!("compile pcs-core {name}: {e}"));
     }
     let schema = load_merged_pcs_core_schema(schemas_dir, name)?;
     Validator::new(&schema).map_err(|e| format!("compile pcs-core {name}: {e}"))

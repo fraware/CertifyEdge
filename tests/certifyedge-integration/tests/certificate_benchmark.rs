@@ -3,7 +3,9 @@
 #[path = "../common/support.rs"]
 mod support;
 
-use pcs_certificate::{run_certificate_benchmark, BenchmarkCertificatesOptions};
+use pcs_certificate::{
+    run_certificate_benchmark, validate_pcs_benchmark_output_dir, BenchmarkCertificatesOptions,
+};
 
 use support::repo_root;
 
@@ -54,6 +56,8 @@ fn run_suite(profile_id: &str, cases_subdir: &str) {
         out.join("pcs_bench_ingest.v0.json").is_file(),
         "missing pcs_bench_ingest bundle"
     );
+    validate_pcs_benchmark_output_dir(&out)
+        .unwrap_or_else(|e| panic!("pcs benchmark output gate {profile_id}: {e}"));
 }
 
 #[test]

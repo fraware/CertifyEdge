@@ -134,6 +134,8 @@ fn test_registry_contribution_validates_against_vendored_schema() {
         "ToolUseCertificate.v0",
         "ComputationWitness.v0",
         "CertificateFormalFacts.v0",
+        "BenchmarkArtifactRef.v0",
+        "PcsBenchIngest.v0",
     ] {
         let entry = load_registry_contribution(artifact);
         validate_registry_contribution_entry(&entry)
@@ -211,6 +213,18 @@ fn test_registry_contribution_aligns_with_pcs_core_entry() {
             "local consumer_repos missing pcs-core entry {repo}"
         );
     }
+}
+
+#[test]
+fn test_benchmark_artifact_ref_registry_contribution_shape() {
+    let entry = load_registry_contribution("BenchmarkArtifactRef.v0");
+    assert_eq!(entry["artifact_type"], "BenchmarkArtifactRef.v0");
+    assert_eq!(entry["schema_owner"], "pcs-core");
+    assert!(entry["canonical_hash_required"].as_bool().unwrap());
+    assert!(!entry["release_mode_required"].as_bool().unwrap());
+    let consumers = entry["consumer_repos"].as_array().unwrap();
+    assert!(consumers.iter().any(|v| v.as_str() == Some("pcs-bench")));
+    assert!(consumers.iter().any(|v| v.as_str() == Some("CertifyEdge")));
 }
 
 #[test]
