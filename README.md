@@ -19,11 +19,11 @@
 
 ---
 
-CertifyEdge is an open-source **Rust** toolkit for turning runtime evidence into **auditable, machine-validated certificates**. Its primary release path is [Proof-Carrying Science (PCS)](https://github.com/SentinelOps-CI/pcs-core) v0.1: profile-driven checks over LabTrust traces, agent tool-use logs, and computation receipts, with JSON artifacts downstream tools can verify using the `pcs` CLI.
+CertifyEdge is an open-source **Rust** toolkit that turns runtime evidence into **auditable, machine-validated certificates**. The primary release path follows [Proof-Carrying Science (PCS)](https://github.com/SentinelOps-CI/pcs-core) v0.1, where profile-driven checks run over LabTrust traces, agent tool-use logs, and computation receipts, and the resulting JSON artifacts can be verified downstream with the `pcs` CLI.
 
-The repository also includes an **STL/SMT specification stack** (parse temporal formulas, emit SMT-LIB and Lean-oriented output, run solvers, sign certificates) for power-grid and general temporal-logic workflows. The two stacks share the workspace and CI but serve different integration paths.
+The same repository also ships an **STL/SMT specification stack** that parses temporal formulas, emits SMT-LIB and Lean-oriented output, runs solvers when configured, and produces signed certificates for power-grid and general temporal-logic workflows. Both stacks live in one workspace and share continuous integration, and each stack targets a distinct integration path for adopters.
 
-**Simulation disclaimer (PCS v0.1):** Hospital-lab certificates attest to [LabTrust-Gym](https://github.com/fraware/LabTrust-Gym) simulation traces only. They are not clinical or production laboratory guarantees.
+Hospital-lab certificates under PCS v0.1 attest only to [LabTrust-Gym](https://github.com/fraware/LabTrust-Gym) simulation traces, which means they document simulated quality-control workflows and serve as engineering evidence for the protocol and remain distinct from clinical or production laboratory certification.
 
 ---
 
@@ -36,7 +36,7 @@ cargo build -p certifyedge
 make runbook
 ```
 
-Full workflows, benchmarks, and release checks: **[docs/pcs-guide.md](docs/pcs-guide.md)**.
+The [PCS guide](docs/pcs-guide.md) walks through full workflows, benchmark suites, and release checks in the order maintainers use before tagging a version.
 
 | Profile | Certificate type |
 |---------|------------------|
@@ -46,11 +46,11 @@ Full workflows, benchmarks, and release checks: **[docs/pcs-guide.md](docs/pcs-g
 
 ```bash
 export CERTIFYEDGE_SOURCE_COMMIT="$(git rev-parse HEAD)"
-make pcs-test                              # recommended before pull requests
-make pcs-bench-producer-all-profiles       # all benchmark suites + ingest validation
+make pcs-test
+make pcs-bench-producer-all-profiles
 ```
 
-Cross-repo demo (requires sibling [LabTrust-Gym](https://github.com/fraware/LabTrust-Gym) and the `pcs` CLI):
+A cross-repository demo that exercises LabTrust export, certificate emission, and bundle attach requires a sibling checkout of [LabTrust-Gym](https://github.com/fraware/LabTrust-Gym) together with the `pcs` CLI on your path.
 
 ```bash
 export PCS_DETERMINISTIC=1
@@ -106,7 +106,7 @@ cargo test -p integration_tests
 bazel test --config=ci //tests/pipeline_integration:pipeline_integration
 ```
 
-Library entry points: `stl_compiler::Compiler`, `smt_verifier::SMTVerifier`, `certificate::CertificateService`. Details: [docs/quick-start.md](docs/quick-start.md) and [services/stl-compiler/README.md](services/stl-compiler/README.md).
+Library entry points include `stl_compiler::Compiler`, `smt_verifier::SMTVerifier`, and `certificate::CertificateService`, and the [quick start](docs/quick-start.md) together with the [STL compiler README](services/stl-compiler/README.md) explain flags, layout, and typical integration patterns in more depth.
 
 ---
 
@@ -125,7 +125,7 @@ Library entry points: `stl_compiler::Compiler`, `smt_verifier::SMTVerifier`, `ce
 
 ## Contributing
 
-Contributions are welcome. Fork the repository, branch from `main`, run the checks in [CONTRIBUTING.md](CONTRIBUTING.md), and open a pull request.
+Contributions are welcome. Fork the repository, branch from `main`, run the checks described in [CONTRIBUTING.md](CONTRIBUTING.md), and open a pull request when your changes are ready for review.
 
 ---
 

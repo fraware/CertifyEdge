@@ -1,8 +1,8 @@
 # Proof-Carrying Science (PCS) in CertifyEdge
 
-CertifyEdge is the **certificate producer** for [Proof-Carrying Science](https://github.com/SentinelOps-CI/pcs-core) v0.1. It reads runtime traces or handoff manifests, checks temporal properties, and writes versioned JSON certificates that downstream tools (LabTrust-Gym, Provability Fabric, Scientific Memory) can validate with the `pcs` CLI.
+CertifyEdge acts as the **certificate producer** for [Proof-Carrying Science](https://github.com/SentinelOps-CI/pcs-core) v0.1. The CLI reads runtime traces or handoff manifests, evaluates temporal properties registered under `templates/profiles/`, and writes versioned JSON certificates that downstream tools such as LabTrust-Gym, Provability Fabric, and Scientific Memory can validate with the `pcs` CLI.
 
-**Simulation only:** v0.1 certificates attest to LabTrust-Gym simulation traces. They are not clinical or production laboratory guarantees.
+Certificates produced under v0.1 attest to LabTrust-Gym simulation traces and therefore document protocol conformance on synthetic hospital-lab workflows, which readers should treat as engineering evidence for the trust loop and as distinct from clinical or production laboratory certification.
 
 ---
 
@@ -14,7 +14,7 @@ CertifyEdge is the **certificate producer** for [Proof-Carrying Science](https:/
 | [pcs-core](https://github.com/SentinelOps-CI/pcs-core) (optional locally) | `pcs validate`, schema drift checks, benchmark ingest |
 | [LabTrust-Gym](https://github.com/fraware/LabTrust-Gym) (optional) | Full cross-repo release chain |
 
-Install the PCS CLI when you have pcs-core checked out:
+Install the PCS CLI after you clone pcs-core.
 
 ```bash
 pip install -e ../pcs-core/python
@@ -24,7 +24,7 @@ pip install -e ../pcs-core/python
 
 ## Property profiles
 
-Workflows are driven by JSON files in `templates/profiles/`. Each profile maps inputs to a property template (`.stl` files under `templates/`) and an output certificate type.
+Workflows are driven by JSON files in `templates/profiles/`. Each profile maps inputs to a property template under `templates/` and to an output certificate type.
 
 | Profile ID | Input | Output certificate |
 |------------|-------|-------------------|
@@ -32,18 +32,16 @@ Workflows are driven by JSON files in `templates/profiles/`. Each profile maps i
 | `agent_tool_use.safety_v0` | Tool-use trace | `ToolUseCertificate.v0` |
 | `scientific_computation.reproducibility_v0` | Computation receipts | `ComputationWitness.v0` |
 
-Add a workflow by adding a profile JSON file and template—no changes to emit logic.
+You extend the system by adding a profile JSON file and a matching template, and the emit pipeline registers the new workflow through the same core emit path used by existing profiles.
 
-List and validate profiles:
+List and validate profiles with `make validate-profiles`, or invoke the CLI directly.
 
 ```bash
-make validate-profiles
-# or
 cargo run -p certifyedge -- profiles list
 cargo run -p certifyedge -- profiles explain hospital_lab.qc_release
 ```
 
-**Note on `.stl` files:** For PCS v0.1, files under `templates/hospital_lab/` are a **constrained temporal-property profile** (property id, allowed roles, comments)—not general signal temporal logic. See [labtrust-adapter.md](labtrust-adapter.md).
+Files under `templates/hospital_lab/` implement a **constrained temporal-property profile** for v0.1, carrying property identifiers, allowed roles, and comments, and they function as hospital-lab profile documents that stand apart from general signal temporal logic specifications. The [LabTrust adapter](labtrust-adapter.md) explains parsing and hashing rules in full.
 
 ---
 
@@ -51,44 +49,36 @@ cargo run -p certifyedge -- profiles explain hospital_lab.qc_release
 
 ```bash
 cargo build -p certifyedge
-# Run via cargo (always works):
 cargo run -p certifyedge -- --help
-# Or put on PATH:
 ./scripts/install-certifyedge.sh
 ```
 
-On Windows, if `cargo install` fails with SSL errors, use `./scripts/install-certifyedge.sh` instead.
+On Windows, `./scripts/install-certifyedge.sh` is the dependable path when `cargo install` fails with SSL errors against crates.io.
 
 ---
 
 ## Local certificate workflow (single repo)
 
-These commands use the hospital-lab demo trace. Make targets wrap the same calls.
+The commands below use the hospital-lab demo trace, and the Makefile exposes the same operations through `make check-trace`, `make emit-certificate`, `make verify-certificate`, and `make runbook`.
 
 ```bash
-# Check trace against property
 cargo run -p certifyedge -- check-trace \
   --spec templates/hospital_lab/qc_release.stl \
   --trace tests/labtrust/valid_trace.json
 
-# Emit certificate
 cargo run -p certifyedge -- emit-pcs-certificate \
   --spec templates/hospital_lab/qc_release.stl \
   --trace tests/labtrust/valid_trace.json \
   --out trace_certificate.json
 
-# Verify schema and digest
 cargo run -p certifyedge -- verify-certificate trace_certificate.json
 
-# Explain a counterexample (rejected traces)
 cargo run -p certifyedge -- explain-counterexample counterexample.json
 ```
 
-**Make shortcuts:** `make check-trace`, `make emit-certificate`, `make verify-certificate`, `make runbook`.
-
 ### Release mode
 
-For CI and release artifacts, use `--release-mode` so `source_commit` is a real git SHA (not a placeholder):
+Continuous integration and release builds should pass `--release-mode` so `source_commit` resolves to a real git SHA from the CertifyEdge repository.
 
 ```bash
 export CERTIFYEDGE_SOURCE_COMMIT="$(git rev-parse HEAD)"
@@ -98,19 +88,13 @@ cargo run -p certifyedge -- --release-mode emit-pcs-certificate \
   --out trace_certificate.json
 ```
 
-Release mode also runs `pcs validate` on the output when the `pcs` CLI is installed.
-
-Validate with pcs-core manually:
-
-```bash
-pcs validate trace_certificate.json
-```
+Release mode invokes `pcs validate` on the written file when the `pcs` CLI is installed. You can repeat validation manually with `pcs validate trace_certificate.json`.
 
 ---
 
 ## Handoff-driven emit (recommended for integrations)
 
-Runtime producers send a `HandoffManifest.v0` (`handoff_kind: runtime_to_certificate`). CertifyEdge emits the certificate and an outbound `certificate_to_bundle` handoff.
+Runtime producers supply a `HandoffManifest.v0` with `handoff_kind` set to `runtime_to_certificate`, and CertifyEdge responds with the certificate plus an outbound `certificate_to_bundle` handoff for downstream bundle assembly.
 
 ```bash
 export CERTIFYEDGE_SOURCE_COMMIT="$(git rev-parse HEAD)"
@@ -123,9 +107,7 @@ cargo run -p certifyedge -- --release-mode emit-pcs-certificate \
   --formal-facts-out certificate_formal_facts.json
 ```
 
-Committed example handoff: `tests/fixtures/handoff/labtrust_to_certifyedge_handoff.json`.
-
-Rejected traces still produce valid protocol artifacts (`status: Rejected`, counterexample, empty downstream `expected_outputs`). See [pcs-handoff.md](pcs-handoff.md) for the full cross-repo chain with LabTrust-Gym and Provability Fabric.
+A committed example handoff lives at `tests/fixtures/handoff/labtrust_to_certifyedge_handoff.json`. Rejected traces still yield protocol-valid artifacts with `status` set to `Rejected`, a counterexample when the profile defines one, and empty `expected_outputs` on the outbound handoff so downstream systems defer bundle admissibility until a checked certificate arrives. The [cross-repo handoff](pcs-handoff.md) document lists LabTrust-Gym and Provability Fabric steps in execution order.
 
 ---
 
@@ -137,25 +119,13 @@ Rejected traces still produce valid protocol artifacts (`status: Rejected`, coun
 | `tests/fixtures/release-run/` | Full release artifact set from `make release-run` |
 | `tests/labtrust/` | Golden traces for integration tests |
 
-Do not regenerate canonical pcs-core fixtures locally—sync from upstream:
-
-```bash
-PCS_CORE_PATH=../pcs-core make sync-pcs-core-rc
-make check-pcs-core-rc
-```
-
-Regenerate negative test fixtures only:
-
-```bash
-make fixtures
-# or: cargo test -p certifyedge-integration write_fixtures -- --ignored --nocapture
-```
+Canonical pcs-core fixtures should be refreshed from upstream with `PCS_CORE_PATH=../pcs-core make sync-pcs-core-rc` followed by `make check-pcs-core-rc`. Negative test fixtures alone may be regenerated with `make fixtures` or `cargo test -p certifyedge-integration write_fixtures -- --ignored --nocapture`.
 
 ---
 
 ## Certificate benchmarks
 
-Benchmark cases live under `benchmarks/certificates/<suite>/` with `valid/` and `invalid/` directories. Each case has `case.json`, `handoff.json`, and input artifacts.
+Benchmark cases live under `benchmarks/certificates/<suite>/` in `valid/` and `invalid/` directories, and each case includes `case.json`, `handoff.json`, and the input artifacts the handoff references.
 
 | Suite directory | Profile |
 |-----------------|---------|
@@ -163,7 +133,7 @@ Benchmark cases live under `benchmarks/certificates/<suite>/` with `valid/` and 
 | `tool_use_safety/` | `agent_tool_use.safety_v0` |
 | `computation_reproducibility/` | `scientific_computation.reproducibility_v0` |
 
-**Before running benchmarks**, set the source commit:
+Set the source commit before you generate benchmarks.
 
 ```bash
 export CERTIFYEDGE_SOURCE_COMMIT="$(git rev-parse HEAD)"
@@ -174,92 +144,61 @@ export CERTIFYEDGE_SOURCE_COMMIT="$(git rev-parse HEAD)"
 | `make validate-certificate-benchmarks` | Validate case layout and drift |
 | `make benchmark-certificates` | Run all three suites → `benchmark_runs/` |
 | `make validate-benchmark-outputs` | Schema-check output trees |
-| `make pcs-bench-producer` | Tool-use suite + strict pcs-bench ingest validation (CI default) |
-| `make pcs-bench-producer-all-profiles` | All suites + ingest validation |
+| `make pcs-bench-producer` | Tool-use suite plus strict pcs-bench ingest validation (CI default) |
+| `make pcs-bench-producer-all-profiles` | All suites plus ingest validation |
 | `make validate-pcs-bench-ingest` | Validate ingest JSON for all suites |
 
-Primary downstream artifact: `benchmark_runs/<suite>/pcs_bench_ingest.v0.json` (for [pcs-bench](https://github.com/SentinelOps-CI/pcs-core)).
-
-Case layout details: [benchmarks/certificates/README.md](../benchmarks/certificates/README.md). Schema reference: [schemas/pcs/README.md](../schemas/pcs/README.md).
+The primary downstream bundle is `benchmark_runs/<suite>/pcs_bench_ingest.v0.json`, which [pcs-bench](https://github.com/SentinelOps-CI/pcs-core) consumes. Case layout appears in [benchmarks/certificates/README.md](../benchmarks/certificates/README.md), and schema names appear in [schemas/pcs/README.md](../schemas/pcs/README.md).
 
 ---
 
 ## Cross-repo release chain
 
-The full v0.1 release gate runs LabTrust-Gym → CertifyEdge → attach certificate → (optionally) Provability Fabric and Scientific Memory.
-
-From CertifyEdge (requires sibling `../LabTrust-Gym`, `pcs` and `labtrust` on PATH):
+The v0.1 release gate exercises LabTrust-Gym export, CertifyEdge emission, certificate attach, and optionally Provability Fabric and Scientific Memory when you run the extended target. From this repository you need a sibling `../LabTrust-Gym` checkout together with `pcs` and `labtrust` on your path.
 
 ```bash
 export PCS_DETERMINISTIC=1
-make clean-checkout-certified   # LabTrust export + CertifyEdge + attach (CI default)
-make clean-checkout             # Full chain including PF and Scientific Memory
+make clean-checkout-certified
+make clean-checkout
 ```
 
-Windows (PowerShell): `.\scripts\pcs-v01-clean-checkout.ps1`
-
-Step-by-step commands: [pcs-handoff.md](pcs-handoff.md). LabTrust-Gym also documents the chain in its `docs/pcs_v01_clean_chain.md`.
+On Windows you may invoke `.\scripts\pcs-v01-clean-checkout.ps1`. Step-by-step commands appear in [pcs-handoff.md](pcs-handoff.md), and LabTrust-Gym maintains parallel documentation in `docs/pcs_v01_clean_chain.md`.
 
 ---
 
 ## Vendored schemas and registry
 
-Offline validation uses JSON schemas in `schemas/pcs/` (synced from pcs-core).
-
-```bash
-make sync-pcs-schemas
-make sync-pcs-benchmark-schemas
-make check-pcs-hash-vectors      # digest vectors vs pcs-core
-make sync-pcs-registry           # refresh pcs_registry/*.registry.json from pcs-core
-make check-pcs-registry          # registry contributions vs pcs-core (needs PCS_CORE_PATH)
-```
-
-Registry contributions: `pcs_registry/*.registry.json`.
-
-Profile and handoff details: [pcs-certificate-profile.md](pcs-certificate-profile.md). Trace hashing: [labtrust-adapter.md](labtrust-adapter.md).
+Offline validation uses JSON schemas under `schemas/pcs/` that track pcs-core. Sync and drift targets include `make sync-pcs-schemas`, `make sync-pcs-benchmark-schemas`, `make check-pcs-hash-vectors`, `make sync-pcs-registry`, and `make check-pcs-registry` when `PCS_CORE_PATH` points at a pcs-core checkout. Registry contributions live under `pcs_registry/*.registry.json`. Profile fields and handoff kinds are documented in [pcs-certificate-profile.md](pcs-certificate-profile.md), and trace hashing appears in [labtrust-adapter.md](labtrust-adapter.md).
 
 ---
 
 ## Pre-release checklist
 
-Run these from the repository root before tagging a release. Order matches CI.
+Run these commands from the repository root before tagging a release, in the same order continuous integration uses.
 
 ```bash
 export CERTIFYEDGE_SOURCE_COMMIT="$(git rev-parse HEAD)"
-export PCS_CORE_PATH=../pcs-core   # if pcs-core is a sibling checkout
+export PCS_CORE_PATH=../pcs-core
 
-# 1. Core PCS gate (build, tests, profiles, benchmarks, optional pcs-core checks)
 make pcs-test
-
-# 2. Regenerate and validate all benchmark outputs + pcs-bench ingest
 make pcs-bench-producer-all-profiles
-
-# 3. Local runbook smoke
 make runbook
-
-# 4. With pcs-core: drift and registry
 make check-pcs-core-rc
 make check-pcs-hash-vectors
 make sync-pcs-benchmark-schemas
 make check-pcs-benchmark-schemas
 make sync-pcs-registry
 make check-pcs-registry
-
-# 5. Cross-repo chain (needs LabTrust-Gym + pcs + labtrust)
 export PCS_DETERMINISTIC=1
 make clean-checkout-certified
-
-# 6. Bazel PCS graph (optional, matches CI bazel job)
 make bazel-pcs-test
 ```
 
-**Contributors:** `make pcs-test` is the minimum before opening a PR that touches PCS code. CI runs the full sequence in [.github/workflows/ci.yml](../.github/workflows/ci.yml).
+`make pcs-test` is the minimum gate before a pull request that touches PCS code. The workflow file [.github/workflows/ci.yml](../.github/workflows/ci.yml) runs the same sequence on GitHub-hosted runners.
 
 ### Windows notes
 
-- Use **Git Bash** for `make` targets that invoke `scripts/*.sh`, or run the equivalent `cargo` commands from this guide.
-- If `python3` is not on PATH: `make PYTHON=python …` (PCS `make` targets honor `PYTHON`).
-- Ensure `cargo` is on PATH when running shell scripts from Git Bash.
+Use Git Bash for `make` targets that call `scripts/*.sh`, or translate each step to the equivalent `cargo` and Python commands from this guide. Set `PYTHON=python` when `python3` is missing from your path, because every PCS `make` target honors the `PYTHON` variable. Ensure `cargo` appears on `PATH` inside the same shell session that runs the scripts.
 
 ---
 
@@ -273,7 +212,7 @@ make bazel-pcs-test
 | `templates/profiles/` | Property profile registry |
 | `templates/hospital_lab/`, `tool_use/`, `computation/` | Property templates |
 | `benchmarks/certificates/` | Benchmark case inputs |
-| `benchmark_runs/` | Generated benchmark outputs (gitignored or committed per policy) |
+| `benchmark_runs/` | Generated benchmark outputs (gitignored) |
 | `schemas/pcs/` | Vendored JSON schemas |
 | `pcs_registry/` | Artifact registry contributions |
 | `scripts/pcs-*.sh` | Runbook, clean-checkout, benchmark validation |

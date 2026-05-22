@@ -1,6 +1,6 @@
 # Architecture decision records
 
-Architecture decision records (ADRs) capture why the repository is built and tested the way it is. They are intended for maintainers and integrators; end users can start with the [documentation index](../README.md) and [PCS guide](../pcs-guide.md).
+Architecture decision records capture why the repository is built and tested the way it is. They serve maintainers and integrators who need historical context, while end users can begin with the [documentation index](../README.md) and the [PCS guide](../pcs-guide.md).
 
 | Document | Title |
 |----------|--------|

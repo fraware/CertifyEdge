@@ -1,6 +1,6 @@
 # Quick start
 
-This guide gets a development environment running on Linux, macOS, or Windows. For proof-carrying certificates, start with the [PCS guide](pcs-guide.md) after the steps below.
+This guide walks through a minimal development environment on Linux, macOS, or Windows. After you can build the workspace, continue with the [PCS guide](pcs-guide.md) if your goal is proof-carrying certificates.
 
 ---
 
@@ -9,12 +9,12 @@ This guide gets a development environment running on Linux, macOS, or Windows. F
 | Requirement | Notes |
 |-------------|--------|
 | **Rust 1.88.0** | Pinned in [`rust-toolchain.toml`](../rust-toolchain.toml) |
-| **Git** | Clone from the repository root for all commands |
+| **Git** | Run all commands from the repository root |
 | **Bazelisk** (optional) | Runs the Bazel version in [`.bazelversion`](../.bazelversion) |
 | **Python 3** (optional) | Profile validation and benchmark scripts; on Windows use `make PYTHON=python` |
-| **Lean / Z3 / CVC5** (optional) | Only for full STL/SMT toolchains—not required for default tests |
+| **Lean / Z3 / CVC5** (optional) | Full STL/SMT toolchains; default tests use the in-process test compiler configuration |
 
-**Windows:** Git Bash is recommended for `make` targets that run `scripts/*.sh`. Add `%USERPROFILE%\.cargo\bin` to `PATH`. See [PCS guide — Windows notes](pcs-guide.md#windows-notes).
+Windows developers typically use Git Bash for `make` targets that invoke `scripts/*.sh`, add `%USERPROFILE%\.cargo\bin` to `PATH`, and follow the [PCS guide Windows notes](pcs-guide.md#pre-release-checklist) when shell scripts call Python or Cargo.
 
 ---
 
@@ -25,7 +25,7 @@ git clone https://github.com/fraware/CertifyEdge.git
 cd CertifyEdge
 ```
 
-Install Rust if needed ([rustup](https://rustup.rs/)):
+Install Rust through [rustup](https://rustup.rs/) when it is missing on your machine.
 
 ```bash
 rustup toolchain install 1.88.0
@@ -33,12 +33,7 @@ rustup default 1.88.0
 rustup component add clippy rustfmt
 ```
 
-Verify:
-
-```bash
-rustc --version
-cargo --version
-```
+Confirm the toolchain with `rustc --version` and `cargo --version` before you proceed.
 
 ---
 
@@ -49,9 +44,9 @@ cargo build -p certifyedge
 make runbook
 ```
 
-If that succeeds, the certificate engine is working. Continue in [pcs-guide.md](pcs-guide.md) for emit/verify, benchmarks, and release checks.
+A successful runbook means the certificate engine can check traces, emit certificates, verify digests, and exercise counterexample explanation against the bundled fixtures. The [PCS guide](pcs-guide.md) continues with emit and verify commands, benchmark generation, and release checks.
 
-Optional: install the pcs-core CLI for schema validation:
+Optional schema validation uses the pcs-core CLI. Clone pcs-core beside this repository and install the Python package.
 
 ```bash
 git clone https://github.com/SentinelOps-CI/pcs-core.git ../pcs-core
@@ -70,36 +65,27 @@ cargo test -p integration_tests
 cargo test -p certifyedge-integration
 ```
 
-PCS-focused gate (matches most of CI for certificate changes):
+Certificate-related changes should also pass the PCS gate that aligns with most continuous integration steps for profiles and benchmarks.
 
 ```bash
 export CERTIFYEDGE_SOURCE_COMMIT="$(git rev-parse HEAD)"
 make pcs-test
 ```
 
-Formatting (required before pull requests):
-
-```bash
-cargo fmt --all -- --check
-```
+Pull requests must pass `cargo fmt --all -- --check` before merge.
 
 ---
 
 ## 4. Bazel (optional)
 
-Install [Bazelisk](https://github.com/bazelbuild/bazelisk), then from the repository root:
+Install [Bazelisk](https://github.com/bazelbuild/bazelisk), then run the pipeline integration test and the PCS graph test from the repository root.
 
 ```bash
 bazel test --config=ci //tests/pipeline_integration:pipeline_integration
 make bazel-pcs-test
 ```
 
-Example build targets:
-
-```bash
-bazel build //services/stl-compiler:stl_compiler_lib
-bazel build //cli:certifyedge
-```
+Example build targets include `//services/stl-compiler:stl_compiler_lib` and `//cli:certifyedge`.
 
 ---
 
@@ -129,44 +115,19 @@ CertifyEdge/
 └── scripts/                # Runbooks, sync, and validation
 ```
 
-Generated benchmark outputs go under `benchmark_runs/` (gitignored).
+Generated benchmark outputs are written under `benchmark_runs/`, which is listed in `.gitignore`.
 
 ---
 
 ## Continuous integration
 
-GitHub Actions runs:
-
-- `cargo fmt`, `cargo check`, and workspace tests
-- PCS profile validation, certificate benchmarks, and pcs-core drift checks
-- Optional LabTrust-Gym clean-checkout on `main` / `develop`
-- Bazel PCS graph and pipeline integration test
-
-Details: [ADR 002](adr/002-ci-integration-test.md). Release checklist: [PCS guide](pcs-guide.md#pre-release-checklist).
+GitHub Actions runs formatting, workspace checks, PCS profile validation, certificate benchmarks, pcs-core drift checks, an optional LabTrust-Gym clean-checkout on mainline branches, and a Bazel job that builds the PCS graph plus the pipeline integration test. [ADR 002](adr/002-ci-integration-test.md) describes the jobs, and the [PCS guide pre-release checklist](pcs-guide.md#pre-release-checklist) lists the local commands maintainers run before a tag.
 
 ---
 
 ## Troubleshooting
 
-**Build failures after dependency changes:**
-
-```bash
-cargo clean && cargo check --workspace
-```
-
-**Bazel cache issues:**
-
-```bash
-bazel clean --expunge
-bazel test --config=ci //tests/pipeline_integration:pipeline_integration --test_output=errors
-```
-
-**Integration test details:**
-
-```bash
-cargo test -p integration_tests -- --nocapture
-cargo test -p certifyedge-integration -- --nocapture
-```
+When dependency upgrades leave the tree in a confusing state, `cargo clean && cargo check --workspace` usually restores a predictable build. Bazel users who see stale analysis can run `bazel clean --expunge` followed by `bazel test --config=ci //tests/pipeline_integration:pipeline_integration --test_output=errors`. Integration tests accept `--nocapture` on both Cargo targets when you need full stdout from failing cases.
 
 ---
 

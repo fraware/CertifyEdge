@@ -1,20 +1,18 @@
 # CertifyEdge documentation
 
-Use this index to find the right guide. The repository ships two related capabilities: **PCS v0.1** (profile-driven proof-carrying certificates) and an **STL/SMT specification stack** (temporal formulas, solvers, signed certificates).
+This index helps you choose the right guide. The repository delivers two related capabilities, namely **PCS v0.1** with profile-driven proof-carrying certificates, and an **STL/SMT specification stack** that covers temporal formulas, solvers, and signed certificates for classical temporal-logic workflows.
 
 ---
 
 ## New here?
 
-1. Clone and build: [Quick start](quick-start.md)
-2. Run the PCS smoke test: [PCS guide — Build and install](pcs-guide.md#build-and-install-the-cli)
-3. Before contributing: [Contributing](../CONTRIBUTING.md)
+Begin with the [Quick start](quick-start.md) to clone the repository and install the Rust toolchain, then follow the [PCS guide](pcs-guide.md#build-and-install-the-cli) to build the CLI and run the runbook smoke test. When you plan to open a pull request, read [Contributing](../CONTRIBUTING.md) for the test gates that match continuous integration.
 
 ---
 
 ## Proof-Carrying Science (PCS) v0.1
 
-**[PCS guide](pcs-guide.md)** is the main reference: property profiles, the `certifyedge` CLI, benchmarks, schema sync, cross-repo chains, and the pre-release checklist.
+The [PCS guide](pcs-guide.md) is the main reference for property profiles, the `certifyedge` CLI, benchmark suites, schema synchronization, cross-repository chains, and the pre-release checklist maintainers run before tagging.
 
 | Document | Read when you need to… |
 |----------|-------------------------|
@@ -35,23 +33,23 @@ Use this index to find the right guide. The repository ships two related capabil
 | [Quick start](quick-start.md) | Rust, Bazel, CI, and repository layout |
 | [Contributing](../CONTRIBUTING.md) | Pull requests, formatting, and test gates |
 | [Root README](../README.md) | Project overview |
-| [STL compiler](../services/stl-compiler/README.md) | STL/SMT crate (separate from PCS property profiles) |
+| [STL compiler](../services/stl-compiler/README.md) | STL/SMT crate, separate from PCS property profiles |
 
 ### Architecture decision records
 
-[Index](adr/README.md)
+See the [ADR index](adr/README.md).
 
 | ADR | Topic |
 |-----|--------|
-| [001 — Bazel](adr/001-bazel-canonical-build.md) | Canonical build graph |
-| [002 — CI](adr/002-ci-integration-test.md) | GitHub Actions and integration tests |
-| [003 — Protos](adr/003-proto-and-grpc.md) | Protocol buffers and future gRPC |
-| [004 — Threat model](adr/004-threat-model-outline.md) | Security outline (summary) |
-| [005 — PCS v0.1](adr/005-pcs-v01-labtrust-certification.md) | LabTrust certification architecture |
+| [001](adr/001-bazel-canonical-build.md) | Canonical build graph |
+| [002](adr/002-ci-integration-test.md) | GitHub Actions and integration tests |
+| [003](adr/003-proto-and-grpc.md) | Protocol buffers and future gRPC |
+| [004](adr/004-threat-model-outline.md) | Security outline (summary) |
+| [005](adr/005-pcs-v01-labtrust-certification.md) | LabTrust certification architecture |
 
 ---
 
 ## External references
 
-- [pcs-core](https://github.com/SentinelOps-CI/pcs-core) — schemas, `pcs` CLI, and benchmark ingest
-- [LabTrust-Gym](https://github.com/fraware/LabTrust-Gym) — simulation traces and runtime handoffs for the hospital-lab demo
+- [pcs-core](https://github.com/SentinelOps-CI/pcs-core) hosts schemas, the `pcs` CLI, and benchmark ingest tooling.
+- [LabTrust-Gym](https://github.com/fraware/LabTrust-Gym) supplies simulation traces and runtime handoffs for the hospital-lab demonstration workflow.

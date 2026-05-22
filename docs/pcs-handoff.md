@@ -1,20 +1,18 @@
 # Cross-repo PCS handoff
 
-> **Start here:** [PCS guide](pcs-guide.md) for local workflows, benchmarks, and pre-release checklist.
-
-This document lists the **end-to-end chain** from LabTrust-Gym through CertifyEdge to downstream consumers. Canonical chain documentation also lives in [LabTrust-Gym `docs/pcs_v01_clean_chain.md`](https://github.com/fraware/LabTrust-Gym/blob/main/docs/pcs_v01_clean_chain.md).
+Local workflows, benchmarks, and the pre-release checklist appear in the [PCS guide](pcs-guide.md). This page lists the end-to-end chain from LabTrust-Gym through CertifyEdge to downstream consumers, and LabTrust-Gym also documents the same chain in [`docs/pcs_v01_clean_chain.md`](https://github.com/fraware/LabTrust-Gym/blob/main/docs/pcs_v01_clean_chain.md).
 
 ## Automated chain (recommended)
 
-From CertifyEdge (sibling `../LabTrust-Gym`, `pcs` and `labtrust` on PATH):
+From CertifyEdge you need a sibling `../LabTrust-Gym` checkout with `pcs` and `labtrust` on your path.
 
 ```bash
 export PCS_DETERMINISTIC=1
-make clean-checkout-certified   # LabTrust + CertifyEdge + attach
-make clean-checkout             # Full chain (Provability Fabric + Scientific Memory)
+make clean-checkout-certified
+make clean-checkout
 ```
 
-Windows: `.\scripts\pcs-v01-clean-checkout.ps1`
+On Windows run `.\scripts\pcs-v01-clean-checkout.ps1`.
 
 | Variable | Role |
 |----------|------|
@@ -29,7 +27,7 @@ Windows: `.\scripts\pcs-v01-clean-checkout.ps1`
 
 ## Manual chain
 
-Run from **LabTrust-Gym** unless noted.
+Run the LabTrust-Gym steps from that repository unless a heading states otherwise.
 
 ### LabTrust-Gym
 
@@ -50,7 +48,7 @@ pcs validate labtrust_to_certifyedge_handoff.json
 
 ### CertifyEdge (handoff-driven)
 
-Example fixture: `tests/fixtures/handoff/labtrust_to_certifyedge_handoff.json`.
+The committed example handoff is `tests/fixtures/handoff/labtrust_to_certifyedge_handoff.json`.
 
 ```bash
 export CERTIFYEDGE_SOURCE_COMMIT="$(git rev-parse HEAD)"
@@ -66,7 +64,7 @@ pcs validate trace_certificate.json
 pcs validate certifyedge_to_labtrust_handoff.json
 ```
 
-Legacy path (explicit spec + trace, no handoff):
+An alternate path passes an explicit spec and trace directly when teams supply spec-and-trace inputs in place of a handoff manifest.
 
 ```bash
 cargo run -p certifyedge -- emit-pcs-certificate \
@@ -77,11 +75,11 @@ cargo run -p certifyedge -- emit-pcs-certificate \
 
 ### Tool-use profile
 
-Same emit path; profile `agent_tool_use.safety_v0` produces `ToolUseCertificate.v0`. Handoff expects `ToolUseTrace.v0` input and `ToolUseCertificate.v0` output.
+The same emit command applies with profile `agent_tool_use.safety_v0`, which yields `ToolUseCertificate.v0` when the handoff references `ToolUseTrace.v0` input and `ToolUseCertificate.v0` output.
 
 ### Computation profile
 
-Profile `scientific_computation.reproducibility_v0` produces `ComputationWitness.v0` from a multi-file handoff directory:
+Profile `scientific_computation.reproducibility_v0` yields `ComputationWitness.v0` from a multi-file handoff directory.
 
 | File | Artifact type |
 |------|----------------|
@@ -90,7 +88,7 @@ Profile `scientific_computation.reproducibility_v0` produces `ComputationWitness
 | `environment_receipt.json` | `EnvironmentReceipt.v0` |
 | `result_artifact.json` | `ResultArtifact.v0` |
 
-Handoff invariants use `run_hash` (not `trace_hash`).
+Computation handoffs carry `run_hash` in invariants, whereas trace-oriented handoffs carry `trace_hash`.
 
 ### Rejected certificates (all profiles)
 
@@ -126,7 +124,7 @@ just pcs-import-bundle ../LabTrust-Gym/signed_science_claim_bundle.json
 just pcs-render-claim claim-pcs-qc-release-v0.1
 ```
 
-Post-chain validation (LabTrust-Gym):
+Post-chain validation in LabTrust-Gym:
 
 ```bash
 python examples/pcs_qc_release/scripts/verify_pcs_v01_chain.py --work . --stage full
@@ -136,9 +134,7 @@ python examples/pcs_qc_release/scripts/verify_pcs_v01_chain.py --work . --stage 
 
 ## Hash compatibility
 
-- `certificate.trace_hash` must equal `trace.json` → `trace_hash`.
-- That value must equal LabTrust `RuntimeReceipt.v0` → `trace_hash`.
-- CertifyEdge uses the same canonical digest rules as LabTrust-Gym `compute_trace_hash`.
+`certificate.trace_hash` must equal the `trace_hash` field inside `trace.json`, and that value must match `RuntimeReceipt.v0.trace_hash` from LabTrust-Gym. CertifyEdge applies the same canonical digest rules as LabTrust-Gym `compute_trace_hash`.
 
 ## Counterexample reasons
 
@@ -151,4 +147,4 @@ python examples/pcs_qc_release/scripts/verify_pcs_v01_chain.py --work . --stage 
 
 ## Simulation disclaimer
 
-All artifacts describe LabTrust-Gym **simulation** runs only—not clinical or production laboratory certification.
+All artifacts in this chain describe LabTrust-Gym **simulation** runs and document protocol behavior on synthetic data, which means they support engineering review of the trust loop and remain simulation evidence distinct from clinical or production laboratory certification.

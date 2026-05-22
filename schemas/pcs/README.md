@@ -1,6 +1,6 @@
 # Vendored PCS schemas
 
-JSON schemas synced from [pcs-core](https://github.com/SentinelOps-CI/pcs-core) for offline validation. Usage and sync commands: [docs/pcs-guide.md](../../docs/pcs-guide.md).
+JSON schemas in this directory are synced from [pcs-core](https://github.com/SentinelOps-CI/pcs-core) so CertifyEdge can validate artifacts offline. Usage and synchronization commands appear in [docs/pcs-guide.md](../../docs/pcs-guide.md).
 
 ## Certificate and handoff
 
@@ -28,14 +28,14 @@ JSON schemas synced from [pcs-core](https://github.com/SentinelOps-CI/pcs-core) 
 | `FailureLocalizationResult.v0.schema.json` | `failure_localization/*.json` |
 | `ExplainQualityReport.v0.schema.json` | `explain_quality/*.json` |
 
-CertifyEdge-only: `BenchmarkCaseSpec.v0`, `CertificateBenchmarkSuite.v0`, `BenchmarkArtifactRef.v0`.
+CertifyEdge-only extensions include `BenchmarkCaseSpec.v0`, `CertificateBenchmarkSuite.v0`, and `BenchmarkArtifactRef.v0`.
 
 ## Sync
 
 ```bash
 make sync-pcs-schemas
 make sync-pcs-benchmark-schemas
-make check-pcs-benchmark-schemas   # drift vs pcs-core
+make check-pcs-benchmark-schemas
 ```
 
 `common.defs.json` merges pcs-core vocabulary with CertifyEdge-only definitions.

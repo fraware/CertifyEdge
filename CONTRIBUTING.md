@@ -1,6 +1,6 @@
 # Contributing to CertifyEdge
 
-Thank you for helping improve CertifyEdge. This document summarizes how to build, test, and submit changes.
+Thank you for helping improve CertifyEdge. The sections below summarize how to build, test, and submit changes so reviewers can merge your work with confidence.
 
 ---
 
@@ -17,15 +17,15 @@ Thank you for helping improve CertifyEdge. This document summarizes how to build
 
 ## Development setup
 
-1. Install Rust **1.88.0** (see [`rust-toolchain.toml`](rust-toolchain.toml)).
-2. Clone the repository and run `cargo check --workspace` from the root.
-3. Read [docs/quick-start.md](docs/quick-start.md) for Bazel and optional tools.
+Install Rust **1.88.0** as pinned in [`rust-toolchain.toml`](rust-toolchain.toml), clone the repository, and run `cargo check --workspace` from the root. The [quick start](docs/quick-start.md) explains Bazel, optional Python usage for benchmark scripts, and platform-specific notes for Windows developers who rely on Git Bash.
 
 ---
 
 ## Tests to run
 
 ### All contributors
+
+Every pull request should pass formatting and the workspace build before review.
 
 ```bash
 cargo fmt --all -- --check
@@ -35,6 +35,8 @@ cargo test --workspace
 
 ### STL / SMT changes
 
+When you modify the compiler, verifier, or classical certificate crates, run the pipeline integration test in Cargo and Bazel so both build graphs stay aligned.
+
 ```bash
 cargo test -p integration_tests
 bazel test --config=ci //tests/pipeline_integration:pipeline_integration
@@ -42,45 +44,38 @@ bazel test --config=ci //tests/pipeline_integration:pipeline_integration
 
 ### PCS v0.1 changes
 
-If you touch profiles, certificates, benchmarks, handoffs, or scripts under `scripts/pcs-*`:
+When you touch profiles, certificates, benchmarks, handoffs, or scripts whose names begin with `pcs-`, set the source commit and run the PCS gate that mirrors most of the certificate-related continuous integration job.
 
 ```bash
 export CERTIFYEDGE_SOURCE_COMMIT="$(git rev-parse HEAD)"
 make pcs-test
 ```
 
-For benchmark or ingest output changes, also run:
+Benchmark or ingest output changes should also run the full producer target for all three profile suites.
 
 ```bash
 make pcs-bench-producer-all-profiles
 ```
 
-Full release sequence: [docs/pcs-guide.md#pre-release-checklist](docs/pcs-guide.md#pre-release-checklist).
-
-On Windows, use Git Bash for `make` shell targets and set `PYTHON=python` if `python3` is not on PATH.
+The complete sequence maintainers use before a release tag lives in the [PCS guide pre-release checklist](docs/pcs-guide.md#pre-release-checklist). On Windows, run `make` shell targets from Git Bash and set `PYTHON=python` when your shell exposes `python` as the Python 3 interpreter.
 
 ---
 
 ## Optional git hooks
 
-To reject unwanted `Co-authored-by` trailers in commit messages (for example from automated coding assistants):
+You may point Git at the repository hooks directory if you want the commit-msg hook to decline messages that include unwanted `Co-authored-by` trailers from automated coding assistants.
 
 ```bash
 git config core.hooksPath .githooks
 ```
 
-Hooks are optional and local to your clone.
+Hooks remain optional and apply only to your local clone.
 
 ---
 
 ## Pull request guidelines
 
-1. Fork the repository and branch from `main`.
-2. Keep each pull request focused on one topic.
-3. Match existing naming and code style.
-4. Run the test commands above for the areas you changed.
-5. Update documentation when behavior or public commands change.
-6. Describe what you tested in the pull request body.
+Fork the repository and branch from `main`, keeping each pull request focused on a single topic so review stays tractable. Match existing naming and code style, run the test commands that apply to your change set, and update documentation whenever behavior or public commands change. Describe what you tested in the pull request body so reviewers can reproduce your results.
 
 ---
 

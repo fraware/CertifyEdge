@@ -1,8 +1,6 @@
 # Property profiles and registry
 
-> **Start here:** [PCS guide](pcs-guide.md) for commands, benchmarks, and release checklist.
-
-CertifyEdge maps **property profiles** (`templates/profiles/<property_id>.json`) to input artifacts, STL templates, output certificate types, and handoff kinds.
+Commands, benchmarks, and the release checklist appear in the [PCS guide](pcs-guide.md). CertifyEdge maps **property profiles** (`templates/profiles/<property_id>.json`) to input artifacts, STL templates, output certificate types, and handoff kinds.
 
 ## Default LabTrust profile
 
@@ -26,26 +24,18 @@ CertifyEdge maps **property profiles** (`templates/profiles/<property_id>.json`)
 | `agent_tool_use.safety_v0` | Tool-use trace | `ToolUseCertificate.v0` | `templates/tool_use/no_unauthorized_tool.stl` |
 | `scientific_computation.reproducibility_v0` | Computation receipts (+ supporting) | `ComputationWitness.v0` | `templates/computation/result_hashes_match.stl` |
 
-Computation profiles declare `supporting_artifacts` (`DatasetReceipt.v0`, `EnvironmentReceipt.v0`, `ResultArtifact.v0`). Handoff invariants use `run_hash`.
+Computation profiles list `supporting_artifacts` (`DatasetReceipt.v0`, `EnvironmentReceipt.v0`, `ResultArtifact.v0`), and their handoff invariants use `run_hash`.
 
 ## Profile document fields
 
-Each `templates/profiles/<id>.json` defines:
-
-- `property_id`, `template`, input/output artifact types, counterexample artifact
-- `valid_success_status`, `valid_failure_status`
-- `release_mode_required_fields` — required certificate fields in release mode
-- `formalization` — predicate name and required fields for formal facts
-- `repair_hints` — `failure_code` → repair command for downstream explain tools
+Each `templates/profiles/<id>.json` carries `property_id`, `template`, input and output artifact types, counterexample artifact names, `valid_success_status`, `valid_failure_status`, `release_mode_required_fields`, a `formalization` block with predicate name and required fields, and `repair_hints` that map `failure_code` values to repair commands for downstream explain tooling.
 
 | Profile family | Formal predicate | Typical required fields |
 |----------------|------------------|-------------------------|
 | LabTrust / tool-use | `CertificateMatchesRuntime` | `certificate_id`, `trace_hash`, `status`, provenance |
 | Computation | `ComputationWitnessBindsResults` | `witness_id`, hashes, `status` |
 
-Emit formal facts with `--formal-facts-out certificate_formal_facts.json` (`CertificateFormalFacts.v0`).
-
-Validate profiles: `make validate-profiles`.
+Emit formal facts with `--formal-facts-out certificate_formal_facts.json` to produce `CertificateFormalFacts.v0`. Run `make validate-profiles` to check every profile file.
 
 ## Handoff kinds
 
@@ -58,7 +48,7 @@ Validate profiles: `make validate-profiles`.
 
 ## Registry contributions
 
-Copy into pcs-core `ArtifactRegistry.v0` when promoting:
+Promote these files into pcs-core `ArtifactRegistry.v0` when upstream accepts the entry.
 
 | File | Output artifact |
 |------|-----------------|
@@ -69,8 +59,8 @@ Copy into pcs-core `ArtifactRegistry.v0` when promoting:
 | `pcs_registry/BenchmarkRun.v0.registry.json` | `BenchmarkRun.v0` |
 | `pcs_registry/CertificateCoverageReport.v0.registry.json` | `CertificateCoverageReport.v0` |
 
-Check drift: `make check-pcs-registry` (requires `PCS_CORE_PATH` or sibling `pcs-core`).
+Run `make check-pcs-registry` with `PCS_CORE_PATH` or a sibling `pcs-core` checkout to detect drift.
 
 ## Benchmarks
 
-Case layout and producer commands: [benchmarks/certificates/README.md](../benchmarks/certificates/README.md) and [PCS guide — Certificate benchmarks](pcs-guide.md#certificate-benchmarks).
+Case layout and producer commands appear in [benchmarks/certificates/README.md](../benchmarks/certificates/README.md) and in the [PCS guide certificate benchmarks section](pcs-guide.md#certificate-benchmarks).

@@ -1,12 +1,8 @@
 # Certificate benchmark cases
 
-> **Commands and release checklist:** [docs/pcs-guide.md](../../docs/pcs-guide.md#certificate-benchmarks)
+Commands and the release checklist appear in [docs/pcs-guide.md](../../docs/pcs-guide.md#certificate-benchmarks).
 
-Each profile has `valid/` and `invalid/` case directories:
-
-- `case.json` — expected status, failure code, repair-hint expectations
-- `handoff.json` — runtime handoff manifest (digest refreshed at run time)
-- Input artifacts referenced by the handoff
+Each profile maintains `valid/` and `invalid/` case directories. Every case includes `case.json` with expected status and failure metadata, `handoff.json` with a runtime handoff manifest whose digest is refreshed at run time, and the input artifacts referenced by the handoff.
 
 ## Suites
 
@@ -18,14 +14,14 @@ Each profile has `valid/` and `invalid/` case directories:
 
 ## Required case categories (per profile)
 
-At least: 1 `valid`, 3 invalid field/hash cases, 1 `rejected_certificate`, 1 `repair_hint_quality`, 1 `formal_facts`.
+Each benchmarked profile includes at least one `valid` case, three invalid field or hash cases, one `rejected_certificate` case, one `repair_hint_quality` case, and one `formal_facts` case.
 
-Regenerate from fixtures:
+Regenerate cases from committed fixtures with the commands below.
 
 ```bash
 python3 scripts/generate-certificate-benchmark-cases.py
-# Windows: python scripts/generate-certificate-benchmark-cases.py
-# or: make PYTHON=python generate-certificate-benchmarks
+python scripts/generate-certificate-benchmark-cases.py
+make PYTHON=python generate-certificate-benchmarks
 ```
 
 ## Outputs (under `benchmark_runs/<suite>/`)
@@ -35,7 +31,7 @@ python3 scripts/generate-certificate-benchmark-cases.py
 | `pcs_bench_ingest.v0.json` | Primary ingest bundle for pcs-bench |
 | `benchmark_report.v0.json` | Aggregate report |
 | `runs/<case_id>.benchmark_run.v0.json` | Per-case run record |
-| `failure_localization/*.json` | Per invalid/rejected case |
-| `explain_quality/*.json` | Per rejection/repair-hint case |
+| `failure_localization/*.json` | Per invalid or rejected case |
+| `explain_quality/*.json` | Per rejection or repair-hint case |
 
-Schema details: [schemas/pcs/README.md](../../schemas/pcs/README.md).
+Schema names and sync commands appear in [schemas/pcs/README.md](../../schemas/pcs/README.md).

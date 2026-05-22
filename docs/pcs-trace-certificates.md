@@ -1,14 +1,12 @@
 # Trace certificates (LabTrust)
 
-> **Start here:** [PCS guide](pcs-guide.md) covers build, emit, verify, benchmarks, and release checklist.
-
-This page documents **LabTrust-specific** details for `TraceCertificate.v0`. Tool-use and computation certificates use the same CLI with different profiles—see [pcs-certificate-profile.md](pcs-certificate-profile.md).
+Build, emit, verify, benchmarks, and the release checklist are covered in the [PCS guide](pcs-guide.md). This page records **LabTrust-specific** details for `TraceCertificate.v0`, while tool-use and computation certificates follow the same CLI with different profiles as described in [pcs-certificate-profile.md](pcs-certificate-profile.md).
 
 ## Certificate fields
 
 | Field | Role |
 |-------|------|
-| `trace_hash` | PCS digest of the LabTrust trace (must match `RuntimeReceipt.v0.trace_hash`) |
+| `trace_hash` | PCS digest of the LabTrust trace (matches `RuntimeReceipt.v0.trace_hash`) |
 | `spec_hash` | PCS digest of the property template and `property_id` |
 | `property_id` | e.g. `hospital_lab.qc_release` |
 | `checker` / `checker_version` | `CertifyEdge` and crate version |
@@ -18,7 +16,7 @@ This page documents **LabTrust-specific** details for `TraceCertificate.v0`. Too
 
 ## Canonical pcs-core fixtures
 
-Synced from [pcs-core](https://github.com/SentinelOps-CI/pcs-core) `examples/labtrust-release/` into `tests/fixtures/labtrust-release/`:
+Files synced from [pcs-core](https://github.com/SentinelOps-CI/pcs-core) `examples/labtrust-release/` into `tests/fixtures/labtrust-release/` include the following.
 
 | File | Role |
 |------|------|
@@ -31,7 +29,7 @@ PCS_CORE_PATH=../pcs-core make sync-pcs-core-rc
 make check-pcs-core-rc
 ```
 
-Verify against the canonical trace:
+Verify against the canonical trace with the command below.
 
 ```bash
 cargo run -p certifyedge -- verify-certificate \
@@ -39,17 +37,12 @@ cargo run -p certifyedge -- verify-certificate \
   --trace tests/fixtures/labtrust-release/trace.json
 ```
 
-Release-mode verify enforces `source_repo` and rejects placeholder `source_commit` values.
+Release-mode verify enforces `source_repo` and requires `source_commit` values that satisfy the release policy, including real repository revisions in place of placeholder commits.
 
 ## Release-run fixtures
 
-Non-canonical full artifact set: `tests/fixtures/release-run/` (built with `make release-run`). Provenance is in `RELEASE_FIXTURE_MANIFEST.json` (`certifyedge_commit` must match certificate `source_commit`).
+The directory `tests/fixtures/release-run/` holds a full artifact set produced by `make release-run`. Provenance appears in `RELEASE_FIXTURE_MANIFEST.json`, and the `certifyedge_commit` field must match the certificate `source_commit`.
 
 ## Release mode rules
 
-- `source_commit` from `CERTIFYEDGE_SOURCE_COMMIT` or `git rev-parse HEAD` inside this repository.
-- Rejects placeholders: `local-dev`, all-zero SHAs, and test patterns `aaaa…`, `bbbb…`, `cccc…` (40 hex digits).
-- If LabTrust-Gym is discoverable, rejects a `CERTIFYEDGE_SOURCE_COMMIT` that equals LabTrust-Gym HEAD but not CertifyEdge HEAD.
-- Runs `pcs validate` on output when `pcs` is available.
-
-Without `--release-mode`, a zero `source_commit` placeholder may be used when no git commit is available.
+Release mode resolves `source_commit` from `CERTIFYEDGE_SOURCE_COMMIT` or from `git rev-parse HEAD` inside this repository. The gate declines `local-dev`, all-zero SHAs, and the forty-character test patterns `aaaa…`, `bbbb…`, and `cccc…`. When LabTrust-Gym is discoverable, release mode also declines a `CERTIFYEDGE_SOURCE_COMMIT` that matches LabTrust-Gym HEAD while differing from CertifyEdge HEAD. Emit runs `pcs validate` on the output when the `pcs` CLI is installed. Development builds that omit `--release-mode` may write a zero `source_commit` when git returns an empty revision.
