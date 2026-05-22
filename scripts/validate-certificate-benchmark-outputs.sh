@@ -6,6 +6,20 @@ set -eu
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+PYTHON="${PYTHON:-}"
+if [[ -z "$PYTHON" ]]; then
+  for candidate in python3 python py; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+      PYTHON="$candidate"
+      break
+    fi
+  done
+fi
+if [[ -z "$PYTHON" ]]; then
+  echo "error: python3, python, or py required on PATH" >&2
+  exit 1
+fi
+
 PCS_CORE="${PCS_CORE_PATH:-${PCS_CORE_ROOT:-../pcs-core}}"
 EXTRA=()
 if [[ -d "$PCS_CORE/schemas" ]]; then
@@ -23,13 +37,13 @@ for suite in hospital_lab_qc_release tool_use_safety computation_reproducibility
   cargo run -p certifyedge --quiet -- benchmark validate-output --out "$out" "${EXTRA[@]}"
 done
 
-python3 "$ROOT/scripts/validate-pcs-bench-ingest-shape.py" "$ROOT"
+"$PYTHON" "$ROOT/scripts/validate-pcs-bench-ingest-shape.py" "$ROOT"
 
 if [[ -d "$PCS_CORE/schemas" ]] || [[ -d "$PCS_CORE/python/pcs_core" ]]; then
   export PCS_CORE_PATH="$PCS_CORE"
   for suite in hospital_lab_qc_release tool_use_safety computation_reproducibility; do
     bash "$ROOT/scripts/validate-pcs-bench-ingest-consumer.sh" \
-      "$ROOT/benchmark_runs/$suite/pcs_bench_ingest.v0.json"
+      "$ROOT/benchmark_runs/$suite/pcs_bench_ingest.v0.json" --release-grade
   done
 fi
 

@@ -36,8 +36,10 @@ pub use certificate_benchmark::{
     PROFILE_COVERAGE_REPORT_SCHEMA,
 };
 pub use pcs_benchmark_bridge::{
-    build_json_summary, validate_pcs_benchmark_output_dir, BenchmarkCertificatesJsonSummary,
-    RepairHintQuality, CERTIFICATE_BENCHMARK_SUITE_SCHEMA,
+    build_json_summary, case_failure_localization_accurate,
+    failure_code_for_localization, responsible_component_for_failure_code,
+    validate_pcs_benchmark_output_dir, BenchmarkCertificatesJsonSummary, RepairHintQuality,
+    CERTIFICATE_BENCHMARK_SUITE_SCHEMA,
 };
 pub use pcs_schema_external::validate_pcs_core_output_dir;
 pub use computation_check::{

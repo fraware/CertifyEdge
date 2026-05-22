@@ -112,6 +112,58 @@ def validate_ingest(path: Path) -> list[str]:
                 for p in paths
             ):
                 errors.append(f"{path}: artifact_refs missing runs/*.benchmark_run.v0.json")
+            suite_dir = path.parent
+            for required_file in (
+                "benchmark_report.v0.json",
+                "pcs_bench_ingest.v0.json",
+            ):
+                if not (suite_dir / required_file).is_file():
+                    errors.append(f"{path}: missing producer output {required_file}")
+            if not (suite_dir / "repair_hint_quality_report.v0.json").is_file():
+                errors.append(f"{path}: missing producer output repair_hint_quality_report.v0.json")
+            if not (suite_dir / "certificate_coverage_report.v0.json").is_file():
+                errors.append(f"{path}: missing producer output certificate_coverage_report.v0.json")
+
+            failed_runs = [
+                r
+                for r in doc.get("benchmark_runs", [])
+                if isinstance(r, dict) and r.get("observed_status") == "failed"
+            ]
+            fl = doc.get("failure_localization_reports")
+            eq = doc.get("explain_quality_reports")
+            if failed_runs:
+                if not isinstance(fl, list) or not fl:
+                    errors.append(
+                        f"{path}: failure_localization_reports required when benchmark_runs include failures"
+                    )
+                if not isinstance(eq, list) or not eq:
+                    errors.append(
+                        f"{path}: explain_quality_reports required when benchmark_runs include failures"
+                    )
+            if isinstance(fl, list):
+                fl_paths = {
+                    r.get("path")
+                    for r in refs
+                    if isinstance(r, dict)
+                    and r.get("artifact_type") == "FailureLocalizationResult.v0"
+                    and isinstance(r.get("path"), str)
+                }
+                if fl and not any(
+                    isinstance(p, str) and p.startswith("failure_localization/") for p in fl_paths
+                ):
+                    errors.append(f"{path}: artifact_refs missing failure_localization/ entries")
+            if isinstance(eq, list):
+                eq_paths = {
+                    r.get("path")
+                    for r in refs
+                    if isinstance(r, dict)
+                    and r.get("artifact_type") == "ExplainQualityReport.v0"
+                    and isinstance(r.get("path"), str)
+                }
+                if eq and not any(
+                    isinstance(p, str) and p.startswith("explain_quality/") for p in eq_paths
+                ):
+                    errors.append(f"{path}: artifact_refs missing explain_quality/ entries")
 
     return errors
 

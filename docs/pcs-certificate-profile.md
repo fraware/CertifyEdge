@@ -85,7 +85,10 @@ Each case includes `case.json` (`BenchmarkCaseSpec.v0`), `handoff.json`, and inp
 ```bash
 make validate-certificate-benchmarks   # schema + layout gates
 make benchmark-certificates            # run all three profile suites
-make validate-benchmark-outputs          # schema + canonical pcs_bench_ingest shape (optional pcs-core)
+make pcs-bench-producer                # tool-use safety + release-grade ingest gate
+make pcs-bench-producer-all-profiles   # all profiles + validate-benchmark-outputs + ingest
+make validate-benchmark-outputs        # schema + canonical pcs_bench_ingest shape (optional pcs-core)
+make validate-pcs-bench-ingest         # pcs-bench validate-ingest --release-grade (all suites)
 make check-pcs-benchmark-schemas       # drift vs pcs-core when ../pcs-core present
 certifyedge benchmark validate-cases   # case.json schema only
 certifyedge benchmark certificates \
@@ -93,6 +96,9 @@ certifyedge benchmark certificates \
   --cases benchmarks/certificates/hospital_lab_qc_release \
   --out benchmark_runs/hospital_lab_qc_release
 ```
+
+Set `CERTIFYEDGE_SOURCE_COMMIT=$(git rev-parse HEAD)` before producer targets (required for
+release-grade `source_commit`; all-zero commits are rejected).
 
 Outputs under `--out` (validated against vendored pcs-core schemas):
 
@@ -105,8 +111,14 @@ Outputs under `--out` (validated against vendored pcs-core schemas):
 | `repair_hint_quality_report.v0.json` | `CoverageReport.v0` (`repair_hint_quality`) |
 | `repair_hint_manifest.v0.json` | Per-case repair-hint quality map for scoring |
 | `certificate_benchmark_suite.v0.json` | CertifyEdge suite metrics + nested coverage |
-| `pcs_bench_ingest.v0.json` | pcs-core `PcsBenchIngest.v0` (primary pcs-bench entry point: `benchmark_runs`, `coverage_reports`, `profile_coverage_reports`, localization + explain arrays) |
+| `pcs_bench_ingest.v0.json` | pcs-core `PcsBenchIngest.v0` (embedded runs/coverage/localization/explain + `artifact_refs`) |
+| `failure_localization/*.json` | Sidecar `FailureLocalizationResult.v0` per invalid/rejected case |
+| `explain_quality/*.json` | Sidecar `ExplainQualityReport.v0` per rejection/repair-hint case |
 | `benchmark_summary.v0.json` | pcs-bench-normalized summary when `--json-summary` is set |
+
+`benchmark_report.v0.json` includes `summary.evidence_grade` (`release` in release mode),
+`metric_summaries`, and `coverage.explain_quality` (suite rollup). Top-level files are also
+listed under `coverage_reports[].details.sidecar_artifact_paths`.
 
 Use `--validate-pcs-core-output ../pcs-core` when running benchmarks, or validate an existing tree:
 

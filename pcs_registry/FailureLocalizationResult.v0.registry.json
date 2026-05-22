@@ -1,0 +1,27 @@
+{
+  "artifact_type": "FailureLocalizationResult.v0",
+  "schema": "schemas/pcs/FailureLocalizationResult.v0.schema.json",
+  "schema_owner": "pcs-core",
+  "runtime_producer": "certifyedge",
+  "allowed_runtime_producers": ["pcs-core", "pcs-bench", "certifyedge"],
+  "producer": "certifyedge",
+  "allowed_statuses": ["Draft", "Validated", "Deprecated"],
+  "required_release_fields": [
+    "schema_version",
+    "result_id",
+    "run_id",
+    "case_id",
+    "expected_failure_code",
+    "observed_failure_code",
+    "expected_responsible_component",
+    "observed_responsible_component",
+    "localized_correctly",
+    "source_repo",
+    "source_commit",
+    "signature_or_digest"
+  ],
+  "semantic_checks": [],
+  "consumer_repos": ["pcs-core", "pcs-bench", "CertifyEdge"],
+  "canonical_hash_required": true,
+  "release_mode_required": false
+}

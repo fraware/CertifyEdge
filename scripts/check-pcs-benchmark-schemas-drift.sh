@@ -28,6 +28,7 @@ for name in (
     "PcsBenchIngest.v0.schema.json",
     "FailureLocalizationResult.v0.schema.json",
     "ExplainQualityReport.v0.schema.json",
+    "MetricSummary.v0.schema.json",
 ):
     upstream = pcs_root / name
     local = local_root / name

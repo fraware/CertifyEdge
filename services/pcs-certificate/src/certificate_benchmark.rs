@@ -5,9 +5,10 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::pcs_benchmark_bridge::{
-    build_json_summary, emit_pcs_benchmark_artifacts, repair_hint_quality_from_hint,
-    BenchmarkCertificatesJsonSummary, PcsBenchmarkEmitInput, RepairHintQuality,
-    CERTIFICATE_BENCHMARK_SUITE_SCHEMA,
+    build_json_summary, case_failure_localization_accurate, emit_pcs_benchmark_artifacts,
+    repair_hint_quality_from_hint,
+    responsible_component_for_failure_code, BenchmarkCertificatesJsonSummary,
+    PcsBenchmarkEmitInput, RepairHintQuality, CERTIFICATE_BENCHMARK_SUITE_SCHEMA,
 };
 use crate::trace_certificate::counterexample_to_json;
 
@@ -79,6 +80,18 @@ pub struct ExpectedRepairHintSpec {
     pub responsible_component: Option<String>,
 }
 
+/// Signals derived from emitted certificate/counterexample artifacts for explain-quality scoring.
+#[derive(Debug, Clone, Default)]
+pub struct ExplainSignals {
+    pub counterexample_emitted: bool,
+    pub certificate_emitted: bool,
+    pub cx_has_provenance: bool,
+    pub cx_has_hashes: bool,
+    pub cx_has_verification: bool,
+    pub cx_has_limitations: bool,
+    pub cx_has_repair_hints: bool,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct CaseRunResult {
     pub case_id: String,
@@ -121,6 +134,8 @@ pub struct CaseRunResult {
     pub completed_at: String,
     #[serde(skip)]
     pub duration_ms: u64,
+    #[serde(skip)]
+    pub explain_signals: ExplainSignals,
     pub errors: Vec<String>,
 }
 
@@ -325,6 +340,8 @@ fn run_single_case(
 
     if spec.unsupported {
         let completed = chrono::Utc::now();
+        let expected_responsible_component =
+            expected_localization_component(&spec, case_category.as_deref());
         return Ok(CaseRunResult {
             case_id: spec.case_id,
             kind: kind.to_string(),
@@ -348,10 +365,7 @@ fn run_single_case(
                 .expected_repair_hint
                 .as_ref()
                 .map(|r| r.kind.clone()),
-            expected_responsible_component: spec
-                .expected_repair_hint
-                .as_ref()
-                .and_then(|r| r.responsible_component.clone()),
+            expected_responsible_component,
             expect_counterexample: spec.expect_counterexample,
             expect_formal_facts: spec.expect_formal_facts,
             formal_facts_ok: false,
@@ -359,6 +373,7 @@ fn run_single_case(
             started_at: case_started.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
             completed_at: completed.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
             duration_ms: (completed - case_started).num_milliseconds().max(0) as u64,
+            explain_signals: ExplainSignals::default(),
             errors: vec!["skipped: case marked unsupported".into()],
         });
     }
@@ -478,6 +493,8 @@ fn run_single_case(
     }
 
     let cx_exists = cx_out.is_file();
+    let certificate_emitted = cert_out.is_file();
+    let explain_signals = explain_signals_from_work(&work, profile, cx_exists, certificate_emitted);
     let expected_status = spec.expected_certificate_status.as_deref();
     let status_match = expected_status == actual_status.as_deref();
     if !status_match {
@@ -537,6 +554,9 @@ fn run_single_case(
         None
     };
 
+    let expected_responsible_component =
+        expected_localization_component(&spec, case_category.as_deref());
+
     Ok(CaseRunResult {
         case_id: spec.case_id,
         kind: kind.to_string(),
@@ -560,10 +580,7 @@ fn run_single_case(
             .expected_repair_hint
             .as_ref()
             .map(|r| r.kind.clone()),
-        expected_responsible_component: spec
-            .expected_repair_hint
-            .as_ref()
-            .and_then(|r| r.responsible_component.clone()),
+        expected_responsible_component,
         expect_counterexample: spec.expect_counterexample,
         expect_formal_facts: spec.expect_formal_facts,
         formal_facts_ok,
@@ -571,8 +588,119 @@ fn run_single_case(
         started_at: case_started.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
         completed_at: case_completed.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
         duration_ms: (case_completed - case_started).num_milliseconds().max(0) as u64,
+        explain_signals,
         errors,
     })
+}
+
+fn expected_localization_component(
+    spec: &BenchmarkCaseSpec,
+    case_category: Option<&str>,
+) -> Option<String> {
+    let category = case_category.or(spec.case_category.as_deref());
+    if category == Some("rejected_certificate") {
+        return Some(
+            responsible_component_for_failure_code("rejected_certificate").to_string(),
+        );
+    }
+    if let Some(component) = spec
+        .expected_repair_hint
+        .as_ref()
+        .and_then(|r| r.responsible_component.clone())
+    {
+        return Some(component);
+    }
+    let fallback = spec
+        .expected_failure_code
+        .as_deref()
+        .or(category)
+        .unwrap_or("");
+    Some(responsible_component_for_failure_code(fallback).to_string())
+}
+
+fn explain_signals_from_work(
+    work: &Path,
+    profile: &PropertyProfile,
+    counterexample_emitted: bool,
+    certificate_emitted: bool,
+) -> ExplainSignals {
+    let mut signals = ExplainSignals {
+        counterexample_emitted,
+        certificate_emitted,
+        ..ExplainSignals::default()
+    };
+    if !counterexample_emitted {
+        return signals;
+    }
+    let cx_path = work.join(default_counterexample_filename(profile));
+    let Ok(text) = std::fs::read_to_string(&cx_path) else {
+        return signals;
+    };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) else {
+        return signals;
+    };
+    signals.cx_has_provenance = json_has_provenance(&value);
+    signals.cx_has_hashes = json_has_hashes(&value);
+    signals.cx_has_verification = json_has_verification(&value);
+    signals.cx_has_limitations = json_has_limitations(&value);
+    signals.cx_has_repair_hints = json_has_repair_hints(&value);
+    signals
+}
+
+fn json_has_provenance(value: &serde_json::Value) -> bool {
+    value.get("source_repo").is_some()
+        || value.get("source_commit").is_some()
+        || value.get("producer_id").is_some()
+        || value.get("provenance").is_some()
+}
+
+fn json_has_hashes(value: &serde_json::Value) -> bool {
+    const KEYS: &[&str] = &[
+        "trace_hash",
+        "policy_hash",
+        "dataset_hash",
+        "environment_digest",
+        "result_hash",
+        "run_hash",
+        "handoff_digest",
+        "signature_or_digest",
+        "hashes",
+    ];
+    KEYS.iter().any(|k| value.get(*k).is_some())
+        || value
+            .as_object()
+            .is_some_and(|o| o.keys().any(|k| k.contains("hash") || k.contains("digest")))
+}
+
+fn json_has_verification(value: &serde_json::Value) -> bool {
+    const KEYS: &[&str] = &[
+        "certificate_status",
+        "observed_status",
+        "status",
+        "failure_code",
+        "observed_failure_code",
+        "verification",
+        "admissible_for_release",
+    ];
+    KEYS.iter().any(|k| value.get(*k).is_some())
+}
+
+fn json_has_limitations(value: &serde_json::Value) -> bool {
+    value.get("limitations").is_some()
+        || value.get("violations").is_some()
+        || value.get("gaps").is_some()
+        || value.get("errors").is_some()
+        || value.get("message").is_some()
+}
+
+fn json_has_repair_hints(value: &serde_json::Value) -> bool {
+    value.get("repair_hint").is_some()
+        || value.get("repair_hints").is_some()
+        || value.get("repair_command").is_some()
+        || value
+            .get("repair_hint")
+            .and_then(|v| v.get("command"))
+            .is_some()
 }
 
 fn infer_case_category(case_id: &str, folder_kind: &str) -> Option<String> {
@@ -810,13 +938,17 @@ fn build_coverage_report(
         })
         .count();
 
-    let failure_denom = results
+    let localization_cases: Vec<_> = results
         .iter()
-        .filter(|r| r.expected_failure_code.is_some())
-        .count();
-    let failure_num = results
+        .filter(|r| {
+            r.kind == "invalid"
+                || r.case_category.as_deref() == Some("rejected_certificate")
+        })
+        .collect();
+    let failure_denom = localization_cases.len();
+    let failure_num = localization_cases
         .iter()
-        .filter(|r| r.expected_failure_code.is_some() && r.failure_code_match)
+        .filter(|r| case_failure_localization_accurate(r))
         .count();
 
     let cx_denom = results.iter().filter(|r| r.expect_counterexample).count();

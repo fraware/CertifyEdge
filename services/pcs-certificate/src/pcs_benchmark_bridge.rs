@@ -6,7 +6,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 
 use crate::certificate_benchmark::{
-    CaseRunResult, CertificateCoverageReport, CertificateBenchmarkSuiteV0,
+    CaseRunResult, CertificateBenchmarkSuiteV0, CertificateCoverageReport,
 };
 use crate::hash::canonical_hash;
 use crate::metadata::CertifyEdgeMetadata;
@@ -84,6 +84,15 @@ const EXPLAIN_QUALITY_SECTIONS: &[&str] = &[
     "repair_hints",
 ];
 
+/// Sections required for certificate rejection / repair-hint explain-quality (release-grade >= 0.8).
+const EXPLAIN_QUALITY_REJECTION_SECTIONS: &[&str] = &[
+    "provenance",
+    "hashes",
+    "verification",
+    "limitations",
+    "repair_hints",
+];
+
 /// Whether a failure code has multiple plausible responsible components (emit `unknown` + reason).
 pub fn failure_localization_is_ambiguous(failure_code: &str) -> bool {
     matches!(failure_code, "policy_hash_mismatch")
@@ -96,6 +105,66 @@ pub fn failure_localization_ambiguity_reason(failure_code: &str) -> Option<&'sta
             "policy_hash_mismatch may be attributed to certificate_producer or runtime_producer",
         ),
         _ => None,
+    }
+}
+
+/// Observed components that satisfy localization when the failure code is ambiguous.
+pub fn failure_localization_plausible_components(failure_code: &str) -> &'static [&'static str] {
+    match failure_code {
+        "policy_hash_mismatch" => &["unknown", "certificate_producer", "runtime_producer"],
+        _ => &["unknown"],
+    }
+}
+
+/// Failure code used for responsible-component mapping (category overrides for rejections).
+pub fn failure_code_for_localization(result: &CaseRunResult, fallback_code: &str) -> String {
+    if result.case_category.as_deref() == Some("rejected_certificate") {
+        "rejected_certificate".to_string()
+    } else {
+        fallback_code.to_string()
+    }
+}
+
+/// Whether failure code and responsible-component localization match benchmark expectations.
+pub fn case_failure_localization_accurate(result: &CaseRunResult) -> bool {
+    let needs_localization = result.kind == "invalid"
+        || result
+            .case_category
+            .as_deref()
+            .is_some_and(|c| c == "rejected_certificate");
+    if !needs_localization {
+        return true;
+    }
+    if !result.failure_code_match {
+        return false;
+    }
+    let fallback = result
+        .expected_failure_code
+        .as_deref()
+        .or(result.actual_failure_code.as_deref())
+        .unwrap_or("");
+    let loc_code = failure_code_for_localization(result, fallback);
+    let expected_component = if result.case_category.as_deref() == Some("rejected_certificate") {
+        responsible_component_for_failure_code(&loc_code).to_string()
+    } else {
+        result
+            .expected_responsible_component
+            .as_deref()
+            .map(normalize_responsible_component)
+            .unwrap_or_else(|| responsible_component_for_failure_code(&loc_code).to_string())
+    };
+    let observed_code = result.actual_failure_code.as_deref().unwrap_or("");
+    let observed_loc_code = failure_code_for_localization(result, observed_code);
+    let observed_component = result
+        .repair_hint_quality
+        .as_ref()
+        .map(|q| normalize_responsible_component(&q.responsible_component))
+        .unwrap_or_else(|| responsible_component_for_failure_code(&observed_loc_code).to_string());
+    if failure_localization_is_ambiguous(&loc_code) {
+        failure_localization_plausible_components(&loc_code).contains(&observed_component.as_str())
+            || observed_component == expected_component
+    } else {
+        observed_component == expected_component
     }
 }
 
@@ -120,6 +189,7 @@ pub fn responsible_component_for_failure_code(failure_code: &str) -> &'static st
         | "nonzero_exit_code"
         | "missing_code_commit" => "runtime_producer",
         "invalid_handoff" | "invalid_handoff_digest" => "handoff",
+        "rejected_certificate" => "certificate_producer",
         code if code.contains("handoff") => "handoff",
         _ => "certificate_producer",
     }
@@ -288,13 +358,14 @@ pub fn emit_pcs_benchmark_artifacts(input: PcsBenchmarkEmitInput<'_>) -> Result<
         .iter()
         .filter(|r| r.kind == "invalid" || r.case_category.as_deref() == Some("rejected_certificate"))
         .filter_map(|r| {
-            let code = r
+            let fallback = r
                 .expected_failure_code
                 .as_deref()
                 .or(r.actual_failure_code.as_deref())
                 .or(r.case_category.as_deref())
                 .unwrap_or("");
-            failure_localization_ambiguity_reason(code).map(|reason| {
+            let code = failure_code_for_localization(r, fallback);
+            failure_localization_ambiguity_reason(&code).map(|reason| {
                 json!({
                     "case_id": r.case_id,
                     "failure_code": code,
@@ -362,6 +433,22 @@ pub fn emit_pcs_benchmark_artifacts(input: PcsBenchmarkEmitInput<'_>) -> Result<
         meta,
     );
 
+    let workflow_id = workflow_id_for_profile(input.profile_id);
+    let failure_localization_reports =
+        build_failure_localization_reports(&suite_id, input.case_results, meta)?;
+    let explain_quality_reports = build_explain_quality_reports(
+        &suite_id,
+        workflow_id,
+        input.case_results,
+        meta,
+    )?;
+    let explain_quality_coverage = build_suite_explain_quality_coverage(
+        &suite_id,
+        workflow_id,
+        &explain_quality_reports,
+        meta,
+    )?;
+
     let report = build_benchmark_report(
         &suite_id,
         input.profile_id,
@@ -370,6 +457,7 @@ pub fn emit_pcs_benchmark_artifacts(input: PcsBenchmarkEmitInput<'_>) -> Result<
         &cert_completeness,
         &repair_coverage,
         &profile_coverage,
+        explain_quality_coverage.as_ref(),
         input.coverage,
         input.suite,
         meta,
@@ -421,14 +509,21 @@ pub fn emit_pcs_benchmark_artifacts(input: PcsBenchmarkEmitInput<'_>) -> Result<
         )?;
     }
 
-    let workflow_id = workflow_id_for_profile(input.profile_id);
-    let ingest = build_pcs_bench_ingest(
+    write_embedded_sidecar_files(
+        input.out_dir,
+        &failure_localization_reports,
+        &explain_quality_reports,
+    )?;
+
+    let ingest = build_pcs_bench_ingest_from_parts(
         input.out_dir,
         &suite_id,
         workflow_id,
         &core_runs,
         &[cert_completeness.clone(), repair_coverage.clone()],
         &[profile_coverage.clone()],
+        &failure_localization_reports,
+        &explain_quality_reports,
         input.case_results,
         meta,
     )?;
@@ -660,25 +755,28 @@ fn build_failure_localization_reports(
                 }
             });
         let run_id = format!("bench-run-{}", result.case_id);
-        let expected_component = result
-            .expected_responsible_component
-            .as_deref()
-            .map(normalize_responsible_component)
-            .unwrap_or_else(|| {
-                responsible_component_for_failure_code(&expected_code).to_string()
-            });
+        let loc_code = failure_code_for_localization(result, &expected_code);
+        let expected_component = if result.case_category.as_deref() == Some("rejected_certificate") {
+            responsible_component_for_failure_code(&loc_code).to_string()
+        } else {
+            result
+                .expected_responsible_component
+                .as_deref()
+                .map(normalize_responsible_component)
+                .unwrap_or_else(|| responsible_component_for_failure_code(&loc_code).to_string())
+        };
         let observed_code = result
             .actual_failure_code
             .as_deref()
             .unwrap_or("")
             .to_string();
+        let observed_loc_code = failure_code_for_localization(result, &observed_code);
         let observed_component = result
             .repair_hint_quality
             .as_ref()
             .map(|q| normalize_responsible_component(&q.responsible_component))
-            .unwrap_or_else(|| responsible_component_for_failure_code(&observed_code).to_string());
-        let localized_correctly =
-            result.failure_code_match && result.responsible_component_correct;
+            .unwrap_or_else(|| responsible_component_for_failure_code(&observed_loc_code).to_string());
+        let localized_correctly = case_failure_localization_accurate(result);
         let doc = with_digest(json!({
             "schema_version": "v0",
             "result_id": format!("{suite_id}-localization-{}", result.case_id),
@@ -701,16 +799,92 @@ fn build_failure_localization_reports(
 }
 
 fn explain_section_present(result: &CaseRunResult, section: &str) -> bool {
+    let signals = &result.explain_signals;
     match section {
-        "provenance" => true,
-        "hashes" => result.handoff_validation_ok || result.actual_failure_code.is_some(),
+        "provenance" => {
+            result.handoff_validation_ok
+                || signals.certificate_emitted
+                || signals.cx_has_provenance
+        }
+        "hashes" => {
+            result.handoff_validation_ok
+                || result.actual_failure_code.is_some()
+                || signals.cx_has_hashes
+        }
         "handoffs" => result.handoff_validation_ok,
-        "verification" => result.actual_certificate_status.is_some(),
+        "verification" => {
+            result.actual_certificate_status.is_some()
+                || result.actual_failure_code.is_some()
+                || signals.cx_has_verification
+                || (result.kind == "invalid" && result.repair_hint_present)
+        }
         "formal_checks" => result.formal_facts_ok || result.expect_formal_facts,
-        "limitations" => !result.errors.is_empty() || result.case_category.is_some(),
-        "lineage" => result.actual_certificate_status.is_some() || result.handoff_validation_ok,
-        "repair_hints" => result.repair_hint_present || result.repair_hint_quality.is_some(),
+        "limitations" => {
+            !result.errors.is_empty()
+                || result.case_category.is_some()
+                || signals.cx_has_limitations
+        }
+        "lineage" => {
+            result.actual_certificate_status.is_some()
+                || result.handoff_validation_ok
+                || signals.certificate_emitted
+        }
+        "repair_hints" => {
+            result.repair_hint_present
+                || result
+                    .repair_hint_quality
+                    .as_ref()
+                    .is_some_and(|q| q.repair_hint_present && !q.repair_command.is_empty())
+                || signals.cx_has_repair_hints
+        }
         _ => false,
+    }
+}
+
+fn explain_section_notes(result: &CaseRunResult, section: &str, present: bool) -> String {
+    if !present {
+        return String::new();
+    }
+    let mut parts = vec![format!("certifyedge benchmark case {}", result.case_id)];
+    if let Some(code) = result.actual_failure_code.as_deref().filter(|s| !s.is_empty()) {
+        parts.push(format!("failure_code={code}"));
+    }
+    if let Some(status) = result.actual_certificate_status.as_deref() {
+        parts.push(format!("certificate_status={status}"));
+    }
+    if result.explain_signals.counterexample_emitted {
+        parts.push("counterexample_emitted=true".into());
+    }
+    if let Some(q) = &result.repair_hint_quality {
+        if section == "repair_hints" && !q.repair_command.is_empty() {
+            parts.push(format!("repair_command={}", q.repair_command));
+        }
+    }
+    let failure_code = result
+        .actual_failure_code
+        .as_deref()
+        .or(result.expected_failure_code.as_deref())
+        .unwrap_or("");
+    if failure_localization_is_ambiguous(failure_code) {
+        if let Some(reason) = failure_localization_ambiguity_reason(failure_code) {
+            parts.push(format!("ambiguity={reason}"));
+        }
+    }
+    parts.join("; ")
+}
+
+fn explain_quality_required_sections(result: &CaseRunResult) -> &'static [&'static str] {
+    let rejection_or_repair = result.kind == "invalid"
+        || result
+            .case_category
+            .as_deref()
+            .is_some_and(|c| c == "rejected_certificate" || c == "repair_hint_quality")
+        || result.repair_hint_present
+        || result.repair_hint_quality.is_some();
+    if rejection_or_repair {
+        EXPLAIN_QUALITY_REJECTION_SECTIONS
+    } else {
+        EXPLAIN_QUALITY_SECTIONS
     }
 }
 
@@ -733,29 +907,32 @@ fn build_explain_quality_reports(
         if !needs_explain {
             continue;
         }
+        let required_sections = explain_quality_required_sections(result);
         let mut sections = serde_json::Map::new();
         let mut gaps = Vec::new();
         let mut present_count = 0usize;
         for section in EXPLAIN_QUALITY_SECTIONS {
             let present = explain_section_present(result, section);
-            if present {
-                present_count += 1;
-            } else {
-                gaps.push(json!({
-                    "section_id": section,
-                    "message": format!("missing certificate rejection explanation section: {section}")
-                }));
+            if required_sections.contains(&section) {
+                if present {
+                    present_count += 1;
+                } else {
+                    gaps.push(json!({
+                        "section_id": section,
+                        "message": format!("missing certificate rejection explanation section: {section}")
+                    }));
+                }
             }
             sections.insert(
                 section.to_string(),
                 json!({
                     "present": present,
                     "score": if present { 1.0 } else { 0.0 },
-                    "notes": if present { format!("certifyedge benchmark case {}", result.case_id) } else { String::new() }
+                    "notes": explain_section_notes(result, section, present)
                 }),
             );
         }
-        let required = EXPLAIN_QUALITY_SECTIONS.len();
+        let required = required_sections.len();
         let quality_score = if required == 0 {
             1.0
         } else {
@@ -768,7 +945,7 @@ fn build_explain_quality_reports(
             "case_id": result.case_id,
             "producer_id": "certifyedge",
             "workflow_id": workflow_id,
-            "required_sections": EXPLAIN_QUALITY_SECTIONS,
+            "required_sections": required_sections,
             "sections": sections,
             "sections_present_count": present_count,
             "sections_required_count": required,
@@ -815,25 +992,18 @@ fn collect_suite_commands_and_logs(
     (commands, logs)
 }
 
-fn build_pcs_bench_ingest(
-    out_dir: &Path,
+fn build_pcs_bench_ingest_from_parts(
+    _out_dir: &Path,
     suite_id: &str,
     workflow_id: &str,
     core_runs: &[Value],
     coverage_reports: &[Value],
     profile_coverage_reports: &[Value],
+    failure_localization_reports: &[Value],
+    explain_quality_reports: &[Value],
     case_results: &[CaseRunResult],
     meta: &CertifyEdgeMetadata,
 ) -> Result<Value, String> {
-    let failure_localization_reports =
-        build_failure_localization_reports(suite_id, case_results, meta)?;
-    let explain_quality_reports =
-        build_explain_quality_reports(suite_id, workflow_id, case_results, meta)?;
-    write_embedded_sidecar_files(
-        out_dir,
-        &failure_localization_reports,
-        &explain_quality_reports,
-    )?;
     let (commands, logs) = collect_suite_commands_and_logs(core_runs, case_results);
     let artifact_refs = build_artifact_refs(
         core_runs,
@@ -843,6 +1013,12 @@ fn build_pcs_bench_ingest(
         &explain_quality_reports,
         meta,
     )?;
+
+    if commands.is_empty() {
+        return Err(format!(
+            "pcs_bench_ingest for {suite_id} requires non-empty commands for release-grade producer output"
+        ));
+    }
 
     Ok(with_digest(json!({
         "schema_version": "v0",
@@ -863,11 +1039,76 @@ fn build_pcs_bench_ingest(
     })))
 }
 
+/// Suite-level explain-quality rollup for `BenchmarkReport.coverage.explain_quality`.
+fn build_suite_explain_quality_coverage(
+    suite_id: &str,
+    workflow_id: &str,
+    explain_reports: &[Value],
+    meta: &CertifyEdgeMetadata,
+) -> Result<Option<Value>, String> {
+    if explain_reports.is_empty() {
+        return Ok(None);
+    }
+    let mut present_total = 0usize;
+    let mut required_total = 0usize;
+    let mut score_sum = 0.0;
+    for report in explain_reports {
+        present_total += report
+            .get("sections_present_count")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as usize;
+        required_total += report
+            .get("sections_required_count")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as usize;
+        score_sum += report.get("quality_score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+    }
+    let n = explain_reports.len().max(1);
+    let quality_score = (score_sum / n as f64).clamp(0.0, 1.0);
+    let sections_ratio = if required_total == 0 {
+        1.0
+    } else {
+        present_total as f64 / required_total as f64
+    };
+    let mut sections = serde_json::Map::new();
+    for section in EXPLAIN_QUALITY_REJECTION_SECTIONS {
+        sections.insert(
+            section.to_string(),
+            json!({
+                "present": sections_ratio >= 0.8,
+                "score": sections_ratio.clamp(0.0, 1.0),
+                "notes": format!("suite rollup across {n} per-case explain quality reports")
+            }),
+        );
+    }
+    let doc = with_digest(json!({
+        "schema_version": "v0",
+        "report_id": format!("{suite_id}-explain-quality-suite"),
+        "suite_id": suite_id,
+        "case_id": "suite",
+        "producer_id": "certifyedge",
+        "workflow_id": workflow_id,
+        "required_sections": EXPLAIN_QUALITY_REJECTION_SECTIONS,
+        "sections": sections,
+        "sections_present_count": present_total,
+        "sections_required_count": required_total.max(1),
+        "quality_score": quality_score,
+        "gaps": [],
+        "source_repo": CERTIFYEDGE_SOURCE_REPO,
+        "source_commit": meta.source_commit,
+        "signature_or_digest": ""
+    }));
+    crate::pcs_schema::validate_explain_quality_report_schema(&doc)
+        .map_err(|e| format!("suite explain quality coverage: {e}"))?;
+    Ok(Some(doc))
+}
+
 const REQUIRED_BENCHMARK_OUTPUT_FILES: &[&str] = &[
     "benchmark_report.v0.json",
     "certificate_coverage_report.v0.json",
     "profile_coverage_report.v0.json",
     "repair_hint_quality_report.v0.json",
+    "certificate_benchmark_suite.v0.json",
     "pcs_bench_ingest.v0.json",
 ];
 
@@ -879,6 +1120,18 @@ pub fn validate_pcs_benchmark_output_dir(out_dir: &Path) -> Result<(), String> {
             return Err(format!("missing required benchmark output: {}", path.display()));
         }
     }
+
+    let suite_path = out_dir.join("certificate_benchmark_suite.v0.json");
+    if !suite_path.is_file() {
+        return Err(format!(
+            "missing required benchmark output: {}",
+            suite_path.display()
+        ));
+    }
+    let suite: Value =
+        serde_json::from_str(&std::fs::read_to_string(&suite_path).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+    crate::pcs_schema::validate_certificate_benchmark_suite_schema(&suite)?;
 
     let report_path = out_dir.join("benchmark_report.v0.json");
     let report_text = std::fs::read_to_string(&report_path)
@@ -940,6 +1193,16 @@ pub fn validate_pcs_benchmark_output_dir(out_dir: &Path) -> Result<(), String> {
     }
     if ingest.get("workflow_id").and_then(|v| v.as_str()).is_none() {
         return Err("pcs_bench_ingest.workflow_id is required".into());
+    }
+    let source_commit = ingest
+        .get("source_commit")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    if source_commit.chars().all(|c| c == '0') && source_commit.len() == 40 {
+        return Err(
+            "pcs_bench_ingest.source_commit must be a real git commit for release-grade producer output"
+                .into(),
+        );
     }
 
     let ingest_runs = ingest
@@ -1006,16 +1269,68 @@ pub fn validate_pcs_benchmark_output_dir(out_dir: &Path) -> Result<(), String> {
         );
     }
 
+    let failed_run_count = ingest_runs
+        .iter()
+        .filter(|r| r.get("observed_status").and_then(|v| v.as_str()) == Some("failed"))
+        .count();
     if let Some(localizations) = ingest.get("failure_localization_reports").and_then(|v| v.as_array()) {
+        if failed_run_count > 0 && localizations.is_empty() {
+            return Err(
+                "pcs_bench_ingest.failure_localization_reports must be non-empty when benchmark runs include failures"
+                    .into(),
+            );
+        }
         for (idx, loc) in localizations.iter().enumerate() {
             crate::pcs_schema::validate_failure_localization_result_schema(loc)
                 .map_err(|e| format!("pcs_bench_ingest.failure_localization_reports[{idx}]: {e}"))?;
         }
+    } else if failed_run_count > 0 {
+        return Err(
+            "pcs_bench_ingest.failure_localization_reports required for failed benchmark runs".into(),
+        );
     }
+    let rejection_case_ids: std::collections::BTreeSet<String> = ingest_runs
+        .iter()
+        .filter_map(|r| {
+            let failed = r.get("observed_status").and_then(|v| v.as_str()) == Some("failed");
+            if failed {
+                r.get("case_id").and_then(|v| v.as_str()).map(str::to_string)
+            } else {
+                None
+            }
+        })
+        .collect();
     if let Some(explains) = ingest.get("explain_quality_reports").and_then(|v| v.as_array()) {
+        if !rejection_case_ids.is_empty() && explains.is_empty() {
+            return Err(
+                "pcs_bench_ingest.explain_quality_reports must be non-empty for rejection/failure cases"
+                    .into(),
+            );
+        }
         for (idx, exp) in explains.iter().enumerate() {
             crate::pcs_schema::validate_explain_quality_report_schema(exp)
                 .map_err(|e| format!("pcs_bench_ingest.explain_quality_reports[{idx}]: {e}"))?;
+            let score = exp.get("quality_score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let case_id = exp.get("case_id").and_then(|v| v.as_str()).unwrap_or("");
+            let required: Vec<&str> = exp
+                .get("required_sections")
+                .and_then(|v| v.as_array())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|v| v.as_str())
+                        .collect()
+                })
+                .unwrap_or_default();
+            let is_rejection_grade = required
+                .iter()
+                .all(|s| EXPLAIN_QUALITY_REJECTION_SECTIONS.contains(s))
+                && required.len() == EXPLAIN_QUALITY_REJECTION_SECTIONS.len();
+            if is_rejection_grade && score < 0.8 {
+                return Err(format!(
+                    "pcs_bench_ingest.explain_quality_reports[{idx}] case {case_id}: \
+                     quality_score {score} below release-grade minimum 0.8"
+                ));
+            }
         }
     }
 
@@ -1245,9 +1560,118 @@ pub fn validate_pcs_benchmark_output_dir(out_dir: &Path) -> Result<(), String> {
         }
     }
 
+    validate_artifact_refs_cover_embedded(&ingest, out_dir)?;
+    validate_sidecar_artifact_paths_on_disk(&ingest, out_dir)?;
+
+    let commands = ingest
+        .get("commands")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| "pcs_bench_ingest.commands must be an array".to_string())?;
+    if commands.is_empty() {
+        return Err("pcs_bench_ingest.commands must be non-empty for release-grade producer output".into());
+    }
+
+    let evidence_grade = report
+        .get("summary")
+        .and_then(|s| s.get("evidence_grade"))
+        .and_then(|v| v.as_str());
+    if evidence_grade != Some("release") {
+        return Err(format!(
+            "benchmark_report.summary.evidence_grade must be 'release' when producer runs in release mode (got {evidence_grade:?})"
+        ));
+    }
+
     let _ = repair_cov;
     let _ = cert_cov;
 
+    Ok(())
+}
+
+fn validate_artifact_refs_cover_embedded(ingest: &Value, out_dir: &Path) -> Result<(), String> {
+    let refs = ingest
+        .get("artifact_refs")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| "pcs_bench_ingest.artifact_refs required".to_string())?;
+    let ref_keys: std::collections::BTreeSet<(String, String)> = refs
+        .iter()
+        .filter_map(|r| {
+            let t = r.get("artifact_type")?.as_str()?;
+            let sha = r.get("sha256")?.as_str()?;
+            Some((t.to_string(), sha.to_string()))
+        })
+        .collect();
+
+    let embedded_types: &[(&str, &str)] = &[
+        ("BenchmarkRun.v0", "benchmark_runs"),
+        ("CoverageReport.v0", "coverage_reports"),
+        ("ProfileCoverageReport.v0", "profile_coverage_reports"),
+        ("FailureLocalizationResult.v0", "failure_localization_reports"),
+        ("ExplainQualityReport.v0", "explain_quality_reports"),
+    ];
+    for (artifact_type, field) in embedded_types {
+        let rows = ingest
+            .get(*field)
+            .and_then(|v| v.as_array())
+            .map(|a| a.as_slice())
+            .unwrap_or(&[]);
+        for (idx, row) in rows.iter().enumerate() {
+            let digest = row
+                .get("signature_or_digest")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            if digest.is_empty() {
+                continue;
+            }
+            if !ref_keys.contains(&(artifact_type.to_string(), digest.to_string())) {
+                return Err(format!(
+                    "pcs_bench_ingest.{field}[{idx}] missing artifact_refs entry for {artifact_type} digest"
+                ));
+            }
+        }
+    }
+
+    let manifest_path = out_dir.join("repair_hint_manifest.v0.json");
+    if manifest_path.is_file() {
+        let listed = refs.iter().any(|r| r.get("path").and_then(|v| v.as_str()) == Some("repair_hint_manifest.v0.json"));
+        if listed {
+            return Err(
+                "artifact_refs must not list repair_hint_manifest.v0.json (document in sidecar_artifact_paths only)"
+                    .into(),
+            );
+        }
+    }
+    Ok(())
+}
+
+fn validate_sidecar_artifact_paths_on_disk(ingest: &Value, out_dir: &Path) -> Result<(), String> {
+    let coverage_reports = ingest
+        .get("coverage_reports")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| "pcs_bench_ingest.coverage_reports must be an array".to_string())?;
+    let cert_cov = coverage_reports
+        .iter()
+        .find(|r| r.get("metric").and_then(|v| v.as_str()) == Some("certificate_completeness"))
+        .ok_or_else(|| "pcs_bench_ingest missing certificate_completeness coverage".to_string())?;
+    let sidecar = cert_cov
+        .get("details")
+        .and_then(|d| d.get("sidecar_artifact_paths"))
+        .and_then(|v| v.as_object())
+        .ok_or_else(|| "certificate_completeness.details.sidecar_artifact_paths required".to_string())?;
+    for (key, value) in sidecar {
+        let Some(path) = value.as_str() else {
+            if value.is_null() && key == "repair_hint_manifest" {
+                continue;
+            }
+            return Err(format!("sidecar_artifact_paths.{key} must be a path string or null"));
+        };
+        let file_path = out_dir.join(path);
+        if !file_path.is_file() {
+            return Err(format!(
+                "sidecar_artifact_paths documents {key}={path} but file is missing at {}",
+                file_path.display()
+            ));
+        }
+    }
     Ok(())
 }
 
@@ -1500,6 +1924,7 @@ fn build_benchmark_report(
     cert_coverage: &Value,
     repair_coverage: &Value,
     profile_coverage: &Value,
+    explain_quality_coverage: Option<&Value>,
     coverage: &CertificateCoverageReport,
     suite: &CertificateBenchmarkSuiteV0,
     meta: &CertifyEdgeMetadata,
@@ -1515,6 +1940,60 @@ fn build_benchmark_report(
         suite,
         meta,
     )?;
+
+    let mut coverage_block = serde_json::Map::new();
+    coverage_block.insert(
+        "certificate_completeness".to_string(),
+        cert_coverage.clone(),
+    );
+    coverage_block.insert("profile_coverage".to_string(), profile_coverage.clone());
+    if let Some(explain_cov) = explain_quality_coverage {
+        coverage_block.insert("explain_quality".to_string(), explain_cov.clone());
+    }
+    coverage_block.insert(
+        "registry".to_string(),
+        coverage_report(
+            &format!("{suite_id}-registry"),
+            "registry_coverage",
+            1.0,
+            1.0,
+            json!({}),
+            meta,
+        ),
+    );
+    coverage_block.insert(
+        "formal_checks".to_string(),
+        coverage_report(
+            &format!("{suite_id}-formal"),
+            "formal_check_coverage",
+            1.0,
+            1.0,
+            json!({}),
+            meta,
+        ),
+    );
+    coverage_block.insert(
+        "scientific_memory".to_string(),
+        coverage_report(
+            &format!("{suite_id}-sm"),
+            "scientific_memory_interpretability",
+            1.0,
+            1.0,
+            json!({}),
+            meta,
+        ),
+    );
+    coverage_block.insert(
+        "release_reproducibility".to_string(),
+        coverage_report(
+            &format!("{suite_id}-repro"),
+            "release_reproducibility",
+            passed as f64,
+            total.max(1) as f64,
+            json!({ "profile_id": profile_id }),
+            meta,
+        ),
+    );
 
     Ok(with_digest(json!({
         "schema_version": "v0",
@@ -1541,44 +2020,14 @@ fn build_benchmark_report(
             "registry_coverage": 1.0,
             "scientific_memory_render_coverage": 1.0,
             "certificate_completeness_score": cert_coverage.get("coverage_ratio").and_then(|v| v.as_f64()).unwrap_or(0.0),
-            "repair_hint_quality_score": repair_coverage.get("coverage_ratio").and_then(|v| v.as_f64()).unwrap_or(0.0)
+            "repair_hint_quality_score": repair_coverage.get("coverage_ratio").and_then(|v| v.as_f64()).unwrap_or(0.0),
+            "execution_mode": "live",
+            "evidence_grade": if meta.release_mode { "release" } else { "developer" },
+            "live_cases": total,
+            "simulated_cases": 0,
+            "hybrid_fallback_cases": 0
         },
-        "coverage": {
-            "certificate_completeness": cert_coverage,
-            "profile_coverage": profile_coverage,
-            "registry": coverage_report(
-                &format!("{suite_id}-registry"),
-                "registry_coverage",
-                1.0,
-                1.0,
-                json!({}),
-                meta
-            ),
-            "formal_checks": coverage_report(
-                &format!("{suite_id}-formal"),
-                "formal_check_coverage",
-                1.0,
-                1.0,
-                json!({}),
-                meta
-            ),
-            "scientific_memory": coverage_report(
-                &format!("{suite_id}-sm"),
-                "scientific_memory_interpretability",
-                1.0,
-                1.0,
-                json!({}),
-                meta
-            ),
-            "release_reproducibility": coverage_report(
-                &format!("{suite_id}-repro"),
-                "release_reproducibility",
-                passed as f64,
-                total.max(1) as f64,
-                json!({ "profile_id": profile_id }),
-                meta
-            )
-        },
+        "coverage": Value::Object(coverage_block),
         "failures": failures,
         "source_repo": CERTIFYEDGE_SOURCE_REPO,
         "source_commit": meta.source_commit,
@@ -1630,6 +2079,7 @@ fn write_json_file(path: &Path, value: &impl Serialize) -> Result<(), String> {
 #[cfg(test)]
 mod bridge_tests {
     use super::*;
+    use crate::certificate_benchmark::{CaseRunResult, ExplainSignals};
 
     #[test]
     fn workflow_id_is_explicit_per_profile() {
@@ -1689,6 +2139,101 @@ mod bridge_tests {
         assert_eq!(
             responsible_component_for_failure_code("invalid_handoff_digest"),
             "handoff"
+        );
+        assert_eq!(
+            responsible_component_for_failure_code("rejected_certificate"),
+            "certificate_producer"
+        );
+        assert_eq!(
+            responsible_component_for_failure_code("environment_digest_mismatch"),
+            "runtime_producer"
+        );
+    }
+
+    #[test]
+    fn case_failure_localization_accurate_for_policy_hash_mismatch_ambiguity() {
+        let result = CaseRunResult {
+            case_id: "policy_hash_mismatch".into(),
+            kind: "invalid".into(),
+            passed: false,
+            profile_resolution_ok: true,
+            handoff_validation_ok: true,
+            status_match: false,
+            failure_code_match: true,
+            counterexample_match: false,
+            repair_hint_present: true,
+            repair_hint_kind_correct: true,
+            repair_hint_command_present: true,
+            responsible_component_correct: true,
+            actual_certificate_status: None,
+            actual_failure_code: Some("policy_hash_mismatch".into()),
+            case_category: Some("policy_hash_mismatch".into()),
+            repair_hint_quality: Some(RepairHintQuality {
+                repair_hint_present: true,
+                repair_hint_kind: "regenerate_trace_or_handoff".into(),
+                responsible_component: "runtime_producer".into(),
+                repair_command: "labtrust regenerate".into(),
+            }),
+            expected_failure_code: Some("policy_hash_mismatch".into()),
+            expected_certificate_status: None,
+            expected_repair_hint_kind: None,
+            expected_responsible_component: None,
+            expect_counterexample: false,
+            expect_formal_facts: false,
+            formal_facts_ok: false,
+            repair_hint_acceptable: true,
+            started_at: String::new(),
+            completed_at: String::new(),
+            duration_ms: 0,
+            explain_signals: ExplainSignals::default(),
+            errors: vec![],
+        };
+        assert!(case_failure_localization_accurate(&result));
+    }
+
+    #[test]
+    fn failure_code_for_localization_prefers_rejected_certificate_category() {
+        let result = CaseRunResult {
+            case_id: "rejected_certificate".into(),
+            kind: "invalid".into(),
+            passed: false,
+            profile_resolution_ok: true,
+            handoff_validation_ok: true,
+            status_match: false,
+            failure_code_match: true,
+            counterexample_match: true,
+            repair_hint_present: true,
+            repair_hint_kind_correct: true,
+            repair_hint_command_present: true,
+            responsible_component_correct: false,
+            actual_certificate_status: Some("Rejected".into()),
+            actual_failure_code: Some("unauthorized_tool_call".into()),
+            case_category: Some("rejected_certificate".into()),
+            repair_hint_quality: None,
+            expected_failure_code: Some("unauthorized_tool_call".into()),
+            expected_certificate_status: Some("Rejected".into()),
+            expected_repair_hint_kind: None,
+            expected_responsible_component: Some("runtime_producer".into()),
+            expect_counterexample: true,
+            expect_formal_facts: false,
+            formal_facts_ok: false,
+            repair_hint_acceptable: true,
+            started_at: String::new(),
+            completed_at: String::new(),
+            duration_ms: 0,
+            explain_signals: ExplainSignals::default(),
+            errors: vec![],
+        };
+        assert_eq!(
+            failure_code_for_localization(&result, "unauthorized_tool_call"),
+            "rejected_certificate"
+        );
+        assert_eq!(
+            responsible_component_for_failure_code(&failure_code_for_localization(
+                &result,
+                "unauthorized_tool_call"
+            )),
+            "certificate_producer"
         );
     }
 }

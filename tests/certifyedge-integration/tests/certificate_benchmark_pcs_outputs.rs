@@ -42,6 +42,26 @@ fn pcs_benchmark_outputs_validate_for_all_profile_suites() {
         validate_pcs_benchmark_output_dir(&out)
             .unwrap_or_else(|e| panic!("pcs outputs {profile_id}: {e}"));
 
+        let report_text = std::fs::read_to_string(out.join("benchmark_report.v0.json"))
+            .unwrap_or_else(|e| panic!("read benchmark_report {profile_id}: {e}"));
+        let report: serde_json::Value =
+            serde_json::from_str(&report_text).unwrap_or_else(|e| panic!("parse report: {e}"));
+        assert_eq!(
+            report
+                .get("summary")
+                .and_then(|s| s.get("evidence_grade"))
+                .and_then(|v| v.as_str()),
+            Some("release"),
+            "benchmark_report.summary.evidence_grade for {profile_id}"
+        );
+        assert!(
+            report
+                .get("coverage")
+                .and_then(|c| c.get("explain_quality"))
+                .is_some(),
+            "benchmark_report.coverage.explain_quality missing for {profile_id}"
+        );
+
         let ingest_text = std::fs::read_to_string(out.join("pcs_bench_ingest.v0.json"))
             .unwrap_or_else(|e| panic!("read pcs_bench_ingest: {e}"));
         let ingest: serde_json::Value =
@@ -172,6 +192,40 @@ fn pcs_benchmark_outputs_validate_for_all_profile_suites() {
             ref_paths.iter().any(|p| p.starts_with("runs/")),
             "artifact_refs missing runs/ entries for {profile_id}"
         );
+        assert!(
+            ref_paths
+                .iter()
+                .any(|p| p.starts_with("failure_localization/")),
+            "artifact_refs missing failure_localization/ entries for {profile_id}"
+        );
+        assert!(
+            ref_paths.iter().any(|p| p.starts_with("explain_quality/")),
+            "artifact_refs missing explain_quality/ entries for {profile_id}"
+        );
+        for exp in ingest
+            .get("explain_quality_reports")
+            .and_then(|v| v.as_array())
+            .into_iter()
+            .flatten()
+        {
+            let score = exp.get("quality_score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let required: Vec<&str> = exp
+                .get("required_sections")
+                .and_then(|v| v.as_array())
+                .map(|a| a.iter().filter_map(|v| v.as_str()).collect())
+                .unwrap_or_default();
+            let rejection_grade = required.len() == 5
+                && ["provenance", "hashes", "verification", "limitations", "repair_hints"]
+                    .iter()
+                    .all(|s| required.contains(s));
+            if rejection_grade {
+                assert!(
+                    score >= 0.8,
+                    "explain quality below 0.8 for {profile_id} case {:?}: {score}",
+                    exp.get("case_id")
+                );
+            }
+        }
     }
 }
 
@@ -263,7 +317,45 @@ fn pcs_bench_ingest_passes_pcs_core_consumer_semantics_when_checkout_present() {
             &pcs_core,
             &out.join("pcs_bench_ingest.v0.json"),
         );
+        validate_pcs_bench_ingest_release_grade_with_pcs_core_python(
+            &pcs_core,
+            &out.join("pcs_bench_ingest.v0.json"),
+        );
     }
+}
+
+fn validate_pcs_bench_ingest_release_grade_with_pcs_core_python(
+    pcs_core: &std::path::Path,
+    ingest: &std::path::Path,
+) {
+    let python_pkg = pcs_core.join("python");
+    let script = format!(
+        r#"
+import sys
+from pathlib import Path
+sys.path.insert(0, r"{python_pkg}")
+from pcs_core.benchmark_ingest import validate_benchmark_ingest_file
+path = Path(r"{ingest}")
+errors = validate_benchmark_ingest_file(path, check_release_grade=True)
+if errors:
+    for err in errors:
+        print(f"error: {{err}}", file=sys.stderr)
+    raise SystemExit(1)
+print(f"OK release-grade ingest: {{path}}")
+"#,
+        python_pkg = python_pkg.display(),
+        ingest = ingest.display(),
+    );
+    let python = std::env::var("PYTHON").unwrap_or_else(|_| "python".into());
+    let status = std::process::Command::new(&python)
+        .args(["-c", &script])
+        .status()
+        .unwrap_or_else(|e| panic!("spawn python for release-grade ingest validation: {e}"));
+    assert!(
+        status.success(),
+        "pcs-core release-grade ingest validation failed for {}",
+        ingest.display()
+    );
 }
 
 fn validate_pcs_bench_ingest_with_pcs_core_python(pcs_core: &std::path::Path, ingest: &std::path::Path) {

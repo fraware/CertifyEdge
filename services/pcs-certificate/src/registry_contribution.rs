@@ -239,4 +239,22 @@ mod tests {
         )
         .unwrap();
     }
+
+    #[test]
+    fn failure_localization_result_contribution_validates() {
+        validate_registry_contribution_file(
+            &repo_root(),
+            "pcs_registry/FailureLocalizationResult.v0.registry.json",
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn explain_quality_report_contribution_validates() {
+        validate_registry_contribution_file(
+            &repo_root(),
+            "pcs_registry/ExplainQualityReport.v0.registry.json",
+        )
+        .unwrap();
+    }
 }
