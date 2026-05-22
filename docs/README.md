@@ -1,37 +1,57 @@
-# Documentation
+# CertifyEdge documentation
+
+Use this index to find the right guide. The repository ships two related capabilities: **PCS v0.1** (profile-driven proof-carrying certificates) and an **STL/SMT specification stack** (temporal formulas, solvers, signed certificates).
+
+---
+
+## New here?
+
+1. Clone and build: [Quick start](quick-start.md)
+2. Run the PCS smoke test: [PCS guide — Build and install](pcs-guide.md#build-and-install-the-cli)
+3. Before contributing: [Contributing](../CONTRIBUTING.md)
+
+---
 
 ## Proof-Carrying Science (PCS) v0.1
 
-**[PCS guide](pcs-guide.md)** — start here: profiles, CLI, benchmarks, cross-repo chain, pre-release checklist.
+**[PCS guide](pcs-guide.md)** is the main reference: property profiles, the `certifyedge` CLI, benchmarks, schema sync, cross-repo chains, and the pre-release checklist.
 
-| Document | When to read |
-|----------|--------------|
-| [PCS guide](pcs-guide.md) | Everything you need to use or release the certificate engine |
-| [Cross-repo handoff](pcs-handoff.md) | LabTrust-Gym → CertifyEdge → Provability Fabric step-by-step |
-| [Trace certificates](pcs-trace-certificates.md) | LabTrust `TraceCertificate.v0` fields and canonical fixtures |
-| [Property profiles](pcs-certificate-profile.md) | Profile registry and artifact registry contributions |
-| [LabTrust adapter](labtrust-adapter.md) | Trace format, hashing, temporal property templates |
+| Document | Read when you need to… |
+|----------|-------------------------|
+| [PCS guide](pcs-guide.md) | Use or ship the certificate engine |
+| [Cross-repo handoff](pcs-handoff.md) | Wire LabTrust-Gym, CertifyEdge, and downstream verifiers |
+| [Trace certificates](pcs-trace-certificates.md) | Understand `TraceCertificate.v0` fields and canonical fixtures |
+| [Property profiles](pcs-certificate-profile.md) | Edit profiles or registry contributions |
+| [LabTrust adapter](labtrust-adapter.md) | Parse traces, hashes, and hospital-lab property templates |
+| [Certificate benchmarks](../benchmarks/certificates/README.md) | Benchmark case layout |
+| [PCS schemas](../schemas/pcs/README.md) | Vendored JSON schema reference |
 
-## General development
+---
+
+## Development and architecture
 
 | Document | Purpose |
 |----------|---------|
-| [Quick start](quick-start.md) | Rust/Bazel setup, legacy STL/SMT stack |
-| [Contributing](../CONTRIBUTING.md) | Pull requests and PCS pre-merge checks |
+| [Quick start](quick-start.md) | Rust, Bazel, CI, and repository layout |
+| [Contributing](../CONTRIBUTING.md) | Pull requests, formatting, and test gates |
 | [Root README](../README.md) | Project overview |
+| [STL compiler](../services/stl-compiler/README.md) | STL/SMT crate (separate from PCS property profiles) |
 
-## Architecture decision records
+### Architecture decision records
 
-[ADR index](adr/README.md)
+[Index](adr/README.md)
 
 | ADR | Topic |
 |-----|--------|
-| [001 — Bazel](adr/001-bazel-canonical-build.md) | Build graph |
+| [001 — Bazel](adr/001-bazel-canonical-build.md) | Canonical build graph |
 | [002 — CI](adr/002-ci-integration-test.md) | GitHub Actions and integration tests |
-| [003 — Protos](adr/003-proto-and-grpc.md) | Protocol buffers |
-| [004 — Threat model](adr/004-threat-model-outline.md) | Security outline (placeholder) |
-| [005 — PCS v0.1](adr/005-pcs-v01-labtrust-certification.md) | LabTrust certification decision |
+| [003 — Protos](adr/003-proto-and-grpc.md) | Protocol buffers and future gRPC |
+| [004 — Threat model](adr/004-threat-model-outline.md) | Security outline (summary) |
+| [005 — PCS v0.1](adr/005-pcs-v01-labtrust-certification.md) | LabTrust certification architecture |
 
-## Service notes
+---
 
-- [STL compiler](../services/stl-compiler/README.md) — legacy signal temporal logic / SMT stack (separate from PCS v0.1 profiles)
+## External references
+
+- [pcs-core](https://github.com/SentinelOps-CI/pcs-core) — schemas, `pcs` CLI, and benchmark ingest
+- [LabTrust-Gym](https://github.com/fraware/LabTrust-Gym) — simulation traces and runtime handoffs for the hospital-lab demo

@@ -1,6 +1,8 @@
 # LabTrust trace adapter
 
-The `labtrust-adapter` crate parses LabTrust `trace.json` documents produced by [LabTrust-Gym](https://github.com/fraware/LabTrust-Gym) and computes trace digests compatible with LabTrust’s hash chain.
+> Part of the PCS v0.1 path — overview: [PCS guide](pcs-guide.md).
+
+The `labtrust-adapter` crate parses LabTrust `trace.json` documents from [LabTrust-Gym](https://github.com/fraware/LabTrust-Gym) and computes trace digests compatible with LabTrust’s hash chain.
 
 ## Trace document shape
 

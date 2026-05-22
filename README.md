@@ -2,7 +2,7 @@
 
 # CertifyEdge
 
-**Specifications, solvers, and signed artifacts for temporal properties**
+**Proof-carrying certificates and temporal property checking for scientific workflows**
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.88.0-orange.svg)](rust-toolchain.toml)
@@ -13,129 +13,119 @@
 
 <br/>
 
-[Documentation](docs/README.md) · [Quick start](docs/quick-start.md) · [Contributing](CONTRIBUTING.md)
+[Documentation](docs/README.md) · [Quick start](docs/quick-start.md) · [PCS guide](docs/pcs-guide.md) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
 ---
 
-CertifyEdge is a **Rust** workspace for **signal temporal logic (STL)** specifications: parse and compile them, generate **SMT-LIB** and Lean-oriented output when configured, run **SMT** checks through a verifier service, and emit **Ed25519-signed certificates** that summarize what was checked. Power grids and AI agents are motivating domains; the code does not assume a specific industry.
+CertifyEdge is an open-source **Rust** toolkit for turning runtime evidence into **auditable, machine-validated certificates**. Its primary release path is [Proof-Carrying Science (PCS)](https://github.com/SentinelOps-CI/pcs-core) v0.1: profile-driven checks over LabTrust traces, agent tool-use logs, and computation receipts, with JSON artifacts downstream tools can verify using the `pcs` CLI.
+
+The repository also includes an **STL/SMT specification stack** (parse temporal formulas, emit SMT-LIB and Lean-oriented output, run solvers, sign certificates) for power-grid and general temporal-logic workflows. The two stacks share the workspace and CI but serve different integration paths.
+
+**Simulation disclaimer (PCS v0.1):** Hospital-lab certificates attest to [LabTrust-Gym](https://github.com/fraware/LabTrust-Gym) simulation traces only. They are not clinical or production laboratory guarantees.
 
 ---
 
-## Proof-Carrying Science (PCS) v0.1
+## Get started in five minutes (PCS)
 
-CertifyEdge is the **profile-driven certificate engine** for [Proof-Carrying Science](https://github.com/SentinelOps-CI/pcs-core) v0.1. Property profiles under `templates/profiles/` map runtime inputs to checks and versioned JSON certificates.
+```bash
+git clone https://github.com/fraware/CertifyEdge.git
+cd CertifyEdge
+cargo build -p certifyedge
+make runbook
+```
 
-| Profile | Output |
-|---------|--------|
+Full workflows, benchmarks, and release checks: **[docs/pcs-guide.md](docs/pcs-guide.md)**.
+
+| Profile | Certificate type |
+|---------|------------------|
 | `hospital_lab.qc_release` | `TraceCertificate.v0` |
 | `agent_tool_use.safety_v0` | `ToolUseCertificate.v0` |
 | `scientific_computation.reproducibility_v0` | `ComputationWitness.v0` |
 
-**Documentation:** [docs/pcs-guide.md](docs/pcs-guide.md) (start here) · [cross-repo handoff](docs/pcs-handoff.md)
-
 ```bash
-cargo build -p certifyedge
-make runbook                    # local smoke test
-make pcs-test                   # pre-PR gate (matches most of CI)
 export CERTIFYEDGE_SOURCE_COMMIT="$(git rev-parse HEAD)"
-make pcs-bench-producer-all-profiles   # all benchmark suites + ingest validation
+make pcs-test                              # recommended before pull requests
+make pcs-bench-producer-all-profiles       # all benchmark suites + ingest validation
 ```
 
-Cross-repo release chain (requires sibling LabTrust-Gym):
+Cross-repo demo (requires sibling [LabTrust-Gym](https://github.com/fraware/LabTrust-Gym) and the `pcs` CLI):
 
 ```bash
 export PCS_DETERMINISTIC=1
 make clean-checkout-certified
 ```
 
-**Simulation only:** v0.1 certificates attest to LabTrust-Gym simulation traces—not clinical or production guarantees.
-
 ---
 
-## What you can do here
-
-| | |
-|:---|:---|
-| **Author specs** | Text-based STL-style formulas, parameters, constraints, and metadata. |
-| **Compile** | `stl_compiler` produces Lean and SMT-LIB artifacts from configuration. |
-| **Verify** | `smt_verifier` runs scripts against solvers such as Z3 or CVC5 when enabled. |
-| **Certify** | `certificate` builds and verifies signed certificate payloads. |
-| **Automate** | The same flow is tested in CI with **Cargo** and **Bazel** so behavior stays honest. |
-
----
-
-## Repository map
+## What is in this repository
 
 ```mermaid
-flowchart LR
-  subgraph today["In this repository"]
-    A[STL compiler] --> B[SMT verifier]
-    B --> C[Certificate library]
+flowchart TB
+  subgraph pcs["PCS v0.1 (primary)"]
+    P[Property profiles] --> C[certifyedge CLI]
+    C --> A[Trace / tool-use / computation certificates]
+    A --> V[pcs validate]
   end
-  subgraph optional["Optional tooling"]
-    L[Lean]
-    Z[Z3 / CVC5]
+  subgraph stl["STL / SMT stack"]
+    S[STL compiler] --> M[SMT verifier]
+    M --> K[Signed certificates]
   end
-  A -.-> L
-  B -.-> Z
+  P -.->|optional integration| S
 ```
 
-Broader platform pieces (web UI, full policy stack, production monitoring) are **partial** or **planned**; the diagram above is the spine that is exercised end-to-end in tests.
+| Area | Location | Purpose |
+|------|----------|---------|
+| PCS CLI | `cli/`, `make runbook` | Emit and verify PCS certificates |
+| Profiles | `templates/profiles/` | Map workflows to checks and artifact types |
+| LabTrust adapter | `services/labtrust-adapter/` | Trace parsing, hashing, temporal checks |
+| Certificate engine | `services/pcs-certificate/` | Emit, handoffs, benchmarks |
+| STL compiler | `services/stl-compiler/` | Parse STL-style specs, emit prover artifacts |
+| Schemas | `schemas/pcs/` | Vendored JSON schemas from pcs-core |
+| Benchmarks | `benchmarks/certificates/` | Profile-driven certificate benchmark cases |
 
 ---
 
-## Stack
+## Requirements
 
-| Layer | Choice | Note |
-|------|--------|------|
-| Language | Rust (async) | Workspace crates under `services/` |
-| Proof / logic | Lean | Optional; toggled in compiler config |
-| Solvers | Z3, CVC5 | Optional; paths and flags in config |
-| Builds | Cargo + Bazel | Cargo for day-to-day iteration; Bazel matches CI |
-| Protos | `protobuf` | Schema under `services/stl-compiler/proto/` |
+| Tool | Required for |
+|------|----------------|
+| Rust 1.88.0 ([`rust-toolchain.toml`](rust-toolchain.toml)) | All development |
+| [pcs-core](https://github.com/SentinelOps-CI/pcs-core) (optional) | `pcs validate`, schema drift checks, benchmark ingest |
+| [LabTrust-Gym](https://github.com/fraware/LabTrust-Gym) (optional) | Full cross-repo PCS chain |
+| Bazelisk (optional) | Bazel targets matching CI |
 
 ---
 
-## Quick start
-
-**Requirements:** Rust toolchain from [`rust-toolchain.toml`](rust-toolchain.toml). Optional: [Bazelisk](https://github.com/bazelbuild/bazelisk) for Bazel ([`.bazelversion`](.bazelversion)).
+## STL / SMT quick start
 
 ```bash
-git clone <URL from this repository’s GitHub page>
-cd CertifyEdge
-
 cargo check --workspace
-cargo test --workspace
 cargo test -p integration_tests
-```
-
-Bazel (same integration test as CI):
-
-```bash
 bazel test --config=ci //tests/pipeline_integration:pipeline_integration
 ```
 
-**Primary APIs:** `stl_compiler::Compiler`, `smt_verifier::SMTVerifier`, `certificate::CertificateService`. A full walkthrough of flags and layout lives in [docs/quick-start.md](docs/quick-start.md); crate-level detail in [services/stl-compiler/README.md](services/stl-compiler/README.md).
+Library entry points: `stl_compiler::Compiler`, `smt_verifier::SMTVerifier`, `certificate::CertificateService`. Details: [docs/quick-start.md](docs/quick-start.md) and [services/stl-compiler/README.md](services/stl-compiler/README.md).
 
 ---
 
 ## Documentation
 
-| Resource | Description |
-|----------|-------------|
-| [docs/README.md](docs/README.md) | Index of guides and architecture decisions |
-| [docs/pcs-guide.md](docs/pcs-guide.md) | PCS certificate engine, benchmarks, release checklist |
-| [docs/quick-start.md](docs/quick-start.md) | Setup, commands, troubleshooting |
-| [docs/adr/](docs/adr/) | Decision records (Bazel, CI, protos, security outline) |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Pull requests, formatting, review expectations |
+| Document | Audience |
+|----------|----------|
+| [docs/README.md](docs/README.md) | Documentation index |
+| [docs/pcs-guide.md](docs/pcs-guide.md) | PCS users and integrators |
+| [docs/quick-start.md](docs/quick-start.md) | Development environment setup |
+| [docs/pcs-handoff.md](docs/pcs-handoff.md) | Cross-repository PCS chain |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Contributors |
+| [docs/adr/](docs/adr/) | Architecture decisions |
 
 ---
 
 ## Contributing
 
-Contributions are welcome. Fork, branch from `main`, keep changes focused, run tests and `cargo fmt`, and open a pull request. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full checklist.
+Contributions are welcome. Fork the repository, branch from `main`, run the checks in [CONTRIBUTING.md](CONTRIBUTING.md), and open a pull request.
 
 ---
 
@@ -145,16 +135,8 @@ Contributions are welcome. Fork, branch from `main`, keep changes focused, run t
 
 ---
 
-## Acknowledgments
-
-[Lean 4](https://leanprover.github.io/) · [Sigstore](https://sigstore.dev/) · [OWASP](https://owasp.org/)
-
----
-
 <div align="center">
 
-**Questions or ideas?** Use **Issues** and **Discussions** on this repository’s GitHub page.
-
-<sub>CertifyEdge — temporal specifications, automated checking, and auditable certificates.</sub>
+**Questions or feedback?** Open an [issue](https://github.com/fraware/CertifyEdge/issues) or [discussion](https://github.com/fraware/CertifyEdge/discussions) on GitHub.
 
 </div>

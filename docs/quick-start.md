@@ -1,138 +1,185 @@
-# CertifyEdge quick start
+# Quick start
 
-## Overview
+This guide gets a development environment running on Linux, macOS, or Windows. For proof-carrying certificates, start with the [PCS guide](pcs-guide.md) after the steps below.
 
-This project helps you work with **signal temporal logic (STL)** specifications, generate **SMT-LIB**, optionally connect to **Lean** and SMT solvers, and produce **signed certificates**. This guide covers a minimal development setup.
+---
 
 ## Prerequisites
 
-### Machine
+| Requirement | Notes |
+|-------------|--------|
+| **Rust 1.88.0** | Pinned in [`rust-toolchain.toml`](../rust-toolchain.toml) |
+| **Git** | Clone from the repository root for all commands |
+| **Bazelisk** (optional) | Runs the Bazel version in [`.bazelversion`](../.bazelversion) |
+| **Python 3** (optional) | Profile validation and benchmark scripts; on Windows use `make PYTHON=python` |
+| **Lean / Z3 / CVC5** (optional) | Only for full STL/SMT toolchains—not required for default tests |
 
-- **OS:** Linux, macOS, or Windows (Windows often works best with WSL2 for tool parity)
-- **RAM / disk:** Enough to build Rust; Bazel first runs can be large
+**Windows:** Git Bash is recommended for `make` targets that run `scripts/*.sh`. Add `%USERPROFILE%\.cargo\bin` to `PATH`. See [PCS guide — Windows notes](pcs-guide.md#windows-notes).
 
-### Software
+---
 
-- **Rust:** version pinned in [rust-toolchain.toml](../rust-toolchain.toml)
-- **Cargo:** run all commands from the repository root unless noted
-- **Bazel:** optional; version pinned in [.bazelversion](../.bazelversion), typically installed through [Bazelisk](https://github.com/bazelbuild/bazelisk)
-
-### Optional
-
-- **Node.js:** only if you add or build a frontend under `web/`
-- **Lean, Z3, CVC5:** when you want full compilation paths (see `CompilerConfig::for_tests_without_external_tools()` in `stl-compiler` for a configuration that skips external binaries)
-- **Docker:** only for container-based workflows you define
-
-## Installation
-
-### 1. Clone the repository
-
-Use the clone URL shown on the GitHub page for this project, then:
+## 1. Clone and install Rust
 
 ```bash
+git clone https://github.com/fraware/CertifyEdge.git
 cd CertifyEdge
 ```
 
-### 2. Install Bazelisk (optional)
-
-[Bazelisk](https://github.com/bazelbuild/bazelisk) runs the Bazel version from [.bazelversion](../.bazelversion). Install it using the instructions for your OS (release binaries, package managers, or `npm install -g @bazel/bazelisk`). Ensure the `bazel` command you run resolves to Bazelisk so version pinning applies.
-
-### 3. Install Rust
+Install Rust if needed ([rustup](https://rustup.rs/)):
 
 ```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source ~/.cargo/env
+rustup toolchain install 1.88.0
 rustup default 1.88.0
 rustup component add clippy rustfmt
 ```
 
-## Development
-
-### Check versions
+Verify:
 
 ```bash
 rustc --version
 cargo --version
-bazel --version   # if using Bazel
 ```
 
-### Build and test with Cargo
+---
+
+## 2. PCS smoke test (recommended)
+
+```bash
+cargo build -p certifyedge
+make runbook
+```
+
+If that succeeds, the certificate engine is working. Continue in [pcs-guide.md](pcs-guide.md) for emit/verify, benchmarks, and release checks.
+
+Optional: install the pcs-core CLI for schema validation:
+
+```bash
+git clone https://github.com/SentinelOps-CI/pcs-core.git ../pcs-core
+pip install -e ../pcs-core/python
+export PCS_CORE_PATH=../pcs-core
+```
+
+---
+
+## 3. Full workspace build and test
 
 ```bash
 cargo check --workspace
 cargo test --workspace
 cargo test -p integration_tests
+cargo test -p certifyedge-integration
 ```
 
-### Integration test with Bazel
+PCS-focused gate (matches most of CI for certificate changes):
 
 ```bash
-bazel test --config=ci //tests/pipeline_integration:pipeline_integration
+export CERTIFYEDGE_SOURCE_COMMIT="$(git rev-parse HEAD)"
+make pcs-test
 ```
 
-### Run `certctl` after a Bazel build
-
-```bash
-bazel run //services/certificate:certctl -- --help
-```
-
-## Repository layout (abbreviated)
-
-```
-CertifyEdge/
-├── MODULE.bazel, WORKSPACE, BUILD.bazel   # Bazel
-├── Cargo.toml, Cargo.lock                 # Rust workspace
-├── services/                              # Rust crates (compiler, verifier, certificate, …)
-├── tests/
-│   ├── pipeline_integration/              # End-to-end integration test (Cargo + Bazel)
-│   ├── unit/                              # Extra test sources (not all wired to Bazel)
-│   └── …                                  # Scripts and helpers
-├── docs/                                  # Documentation and decision records
-└── infrastructure/                      # Deployment-related files
-```
-
-## Common commands
-
-### Bazel build (selected targets)
-
-```bash
-bazel build //services/stl-compiler:stl_compiler_lib //services/smt-verifier:smt_verifier //services/certificate:certificate
-bazel build --config=ci //services/smt-verifier:verifierd
-```
-
-### Formatting and Clippy
+Formatting (required before pull requests):
 
 ```bash
 cargo fmt --all -- --check
-cargo clippy --workspace -- -D warnings
 ```
+
+---
+
+## 4. Bazel (optional)
+
+Install [Bazelisk](https://github.com/bazelbuild/bazelisk), then from the repository root:
+
+```bash
+bazel test --config=ci //tests/pipeline_integration:pipeline_integration
+make bazel-pcs-test
+```
+
+Example build targets:
+
+```bash
+bazel build //services/stl-compiler:stl_compiler_lib
+bazel build //cli:certifyedge
+```
+
+---
+
+## Repository layout
+
+```
+CertifyEdge/
+├── cli/                    # certifyedge binary (PCS)
+├── services/
+│   ├── labtrust-adapter/   # Trace parsing and temporal checks
+│   ├── pcs-certificate/    # Profiles, emit, benchmarks
+│   ├── stl-compiler/       # STL/SMT specification compiler
+│   ├── smt-verifier/       # SMT verification service
+│   └── certificate/        # Ed25519-signed certificates
+├── templates/
+│   ├── profiles/           # PCS property profile registry
+│   ├── hospital_lab/       # Hospital-lab property templates
+│   ├── tool_use/
+│   └── computation/
+├── benchmarks/certificates/  # PCS benchmark cases
+├── schemas/pcs/            # Vendored pcs-core JSON schemas
+├── pcs_registry/           # Artifact registry contributions
+├── tests/
+│   ├── certifyedge-integration/
+│   └── pipeline_integration/
+├── docs/                   # Guides and ADRs
+└── scripts/                # Runbooks, sync, and validation
+```
+
+Generated benchmark outputs go under `benchmark_runs/` (gitignored).
+
+---
 
 ## Continuous integration
 
-CI runs the legacy workspace tests plus the full PCS v0.1 gate (profiles, certificate benchmarks, pcs-core validation, optional LabTrust-Gym clean-checkout). Details: [ADR 002](adr/002-ci-integration-test.md). PCS contributors: [PCS guide — pre-release checklist](pcs-guide.md#pre-release-checklist) and `make pcs-test`.
+GitHub Actions runs:
+
+- `cargo fmt`, `cargo check`, and workspace tests
+- PCS profile validation, certificate benchmarks, and pcs-core drift checks
+- Optional LabTrust-Gym clean-checkout on `main` / `develop`
+- Bazel PCS graph and pipeline integration test
+
+Details: [ADR 002](adr/002-ci-integration-test.md). Release checklist: [PCS guide](pcs-guide.md#pre-release-checklist).
+
+---
 
 ## Troubleshooting
 
-```bash
-cargo clean && cargo check --workspace
-bazel clean --expunge
-bazel test --config=ci //tests/pipeline_integration:pipeline_integration
-```
+**Build failures after dependency changes:**
 
 ```bash
-cargo test -p integration_tests -- --nocapture
+cargo clean && cargo check --workspace
+```
+
+**Bazel cache issues:**
+
+```bash
+bazel clean --expunge
 bazel test --config=ci //tests/pipeline_integration:pipeline_integration --test_output=errors
 ```
 
+**Integration test details:**
+
+```bash
+cargo test -p integration_tests -- --nocapture
+cargo test -p certifyedge-integration -- --nocapture
+```
+
+---
+
 ## Next steps
 
-- Read [CONTRIBUTING.md](../CONTRIBUTING.md)
-- Explore `services/certificate/` and `services/stl-compiler/`
-- PCS certificate engine: [pcs-guide.md](pcs-guide.md)
+| Goal | Document |
+|------|----------|
+| Ship PCS certificates | [PCS guide](pcs-guide.md) |
+| Cross-repo demo chain | [PCS handoff](pcs-handoff.md) |
+| STL/SMT libraries | [STL compiler README](../services/stl-compiler/README.md) |
+| Contribute | [CONTRIBUTING.md](../CONTRIBUTING.md) |
 
-## Support
-
-Use **Issues** and **Discussions** on this repository’s GitHub page.
+---
 
 ## License
 

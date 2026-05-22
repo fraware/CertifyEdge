@@ -1,6 +1,8 @@
 # STL compiler (`stl-compiler`)
 
-Rust library and CLI that parse **signal temporal logic (STL)**-style specifications and produce **Lean 4**-oriented output and **SMT-LIB** where configured. It lives in the [CertifyEdge](../../README.md) workspace.
+Rust library and CLI that parse **signal temporal logic (STL)**-style specifications and produce **Lean 4**-oriented output and **SMT-LIB** where configured.
+
+This crate is part of the CertifyEdge **STL/SMT stack**. It is separate from **PCS v0.1** property profiles and the `certifyedge` certificate CLI—see [PCS guide](../../docs/pcs-guide.md) for proof-carrying certificates.
 
 ## What it does today
 

@@ -220,12 +220,6 @@ Profile and handoff details: [pcs-certificate-profile.md](pcs-certificate-profil
 
 ---
 
-## Windows notes
-
-- Use **Git Bash** for `make` targets that invoke `scripts/*.sh` (or run the equivalent `cargo` commands from the guide).
-- If `python3` is not on PATH: `make PYTHON=python …` (all PCS `make` targets honor `PYTHON`)
-- Ensure `cargo` is on PATH when running shell scripts from Git Bash.
-
 ## Pre-release checklist
 
 Run these from the repository root before tagging a release. Order matches CI.
@@ -260,6 +254,12 @@ make bazel-pcs-test
 ```
 
 **Contributors:** `make pcs-test` is the minimum before opening a PR that touches PCS code. CI runs the full sequence in [.github/workflows/ci.yml](../.github/workflows/ci.yml).
+
+### Windows notes
+
+- Use **Git Bash** for `make` targets that invoke `scripts/*.sh`, or run the equivalent `cargo` commands from this guide.
+- If `python3` is not on PATH: `make PYTHON=python …` (PCS `make` targets honor `PYTHON`).
+- Ensure `cargo` is on PATH when running shell scripts from Git Bash.
 
 ---
 

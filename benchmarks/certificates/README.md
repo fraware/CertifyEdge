@@ -24,6 +24,8 @@ Regenerate from fixtures:
 
 ```bash
 python3 scripts/generate-certificate-benchmark-cases.py
+# Windows: python scripts/generate-certificate-benchmark-cases.py
+# or: make PYTHON=python generate-certificate-benchmarks
 ```
 
 ## Outputs (under `benchmark_runs/<suite>/`)

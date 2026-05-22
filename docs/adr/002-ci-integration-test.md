@@ -8,12 +8,12 @@ Accepted (updated 2026-05 for PCS v0.1)
 
 The project needs automation that matches what is actually built. Two tracks coexist:
 
-1. **Legacy STL/SMT pipeline** — `integration_tests` compiles specs, runs SMT checks, and signs certificates without external Lean/Z3/CVC5 when configured for tests.
+1. **STL/SMT pipeline** — `integration_tests` compiles specs, runs SMT checks, and signs certificates without external Lean/Z3/CVC5 when configured for tests.
 2. **PCS v0.1 certificate engine** — profile-driven `certifyedge` CLI, certificate benchmarks, pcs-core validation, and optional cross-repo clean-checkout.
 
 ## Decision
 
-### Legacy integration test
+### STL/SMT integration test
 
 - Keep `integration_tests` (Cargo) and `//tests/pipeline_integration:pipeline_integration` (Bazel).
 - `CompilerConfig::for_tests_without_external_tools()` avoids external solver binaries in CI.
@@ -38,7 +38,7 @@ Full release checklist: [docs/pcs-guide.md](../pcs-guide.md#pre-release-checklis
 ## Consequences
 
 - PCS changes must pass `make pcs-test` at minimum; release tagging should follow the full checklist in the PCS guide.
-- Legacy pipeline tests remain for `stl-compiler` / `smt-verifier` / `certificate` crates.
+- STL/SMT pipeline tests remain for `stl-compiler` / `smt-verifier` / `certificate` crates.
 
 ## Related
 
