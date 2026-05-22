@@ -1,7 +1,6 @@
 //! PCS certificate construction, profile registry, and handoff emit for CertifyEdge.
 
 pub mod certificate_benchmark;
-pub mod pcs_benchmark_bridge;
 pub mod computation_check;
 pub mod computation_receipt;
 pub mod computation_violation;
@@ -12,6 +11,7 @@ pub mod formal_facts;
 pub mod handoff;
 pub mod hash;
 pub mod metadata;
+pub mod pcs_benchmark_bridge;
 pub mod pcs_schema;
 pub mod pcs_schema_external;
 pub mod pcs_validate;
@@ -32,16 +32,9 @@ pub use certificate_benchmark::{
     benchmark_suite_dir_for_profile, run_certificate_benchmark,
     validate_certificate_benchmark_cases_tree, BenchmarkCertificatesOptions,
     CertificateBenchmarkOutcome, CertificateBenchmarkSuiteV0, CertificateCoverageReport,
-    BENCHMARK_CASE_SPEC_SCHEMA, BENCHMARKED_PROFILE_IDS, CERTIFICATE_COVERAGE_REPORT_SCHEMA,
+    BENCHMARKED_PROFILE_IDS, BENCHMARK_CASE_SPEC_SCHEMA, CERTIFICATE_COVERAGE_REPORT_SCHEMA,
     PROFILE_COVERAGE_REPORT_SCHEMA,
 };
-pub use pcs_benchmark_bridge::{
-    build_json_summary, case_failure_localization_accurate,
-    failure_code_for_localization, responsible_component_for_failure_code,
-    validate_pcs_benchmark_output_dir, BenchmarkCertificatesJsonSummary, RepairHintQuality,
-    CERTIFICATE_BENCHMARK_SUITE_SCHEMA,
-};
-pub use pcs_schema_external::validate_pcs_core_output_dir;
 pub use computation_check::{
     check_computation_reproducibility, ComputationCheckResult, ComputationPropertySpec,
 };
@@ -67,28 +60,30 @@ pub use handoff::{
     build_certificate_to_bundle_handoff, file_digest, finalize_handoff_digest,
     load_handoff_manifest, plan_emit_from_handoff, refresh_handoff_digest_file,
     validate_handoff_artifact, write_handoff_manifest, HandoffArtifactRef, HandoffEmitPlan,
-    HandoffManifestV0,
-    COMPONENT_CERTIFYEDGE, COMPONENT_LABTRUST, HANDOFF_KIND_CERTIFICATE_TO_BUNDLE,
-    HANDOFF_KIND_RUNTIME_TO_CERTIFICATE,
+    HandoffManifestV0, COMPONENT_CERTIFYEDGE, COMPONENT_LABTRUST,
+    HANDOFF_KIND_CERTIFICATE_TO_BUNDLE, HANDOFF_KIND_RUNTIME_TO_CERTIFICATE,
 };
 pub use metadata::CertifyEdgeMetadata;
+pub use pcs_benchmark_bridge::{
+    build_json_summary, case_failure_localization_accurate, failure_code_for_localization,
+    responsible_component_for_failure_code, validate_pcs_benchmark_output_dir,
+    BenchmarkCertificatesJsonSummary, RepairHintQuality, CERTIFICATE_BENCHMARK_SUITE_SCHEMA,
+};
 pub use pcs_schema::{
-    detect_certificate_artifact_type, validate_certificate_formal_facts_schema,
-    validate_certificate_schema_for_type, validate_computation_witness_schema,
-    validate_handoff_manifest_schema, validate_tool_use_certificate_schema,
-    validate_benchmark_case_spec_schema, validate_benchmark_report_schema,
-    validate_metric_summary_schema,
     benchmark_run_core_for_ingest, benchmark_run_core_from_certificate_run,
-    validate_benchmark_run_schema,
-    validate_certificate_benchmark_run_schema,
-    validate_certificate_benchmark_suite_schema,
-    validate_certificate_coverage_report_schema, validate_coverage_report_schema,
-    validate_benchmark_artifact_ref_schema, validate_explain_quality_report_schema,
-    validate_failure_localization_result_schema,
+    detect_certificate_artifact_type, validate_benchmark_artifact_ref_schema,
+    validate_benchmark_case_spec_schema, validate_benchmark_report_schema,
+    validate_benchmark_run_schema, validate_certificate_benchmark_run_schema,
+    validate_certificate_benchmark_suite_schema, validate_certificate_coverage_report_schema,
+    validate_certificate_formal_facts_schema, validate_certificate_schema_for_type,
+    validate_computation_witness_schema, validate_coverage_report_schema,
+    validate_explain_quality_report_schema, validate_failure_localization_result_schema,
+    validate_handoff_manifest_schema, validate_metric_summary_schema,
     validate_pcs_bench_ingest_schema, validate_profile_coverage_report_schema,
-    validate_tool_use_trace_schema,
+    validate_tool_use_certificate_schema, validate_tool_use_trace_schema,
     validate_trace_certificate_schema,
 };
+pub use pcs_schema_external::validate_pcs_core_output_dir;
 pub use pcs_validate::{
     registry_check_artifact, validate_certificate_artifact, validate_certificate_json,
     validate_certificate_json_for_profile,

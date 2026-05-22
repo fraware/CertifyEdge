@@ -20,11 +20,11 @@ use pcs_certificate::{
     load_handoff_manifest, plan_emit_from_handoff, registry_check_artifact,
     repair_temporal_check_failed, repair_tool_use_check_failed, resolve_profile_registry,
     run_certificate_benchmark, summary_to_json, validate_certificate_artifact,
-    validate_certificate_benchmark_cases_tree,
-    validate_certificate_formal_facts_schema, validate_certificate_json_for_profile,
-    validate_formal_facts_consistency, validate_handoff_artifact, validate_release_mode_fields,
-    verify_certificate_document, write_handoff_manifest, BenchmarkCertificatesOptions,
-    CertificateEmitSummary, CertifyEdgeMetadata, PropertyProfileRegistry,
+    validate_certificate_benchmark_cases_tree, validate_certificate_formal_facts_schema,
+    validate_certificate_json_for_profile, validate_formal_facts_consistency,
+    validate_handoff_artifact, validate_release_mode_fields, verify_certificate_document,
+    write_handoff_manifest, BenchmarkCertificatesOptions, CertificateEmitSummary,
+    CertifyEdgeMetadata, PropertyProfileRegistry,
 };
 use serde_json::Value;
 
@@ -247,9 +247,36 @@ pub fn cmd_check_trace(
 }
 
 fn certifyedge_root() -> PathBuf {
-    std::env::var("CERTIFYEDGE_ROOT")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+    if let Ok(root) = std::env::var("CERTIFYEDGE_ROOT") {
+        return PathBuf::from(root);
+    }
+    let mut starts = Vec::new();
+    if let Ok(cwd) = std::env::current_dir() {
+        starts.push(cwd);
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(mut dir) = exe.parent().map(PathBuf::from) {
+            // target/debug/certifyedge.exe -> repo root is three levels up
+            for _ in 0..6 {
+                starts.push(dir.clone());
+                if !dir.pop() {
+                    break;
+                }
+            }
+        }
+    }
+    for start in starts {
+        let mut dir = start;
+        loop {
+            if dir.join("templates/profiles/schema.json").is_file() {
+                return dir;
+            }
+            if !dir.pop() {
+                break;
+            }
+        }
+    }
+    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
 
 /// Runbook filename when the committed LabTrust fixture should be used instead.
@@ -380,7 +407,10 @@ pub fn cmd_benchmark(command: BenchmarkCommands) -> Result<(), String> {
             );
             if json_summary {
                 if let Some(summary) = &outcome.json_summary {
-                    println!("{}", serde_json::to_string(summary).map_err(|e| e.to_string())?);
+                    println!(
+                        "{}",
+                        serde_json::to_string(summary).map_err(|e| e.to_string())?
+                    );
                 }
             }
             if run.cases_passed != run.cases_run {

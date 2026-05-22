@@ -2,26 +2,46 @@
 
 ## Status
 
-Accepted
+Accepted (updated 2026-05 for PCS v0.1)
 
 ## Context
 
-Some jobs referenced build targets that did not exist, so automation did not reflect real behavior. The project needs one test that exercises the main libraries on every change.
+The project needs automation that matches what is actually built. Two tracks coexist:
+
+1. **Legacy STL/SMT pipeline** — `integration_tests` compiles specs, runs SMT checks, and signs certificates without external Lean/Z3/CVC5 when configured for tests.
+2. **PCS v0.1 certificate engine** — profile-driven `certifyedge` CLI, certificate benchmarks, pcs-core validation, and optional cross-repo clean-checkout.
 
 ## Decision
 
-- Add an integration test that:
-  1. Compiles a small **signal temporal logic (STL)** specification with `Compiler` and `CompilerConfig::for_tests_without_external_tools()` (no separate Lean, Z3, or CVC5 programs on the machine).
-  2. Runs **satisfiability modulo theories (SMT)** checks on generated SMT-LIB with `SMTVerifier`.
-  3. Creates and checks an Ed25519-signed certificate with `CertificateService`.
-- Keep this test in the Cargo workspace package `integration_tests` (under `tests/pipeline_integration/`) and expose the same logic to Bazel as `//tests/pipeline_integration:pipeline_integration`.
-- GitHub Actions runs `cargo fmt --check`, `cargo test --workspace`, and `bazel test --config=ci //tests/pipeline_integration:pipeline_integration`, with a cached Bazel output directory.
+### Legacy integration test
+
+- Keep `integration_tests` (Cargo) and `//tests/pipeline_integration:pipeline_integration` (Bazel).
+- `CompilerConfig::for_tests_without_external_tools()` avoids external solver binaries in CI.
+
+### PCS v0.1 (primary release gate)
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on every push/PR:
+
+**Rust job:** `cargo fmt`, `cargo check`, PCS clippy, profile validation, `make benchmark-certificates`, `certifyedge-integration` tests, `pcs-runbook.sh`, pcs-core checkout, fixture validation, handoff emit gates, benchmark output validation, `make pcs-bench-producer`, pcs-bench ingest validation, registry drift, LabTrust-Gym clean-checkout.
+
+**Bazel job:** PCS graph build and `scripts/bazel-pcs-test.sh`.
+
+Local equivalent before a PCS-related PR:
+
+```bash
+export CERTIFYEDGE_SOURCE_COMMIT="$(git rev-parse HEAD)"
+make pcs-test
+```
+
+Full release checklist: [docs/pcs-guide.md](../pcs-guide.md#pre-release-checklist).
 
 ## Consequences
 
-- Automation matches what is actually built today. Additional checks (coverage, software bills of materials, signing infrastructure) can be added when those targets exist.
+- PCS changes must pass `make pcs-test` at minimum; release tagging should follow the full checklist in the PCS guide.
+- Legacy pipeline tests remain for `stl-compiler` / `smt-verifier` / `certificate` crates.
 
 ## Related
 
 - [ADR 001 — Bazel as canonical build graph](001-bazel-canonical-build.md)
-- [ADR 003 — Protocol buffers and gRPC](003-proto-and-grpc.md)
+- [ADR 005 — PCS v0.1 LabTrust certification](005-pcs-v01-labtrust-certification.md)
+- [PCS guide](../pcs-guide.md)

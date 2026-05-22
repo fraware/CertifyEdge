@@ -4,7 +4,7 @@
 mod support;
 
 use pcs_certificate::{
-    run_certificate_benchmark, validate_pcs_benchmark_output_dir, validate_pcs_bench_ingest_schema,
+    run_certificate_benchmark, validate_pcs_bench_ingest_schema, validate_pcs_benchmark_output_dir,
     BenchmarkCertificatesOptions,
 };
 
@@ -74,7 +74,10 @@ fn pcs_benchmark_outputs_validate_for_all_profile_suites() {
             "ingest.workflow_id must match profile for {profile_id}"
         );
         assert!(
-            ingest.get("coverage_reports").and_then(|v| v.as_array()).map(|a| !a.is_empty())
+            ingest
+                .get("coverage_reports")
+                .and_then(|v| v.as_array())
+                .map(|a| !a.is_empty())
                 == Some(true),
             "ingest.coverage_reports empty for {profile_id}"
         );
@@ -132,7 +135,9 @@ fn pcs_benchmark_outputs_validate_for_all_profile_suites() {
         {
             if run.get("observed_status").and_then(|v| v.as_str()) == Some("passed") {
                 assert!(
-                    run.get("observed_failure_code").map(|v| v.is_null()).unwrap_or(true),
+                    run.get("observed_failure_code")
+                        .map(|v| v.is_null())
+                        .unwrap_or(true),
                     "passed ingest run must have null observed_failure_code ({profile_id})"
                 );
             }
@@ -208,16 +213,25 @@ fn pcs_benchmark_outputs_validate_for_all_profile_suites() {
             .into_iter()
             .flatten()
         {
-            let score = exp.get("quality_score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let score = exp
+                .get("quality_score")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0);
             let required: Vec<&str> = exp
                 .get("required_sections")
                 .and_then(|v| v.as_array())
                 .map(|a| a.iter().filter_map(|v| v.as_str()).collect())
                 .unwrap_or_default();
             let rejection_grade = required.len() == 5
-                && ["provenance", "hashes", "verification", "limitations", "repair_hints"]
-                    .iter()
-                    .all(|s| required.contains(s));
+                && [
+                    "provenance",
+                    "hashes",
+                    "verification",
+                    "limitations",
+                    "repair_hints",
+                ]
+                .iter()
+                .all(|s| required.contains(s));
             if rejection_grade {
                 assert!(
                     score >= 0.8,
@@ -358,7 +372,10 @@ print(f"OK release-grade ingest: {{path}}")
     );
 }
 
-fn validate_pcs_bench_ingest_with_pcs_core_python(pcs_core: &std::path::Path, ingest: &std::path::Path) {
+fn validate_pcs_bench_ingest_with_pcs_core_python(
+    pcs_core: &std::path::Path,
+    ingest: &std::path::Path,
+) {
     let python_pkg = pcs_core.join("python");
     if !python_pkg.join("pcs_core").is_dir() {
         panic!(
@@ -408,9 +425,9 @@ print(f"OK pcs-core ingest validation: {{path}}")
         })
         .unwrap_or_else(|| "python3".into());
     let status = std::process::Command::new(&python)
-    .args(["-c", &script])
-    .status()
-    .unwrap_or_else(|e| panic!("spawn python for ingest consumer validation: {e}"));
+        .args(["-c", &script])
+        .status()
+        .unwrap_or_else(|e| panic!("spawn python for ingest consumer validation: {e}"));
     assert!(
         status.success(),
         "pcs-core consumer ingest validation failed for {}",

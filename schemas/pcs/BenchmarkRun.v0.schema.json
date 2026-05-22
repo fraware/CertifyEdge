@@ -42,9 +42,7 @@
     "observed_responsible_component": {
       "$ref": "common.defs.json#/$defs/nullable_benchmark_responsible_component"
     },
-    "observed_repair_hint": {
-      "$ref": "common.defs.json#/$defs/nullable_benchmark_repair_hint_kind"
-    },
+    "observed_repair_hint": { "type": ["string", "null"] },
     "system_admission_outcome": {
       "$ref": "common.defs.json#/$defs/system_admission_outcome"
     },

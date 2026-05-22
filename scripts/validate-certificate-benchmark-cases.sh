@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 # Validate benchmarks/certificates case.json files and profile benchmark coverage.
 set -euo pipefail
-
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/python_cmd.sh
+. "$SCRIPT_DIR/lib/python_cmd.sh"
+PY="$(resolve_python)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT"
 
 cargo build -p certifyedge --quiet
 cargo run -p certifyedge --quiet -- benchmark validate-cases
 
-python3 - "$ROOT" <<'PY'
+"$PY" - "$ROOT" <<'PY'
 import json
 import sys
 from pathlib import Path

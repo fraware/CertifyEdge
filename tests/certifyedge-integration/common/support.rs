@@ -76,15 +76,28 @@ pub struct PcsCoreRcConstants {
 }
 
 pub fn pcs_core_rc_constants() -> PcsCoreRcConstants {
+    let cert: serde_json::Value = load_json_path(&pcs_core_rc_fixture("trace_certificate.json"));
+    let manifest: serde_json::Value =
+        load_json_path(&pcs_core_rc_fixture("PCS_CORE_RC_MANIFEST.json"));
+    let certified_bundle_hash = manifest["artifacts"]["science_claim_bundle.certified.json"]
+        .as_str()
+        .expect("PCS_CORE_RC_MANIFEST science_claim_bundle.certified.json hash")
+        .to_string();
     PcsCoreRcConstants {
-        certificate_id: "cert-trace-886c95f0-5d63-42d6-aa13-5891c12c5a6a",
-        trace_hash: "sha256:c3e8a3dc4ad86d533de1dfa4ae7fe2a338c2cff3c945404c96a75216524d58cd",
-        source_commit: "cb6848001e2e60a484e04eba5ad6be3fe2e4eccc",
-        signature_or_digest:
-            "sha256:34dec7d507119b599c2e2611bff0f984359a64d12cee2600901cc73537fd6f2b",
-        certified_bundle_hash:
-            "sha256:9b42d792199eb6f358d26f822699f0ed65bb4366eee306d4958d42121c656833",
+        certificate_id: leak_str(cert["certificate_id"].as_str().expect("certificate_id")),
+        trace_hash: leak_str(cert["trace_hash"].as_str().expect("trace_hash")),
+        source_commit: leak_str(cert["source_commit"].as_str().expect("source_commit")),
+        signature_or_digest: leak_str(
+            cert["signature_or_digest"]
+                .as_str()
+                .expect("signature_or_digest"),
+        ),
+        certified_bundle_hash: leak_str(&certified_bundle_hash),
     }
+}
+
+fn leak_str(s: &str) -> &'static str {
+    Box::leak(s.to_string().into_boxed_str())
 }
 
 /// PCS RC trace certificate (`tests/fixtures/labtrust-release/trace_certificate.json`).

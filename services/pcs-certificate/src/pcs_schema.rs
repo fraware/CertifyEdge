@@ -97,7 +97,6 @@ fn strip_schema_metadata(value: &mut Value) {
     }
 }
 
-
 fn merged_handoff_manifest_schema() -> Value {
     let common: Value = serde_json::from_str(include_str!("../../../schemas/pcs/common.defs.json"))
         .expect("common.defs.json");
@@ -624,10 +623,7 @@ fn merged_pcs_bench_ingest_schema() -> Value {
         defs_map.insert("benchmark_run_v0".to_string(), benchmark_run);
         defs_map.insert("coverage_report_v0".to_string(), coverage);
         defs_map.insert("profile_coverage_report_v0".to_string(), profile_cov);
-        defs_map.insert(
-            "failure_localization_result_v0".to_string(),
-            failure_loc,
-        );
+        defs_map.insert("failure_localization_result_v0".to_string(), failure_loc);
         defs_map.insert("explain_quality_report_v0".to_string(), explain);
         defs_map.insert("benchmark_artifact_ref_v0".to_string(), artifact_ref);
         obj.insert("$defs".to_string(), Value::Object(defs_map));
@@ -638,8 +634,9 @@ fn merged_pcs_bench_ingest_schema() -> Value {
 
 fn benchmark_artifact_ref_validator() -> &'static Validator {
     BENCHMARK_ARTIFACT_REF_VALIDATOR.get_or_init(|| {
-        let common: Value = serde_json::from_str(include_str!("../../../schemas/pcs/common.defs.json"))
-            .expect("common.defs.json");
+        let common: Value =
+            serde_json::from_str(include_str!("../../../schemas/pcs/common.defs.json"))
+                .expect("common.defs.json");
         let mut doc = read_nested_schema("BenchmarkArtifactRef.v0.schema.json");
         strip_schema_metadata(&mut doc);
         rewrite_common_defs_refs(&mut doc);
@@ -655,8 +652,9 @@ fn benchmark_artifact_ref_validator() -> &'static Validator {
 
 fn failure_localization_validator() -> &'static Validator {
     FAILURE_LOCALIZATION_VALIDATOR.get_or_init(|| {
-        let common: Value = serde_json::from_str(include_str!("../../../schemas/pcs/common.defs.json"))
-            .expect("common.defs.json");
+        let common: Value =
+            serde_json::from_str(include_str!("../../../schemas/pcs/common.defs.json"))
+                .expect("common.defs.json");
         let mut doc = read_nested_schema("FailureLocalizationResult.v0.schema.json");
         strip_schema_metadata(&mut doc);
         rewrite_common_defs_refs(&mut doc);
@@ -672,8 +670,9 @@ fn failure_localization_validator() -> &'static Validator {
 
 fn explain_quality_report_validator() -> &'static Validator {
     EXPLAIN_QUALITY_REPORT_VALIDATOR.get_or_init(|| {
-        let common: Value = serde_json::from_str(include_str!("../../../schemas/pcs/common.defs.json"))
-            .expect("common.defs.json");
+        let common: Value =
+            serde_json::from_str(include_str!("../../../schemas/pcs/common.defs.json"))
+                .expect("common.defs.json");
         let mut doc = read_nested_schema("ExplainQualityReport.v0.schema.json");
         let nested_defs = doc.get("$defs").cloned();
         strip_schema_metadata(&mut doc);
@@ -699,7 +698,8 @@ fn explain_quality_report_validator() -> &'static Validator {
 
 fn pcs_bench_ingest_validator() -> &'static Validator {
     PCS_BENCH_INGEST_VALIDATOR.get_or_init(|| {
-        Validator::new(&merged_pcs_bench_ingest_schema()).expect("PcsBenchIngest.v0 schema compiles")
+        Validator::new(&merged_pcs_bench_ingest_schema())
+            .expect("PcsBenchIngest.v0 schema compiles")
     })
 }
 
@@ -789,7 +789,10 @@ pub fn benchmark_run_core_from_certificate_run(value: &Value) -> Value {
 pub fn benchmark_run_core_for_ingest(value: &Value) -> Value {
     let mut core = benchmark_run_core_from_certificate_run(value);
     if let Some(obj) = core.as_object_mut() {
-        obj.insert("signature_or_digest".to_string(), Value::String(String::new()));
+        obj.insert(
+            "signature_or_digest".to_string(),
+            Value::String(String::new()),
+        );
         let digest = crate::hash::canonical_hash(&Value::Object(obj.clone()));
         obj.insert("signature_or_digest".to_string(), Value::String(digest));
     }
@@ -967,13 +970,18 @@ mod tests {
             "signature_or_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
         });
         let core = benchmark_run_core_from_certificate_run(&doc);
-        assert!(core.get("observed_failure_code").map(|v| v.is_null()).unwrap_or(false));
-        assert!(
-            core.get("observed_responsible_component")
-                .map(|v| v.is_null())
-                .unwrap_or(false)
-        );
-        assert!(core.get("observed_repair_hint").map(|v| v.is_null()).unwrap_or(false));
+        assert!(core
+            .get("observed_failure_code")
+            .map(|v| v.is_null())
+            .unwrap_or(false));
+        assert!(core
+            .get("observed_responsible_component")
+            .map(|v| v.is_null())
+            .unwrap_or(false));
+        assert!(core
+            .get("observed_repair_hint")
+            .map(|v| v.is_null())
+            .unwrap_or(false));
     }
 
     #[test]

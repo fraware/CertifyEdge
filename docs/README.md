@@ -1,42 +1,37 @@
 # Documentation
 
-Start here for how the repository is organized, how to build and test it, and why major choices were made.
+## Proof-Carrying Science (PCS) v0.1
+
+**[PCS guide](pcs-guide.md)** — start here: profiles, CLI, benchmarks, cross-repo chain, pre-release checklist.
+
+| Document | When to read |
+|----------|--------------|
+| [PCS guide](pcs-guide.md) | Everything you need to use or release the certificate engine |
+| [Cross-repo handoff](pcs-handoff.md) | LabTrust-Gym → CertifyEdge → Provability Fabric step-by-step |
+| [Trace certificates](pcs-trace-certificates.md) | LabTrust `TraceCertificate.v0` fields and canonical fixtures |
+| [Property profiles](pcs-certificate-profile.md) | Profile registry and artifact registry contributions |
+| [LabTrust adapter](labtrust-adapter.md) | Trace format, hashing, temporal property templates |
+
+## General development
 
 | Document | Purpose |
 |----------|---------|
-| [Quick start](quick-start.md) | Install tools, run Cargo and Bazel, repository layout |
-| [PCS trace certificates](pcs-trace-certificates.md) | LabTrust v0.1 CLI runbook, `TraceCertificate.v0`, release mode |
-| [LabTrust adapter](labtrust-adapter.md) | Trace parsing, hashing, temporal properties |
-| [PCS handoff](pcs-handoff.md) | LabTrust-Gym / tool-use / computation → CertifyEdge → downstream bundles |
-| [Contributing](../CONTRIBUTING.md) | Pull requests, formatting, commands to run before submitting |
-| [Architecture decisions (ADRs)](adr/) | Short records of build system, CI, protos, and security outline |
-| [Root README](../README.md) | Project overview and goals |
+| [Quick start](quick-start.md) | Rust/Bazel setup, legacy STL/SMT stack |
+| [Contributing](../CONTRIBUTING.md) | Pull requests and PCS pre-merge checks |
+| [Root README](../README.md) | Project overview |
 
 ## Architecture decision records
 
-Directory listing: [docs/adr/README.md](adr/README.md).
+[ADR index](adr/README.md)
 
 | ADR | Topic |
 |-----|--------|
-| [001 — Bazel as canonical build graph](adr/001-bazel-canonical-build.md) | `MODULE.bazel`, Cargo lockfile, toolchain alignment |
-| [002 — CI and end-to-end integration test](adr/002-ci-integration-test.md) | GitHub Actions and `integration_tests` / Bazel `pipeline_integration` |
-| [003 — Protocol buffers and gRPC](adr/003-proto-and-grpc.md) | `.proto` schema today; gRPC when needed |
-| [004 — Threat model outline](adr/004-threat-model-outline.md) | Placeholder for security documentation |
-| [005 — PCS v0.1 LabTrust certification](adr/005-pcs-v01-labtrust-certification.md) | Trace certificates, runbook CLI, pcs-core validation |
+| [001 — Bazel](adr/001-bazel-canonical-build.md) | Build graph |
+| [002 — CI](adr/002-ci-integration-test.md) | GitHub Actions and integration tests |
+| [003 — Protos](adr/003-proto-and-grpc.md) | Protocol buffers |
+| [004 — Threat model](adr/004-threat-model-outline.md) | Security outline (placeholder) |
+| [005 — PCS v0.1](adr/005-pcs-v01-labtrust-certification.md) | LabTrust certification decision |
 
-Property profiles under `templates/profiles/` also drive **ToolUseCertificate.v0** and **ComputationWitness.v0** emit (see [pcs-certificate-profile.md](pcs-certificate-profile.md)).
+## Service notes
 
-## PCS v0.1 (LabTrust)
-
-```bash
-make test          # integration tests + clippy (PCS crates)
-make runbook       # full handoff script (scripts/pcs-runbook.sh)
-```
-
-LabTrust traces live under `tests/labtrust/`. Deterministic release handoff fixtures are under `tests/fixtures/labtrust-release/` (CLI-generated certificate and counterexamples). Regenerate with:
-
-`cargo test -p certifyedge-integration write_fixtures -- --ignored --nocapture`
-
-## Service-specific notes
-
-- [STL compiler](../services/stl-compiler/README.md) — parsing, outputs, configuration, and how to run tests for that crate
+- [STL compiler](../services/stl-compiler/README.md) — legacy signal temporal logic / SMT stack (separate from PCS v0.1 profiles)

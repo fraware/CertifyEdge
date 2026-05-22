@@ -23,86 +23,34 @@ CertifyEdge is a **Rust** workspace for **signal temporal logic (STL)** specific
 
 ---
 
-## PCS v0.1 (LabTrust QC-release)
+## Proof-Carrying Science (PCS) v0.1
 
-CertifyEdge v0.1 is the **profile-driven certificate engine** for [Proof-Carrying Science](https://github.com/SentinelOps-CI/pcs-core) v0.1. Property profiles under `templates/profiles/` map runtime inputs to STL checks and PCS certificate types:
+CertifyEdge is the **profile-driven certificate engine** for [Proof-Carrying Science](https://github.com/SentinelOps-CI/pcs-core) v0.1. Property profiles under `templates/profiles/` map runtime inputs to checks and versioned JSON certificates.
 
-| Profile | Output artifact |
-|---------|-----------------|
+| Profile | Output |
+|---------|--------|
 | `hospital_lab.qc_release` | `TraceCertificate.v0` |
 | `agent_tool_use.safety_v0` | `ToolUseCertificate.v0` |
 | `scientific_computation.reproducibility_v0` | `ComputationWitness.v0` |
 
-Add a workflow by adding a profile JSON file and template—no emit logic changes.
-
-Runbook commands are implemented in the **`certifyedge`** binary (`cli/`). Search the repo for `emit-pcs-certificate`, `check-trace`, or constants like `CMD_EMIT_PCS_CERTIFICATE` in `cli/src/lib.rs`.
+**Documentation:** [docs/pcs-guide.md](docs/pcs-guide.md) (start here) · [cross-repo handoff](docs/pcs-handoff.md)
 
 ```bash
-# Build the CLI (binary lands in target/debug/, not on PATH)
 cargo build -p certifyedge
-
-# Use `cargo run -p certifyedge -- <subcommand> ...` or ./target/debug/certifyedge.exe (Git Bash)
-# Put on PATH without crates.io: ./scripts/install-certifyedge.sh
-# See docs/pcs-trace-certificates.md if `cargo install` hits Windows SSL errors.
-
-# Check a trace against the composite QC-release property
-cargo run -p certifyedge -- check-trace \
-  --spec templates/hospital_lab/qc_release.stl \
-  --trace tests/fixtures/labtrust-release/trace.json
-
-# Emit a PCS certificate
-cargo run -p certifyedge -- emit-pcs-certificate \
-  --spec templates/hospital_lab/qc_release.stl \
-  --trace tests/fixtures/labtrust-release/trace.json \
-  --out trace_certificate.json
-
-# Verify certificate schema and digest
-cargo run -p certifyedge -- verify-certificate trace_certificate.json
-
-# Explain a counterexample
-cargo run -p certifyedge -- explain-counterexample counterexample.json
-
-# Profile-driven certificate benchmarks (all three profiles)
-make benchmark-certificates
-# Validate output trees (after make benchmark-certificates)
-make validate-benchmark-outputs
-# Or one suite:
-cargo run -p certifyedge -- benchmark certificates \
-  --profile hospital_lab.qc_release \
-  --cases benchmarks/certificates/hospital_lab_qc_release \
-  --out benchmark_runs/hospital_lab_qc_release \
-  --json-summary
-# pcs-bench primary ingest (pcs-core PcsBenchIngest.v0): benchmark_runs/<suite>/pcs_bench_ingest.v0.json
-cargo run -p certifyedge -- benchmark validate-output \
-  --out benchmark_runs/hospital_lab_qc_release
+make runbook                    # local smoke test
+make pcs-test                   # pre-PR gate (matches most of CI)
+export CERTIFYEDGE_SOURCE_COMMIT="$(git rev-parse HEAD)"
+make pcs-bench-producer-all-profiles   # all benchmark suites + ingest validation
 ```
 
-| Crate / path | Role |
-|--------------|------|
-| `services/labtrust-adapter/` | Parse LabTrust traces, hash chain, temporal checks |
-| `services/pcs-certificate/` | Profile registry, certificate emit, handoffs, repair hints |
-| `cli/` | `certifyedge` command-line tool (`profiles`, `emit-pcs-certificate`, …) |
-| `templates/profiles/` | Property profile registry (LabTrust, tool-use, computation) |
-| `templates/hospital_lab/` | LabTrust STL property specs |
-| `templates/tool_use/` | Tool-use STL property specs |
-| `templates/computation/` | Computation reproducibility STL checks |
-| `pcs_registry/` | PCS `ArtifactRegistry.v0` contribution entries |
-| `tests/labtrust/` | Golden traces and expected outputs |
-| `tests/fixtures/labtrust-release/` | CLI-generated release trace, certificate, and counterexamples |
-
-End-to-end flow with LabTrust-Gym and Provability Fabric is documented in [docs/pcs-trace-certificates.md](docs/pcs-trace-certificates.md), [docs/labtrust-adapter.md](docs/labtrust-adapter.md), and [docs/pcs-handoff.md](docs/pcs-handoff.md).
-
-PCS v0.1 release gate (full cross-repo chain):
+Cross-repo release chain (requires sibling LabTrust-Gym):
 
 ```bash
 export PCS_DETERMINISTIC=1
-make clean-checkout              # requires sibling LabTrust-Gym, pf, scientific-memory
-make clean-checkout-certified    # LabTrust export + CertifyEdge + attach (CI default)
+make clean-checkout-certified
 ```
 
-Quick runbook via Make: `make check-trace`, `make emit-certificate`, `make verify-certificate`, `make test`, `make runbook`, `make fixtures` (regenerate `labtrust-release`).
-
-**Simulation disclaimer:** v0.1 certificates attest to LabTrust-Gym simulation traces only. They are not clinical or production laboratory guarantees.
+**Simulation only:** v0.1 certificates attest to LabTrust-Gym simulation traces—not clinical or production guarantees.
 
 ---
 
@@ -178,6 +126,7 @@ bazel test --config=ci //tests/pipeline_integration:pipeline_integration
 | Resource | Description |
 |----------|-------------|
 | [docs/README.md](docs/README.md) | Index of guides and architecture decisions |
+| [docs/pcs-guide.md](docs/pcs-guide.md) | PCS certificate engine, benchmarks, release checklist |
 | [docs/quick-start.md](docs/quick-start.md) | Setup, commands, troubleshooting |
 | [docs/adr/](docs/adr/) | Decision records (Bazel, CI, protos, security outline) |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Pull requests, formatting, review expectations |

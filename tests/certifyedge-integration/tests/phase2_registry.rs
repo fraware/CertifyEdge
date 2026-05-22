@@ -159,9 +159,15 @@ fn test_tool_use_certificate_registry_contribution_shape() {
         .iter()
         .any(|v| v.as_str() == Some("policy_hash")));
     let checks = entry["semantic_checks"].as_array().unwrap();
-    assert!(checks
-        .iter()
-        .any(|c| c["check_id"] == "policy_hash_matches_runtime_policy"));
+    for expected in [
+        "policy_hash_matches_certificate",
+        "no_unauthorized_tool_calls",
+    ] {
+        assert!(
+            checks.iter().any(|c| c["check_id"] == expected),
+            "ToolUseCertificate registry missing semantic check {expected}"
+        );
+    }
     assert_eq!(entry["formal_predicate"], "CertificateMatchesRuntime");
     assert_eq!(entry["formal_fact_artifact"], "CertificateFormalFacts.v0");
     assert_eq!(entry["lean_module"], "PCS.Certificate");

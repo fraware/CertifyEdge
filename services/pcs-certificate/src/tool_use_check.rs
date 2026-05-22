@@ -89,7 +89,11 @@ pub fn check_no_unauthorized_tool_call(
                     "unknown_authorization_status",
                     message.clone(),
                 )
-                .with_tool_call(&call.event_id, &call.tool_name, &call.authorization_status)],
+                .with_tool_call(
+                    &call.event_id,
+                    &call.tool_name,
+                    &call.authorization_status,
+                )],
                 counterexample: Some(tool_use_counterexample_json(
                     "unknown_authorization_status",
                     &call.event_id,

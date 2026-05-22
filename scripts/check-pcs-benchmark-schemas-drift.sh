@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Fail if vendored pcs-core benchmark schemas drift from upstream pcs-core.
 set -euo pipefail
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/python_cmd.sh
+. "$SCRIPT_DIR/lib/python_cmd.sh"
+PY="$(resolve_python)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PARENT="$(dirname "$ROOT")"
 PCS_CORE="${PCS_CORE_PATH:-${PCS_CORE_ROOT:-$PARENT/pcs-core}}"
 DEST="$ROOT/schemas/pcs"
@@ -11,7 +15,7 @@ if [[ ! -d "$PCS_CORE/schemas" ]]; then
   exit 1
 fi
 
-python3 - "$PCS_CORE/schemas" "$DEST" <<'PY'
+"$PY" - "$PCS_CORE/schemas" "$DEST" <<'PY'
 import json
 import sys
 from pathlib import Path

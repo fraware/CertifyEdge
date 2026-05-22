@@ -67,7 +67,8 @@ fn strip_schema_metadata(value: &mut Value) {
 
 fn read_schema_file(schemas_dir: &Path, name: &str) -> Result<Value, String> {
     let path = schemas_dir.join(name);
-    let text = std::fs::read_to_string(&path).map_err(|e| format!("read {}: {e}", path.display()))?;
+    let text =
+        std::fs::read_to_string(&path).map_err(|e| format!("read {}: {e}", path.display()))?;
     serde_json::from_str(&text).map_err(|e| format!("parse {}: {e}", path.display()))
 }
 
@@ -87,7 +88,8 @@ fn load_pcs_core_merged_ingest_schema(schemas_dir: &Path) -> Result<Value, Strin
     let mut benchmark_run = read_schema_file(schemas_dir, "BenchmarkRun.v0.schema.json")?;
     let mut coverage = read_schema_file(schemas_dir, "CoverageReport.v0.schema.json")?;
     let mut profile_cov = read_schema_file(schemas_dir, "ProfileCoverageReport.v0.schema.json")?;
-    let mut failure_loc = read_schema_file(schemas_dir, "FailureLocalizationResult.v0.schema.json")?;
+    let mut failure_loc =
+        read_schema_file(schemas_dir, "FailureLocalizationResult.v0.schema.json")?;
     let mut explain = read_schema_file(schemas_dir, "ExplainQualityReport.v0.schema.json")?;
     let mut artifact_ref = read_schema_file(schemas_dir, "BenchmarkArtifactRef.v0.schema.json")?;
     let explain_nested_defs = explain.get("$defs").cloned();
@@ -122,10 +124,7 @@ fn load_pcs_core_merged_ingest_schema(schemas_dir: &Path) -> Result<Value, Strin
         defs_map.insert("benchmark_run_v0".to_string(), benchmark_run);
         defs_map.insert("coverage_report_v0".to_string(), coverage);
         defs_map.insert("profile_coverage_report_v0".to_string(), profile_cov);
-        defs_map.insert(
-            "failure_localization_result_v0".to_string(),
-            failure_loc,
-        );
+        defs_map.insert("failure_localization_result_v0".to_string(), failure_loc);
         defs_map.insert("explain_quality_report_v0".to_string(), explain);
         defs_map.insert("benchmark_artifact_ref_v0".to_string(), artifact_ref);
         obj.insert("$defs".to_string(), Value::Object(defs_map));
@@ -380,6 +379,7 @@ pub fn validate_pcs_core_output_dir(pcs_core_root: &Path, out_dir: &Path) -> Res
 }
 
 fn read_json(path: &Path) -> Result<Value, String> {
-    let text = std::fs::read_to_string(path).map_err(|e| format!("read {}: {e}", path.display()))?;
+    let text =
+        std::fs::read_to_string(path).map_err(|e| format!("read {}: {e}", path.display()))?;
     serde_json::from_str(&text).map_err(|e| format!("parse {}: {e}", path.display()))
 }

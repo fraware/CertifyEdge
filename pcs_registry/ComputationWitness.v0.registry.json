@@ -14,15 +14,18 @@
   ],
   "required_release_fields": [
     "schema_version",
-    "certificate_id",
-    "run_hash",
-    "dataset_receipt_hash",
-    "environment_receipt_hash",
+    "witness_id",
+    "workflow_id",
+    "dataset_hash",
+    "environment_hash",
+    "run_receipt_hash",
+    "result_hashes",
+    "code_repo",
     "code_commit",
-    "property_id",
     "checker",
     "checker_version",
     "status",
+    "violations",
     "source_repo",
     "source_commit",
     "signature_or_digest"
@@ -37,6 +40,13 @@
     },
     {
       "check_id": "environment_hash_matches_receipt",
+      "severity": "release_blocking",
+      "responsible_component": "CertifyEdge",
+      "execution_required_in_release_mode": true,
+      "allowed_to_skip": false
+    },
+    {
+      "check_id": "run_receipt_hash_matches_declared_run",
       "severity": "release_blocking",
       "responsible_component": "CertifyEdge",
       "execution_required_in_release_mode": true,
@@ -62,11 +72,26 @@
       "responsible_component": "CertifyEdge",
       "execution_required_in_release_mode": true,
       "allowed_to_skip": false
+    },
+    {
+      "check_id": "source_commit_matches_release_manifest",
+      "severity": "release_blocking",
+      "responsible_component": "CertifyEdge",
+      "execution_required_in_release_mode": true,
+      "allowed_to_skip": false
+    },
+    {
+      "check_id": "signature_or_digest_valid",
+      "severity": "release_blocking",
+      "responsible_component": "CertifyEdge",
+      "execution_required_in_release_mode": true,
+      "allowed_to_skip": false
     }
   ],
   "consumer_repos": [
     "Provability Fabric",
-    "Scientific Memory"
+    "Scientific Memory",
+    "pcs-core"
   ],
   "canonical_hash_required": true,
   "release_mode_required": true,

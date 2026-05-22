@@ -93,8 +93,8 @@ fn io_error_path(context: &str, path: &Path, err: std::io::Error) -> String {
 }
 
 pub fn load_handoff_manifest(path: &Path) -> Result<HandoffManifestV0, String> {
-    let text = std::fs::read_to_string(path)
-        .map_err(|e| io_error_path("handoff manifest", path, e))?;
+    let text =
+        std::fs::read_to_string(path).map_err(|e| io_error_path("handoff manifest", path, e))?;
     let value: Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
     validate_handoff_manifest_schema(&value)?;
     verify_handoff_digest(&value)?;
@@ -103,8 +103,8 @@ pub fn load_handoff_manifest(path: &Path) -> Result<HandoffManifestV0, String> {
 
 /// Recompute `signature_or_digest` from manifest content and rewrite the file (benchmark fixtures).
 pub fn refresh_handoff_digest_file(path: &Path) -> Result<(), String> {
-    let text = std::fs::read_to_string(path)
-        .map_err(|e| io_error_path("handoff manifest", path, e))?;
+    let text =
+        std::fs::read_to_string(path).map_err(|e| io_error_path("handoff manifest", path, e))?;
     let value: Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
     validate_handoff_manifest_schema(&value)?;
     let mut manifest: HandoffManifestV0 =
@@ -734,8 +734,8 @@ pub fn write_handoff_manifest(path: &Path, manifest: &HandoffManifestV0) -> Resu
 
 /// Validate handoff JSON against vendored schema; optional `pcs validate` when installed.
 pub fn validate_handoff_artifact(path: &Path, require_pcs_cli: bool) -> Result<(), String> {
-    let text = std::fs::read_to_string(path)
-        .map_err(|e| io_error_path("handoff manifest", path, e))?;
+    let text =
+        std::fs::read_to_string(path).map_err(|e| io_error_path("handoff manifest", path, e))?;
     let value: serde_json::Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
     validate_handoff_manifest_schema(&value)?;
     verify_handoff_digest(&value)?;

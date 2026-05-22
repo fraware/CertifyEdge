@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 # Fail if benchmark case trees are missing required files after generation.
 set -euo pipefail
-
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/python_cmd.sh
+. "$SCRIPT_DIR/lib/python_cmd.sh"
+PY="$(resolve_python)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT"
 
 bash ./scripts/validate-certificate-benchmark-cases.sh
 
 # Ensure each case has handoff + at least one input artifact besides case.json.
-python3 - "$ROOT/benchmarks/certificates" <<'PY'
+"$PY" - "$ROOT/benchmarks/certificates" <<'PY'
 import sys
 from pathlib import Path
 

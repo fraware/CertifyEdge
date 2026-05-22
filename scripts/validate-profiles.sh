@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Validate all property profile JSON files under templates/profiles/.
 set -euo pipefail
-
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/python_cmd.sh
+. "$SCRIPT_DIR/lib/python_cmd.sh"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT"
 
 cargo build -p certifyedge --quiet
@@ -25,10 +27,10 @@ if [ "$failed" -ne 0 ]; then
   exit 1
 fi
 
-if ! command -v python3 >/dev/null 2>&1; then
-  echo "warning: python3 not found; skipped formalization predicate cross-check" >&2
+if ! PY="$(resolve_python 2>/dev/null)"; then
+  echo "warning: python not found; skipped formalization predicate cross-check" >&2
 else
-  python3 - "$PROFILES_DIR" <<'PY'
+  "$PY" - "$PROFILES_DIR" <<'PY'
 import json
 import sys
 from pathlib import Path

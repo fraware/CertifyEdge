@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # Fail if CertifyEdge registry contribution drifts from pcs-core TraceCertificate.v0 entry.
 set -euo pipefail
-
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/python_cmd.sh
+. "$SCRIPT_DIR/lib/python_cmd.sh"
+PY="$(resolve_python)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PARENT="$(dirname "$ROOT")"
 PCS_CORE="${PCS_CORE_PATH:-${PCS_CORE_ROOT:-$PARENT/pcs-core}}"
 UPSTREAM="$PCS_CORE/examples/artifact_registry.valid.json"
@@ -17,7 +20,7 @@ if [ ! -f "$LOCAL" ]; then
   exit 1
 fi
 
-python3 - "$UPSTREAM" "$LOCAL" <<'PY'
+"$PY" - "$UPSTREAM" "$LOCAL" <<'PY'
 import json
 import os
 import sys

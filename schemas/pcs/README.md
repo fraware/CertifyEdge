@@ -1,56 +1,41 @@
-# PCS schemas (vendored from pcs-core)
+# Vendored PCS schemas
 
-These files support offline PCS validation in CertifyEdge. Certificate and handoff
-schemas are synced from [pcs-core](https://github.com/SentinelOps-CI/pcs-core); benchmark
-report schemas follow the same contract as `pcs-bench`.
+JSON schemas synced from [pcs-core](https://github.com/SentinelOps-CI/pcs-core) for offline validation. Usage and sync commands: [docs/pcs-guide.md](../../docs/pcs-guide.md).
 
-## Certificate artifacts
+## Certificate and handoff
 
-| Schema | Used by |
-|--------|---------|
+| Schema | Used for |
+|--------|----------|
 | `TraceCertificate.v0.schema.json` | LabTrust profiles |
-| `ToolUseCertificate.v0.schema.json` | `agent_tool_use.safety_v0` |
-| `ToolUseTrace.v0.schema.json` | Tool-use trace validation |
-| `ComputationWitness.v0.schema.json` | `scientific_computation.reproducibility_v0` |
+| `ToolUseCertificate.v0.schema.json` | Tool-use safety |
+| `ToolUseTrace.v0.schema.json` | Tool-use traces |
+| `ComputationWitness.v0.schema.json` | Computation reproducibility |
 | `CertificateFormalFacts.v0.schema.json` | `--formal-facts-out` |
 | `HandoffManifest.v0.schema.json` | Runtime and certificate handoffs |
-| `ArtifactRegistry.v0.schema.json` | `pcs_registry/*.registry.json` entries |
+| `ArtifactRegistry.v0.schema.json` | `pcs_registry/*.registry.json` |
 
-## pcs-core benchmark contract (pcs-bench ingest)
+## Benchmark contract
 
 | Schema | Output file |
 |--------|-------------|
 | `BenchmarkReport.v0.schema.json` | `benchmark_report.v0.json` |
-| `BenchmarkRun.v0.schema.json` | Core fields projected from each `CertificateBenchmarkRun.v0` |
-| `CoverageReport.v0.schema.json` | `repair_hint_quality_report.v0.json`; embedded in `BenchmarkReport.coverage` |
+| `BenchmarkRun.v0.schema.json` | Core fields in `CertificateBenchmarkRun.v0` |
+| `CoverageReport.v0.schema.json` | `repair_hint_quality_report.v0.json` |
 | `ProfileCoverageReport.v0.schema.json` | `profile_coverage_report.v0.json` |
-
-## CertifyEdge benchmark extensions
-
-| Schema | Output file |
-|--------|-------------|
-| `BenchmarkCaseSpec.v0.schema.json` | `benchmarks/certificates/**/case.json` |
-| `CertificateBenchmarkRun.v0.schema.json` | `runs/<case_id>.benchmark_run.v0.json` |
-| `CertificateBenchmarkSuite.v0.schema.json` | `certificate_benchmark_suite.v0.json` |
+| `PcsBenchIngest.v0.schema.json` | `pcs_bench_ingest.v0.json` |
+| `CertificateBenchmarkRun.v0.schema.json` | `runs/*.benchmark_run.v0.json` |
 | `CertificateCoverageReport.v0.schema.json` | `certificate_coverage_report.v0.json` |
-| `PcsBenchIngest.v0.schema.json` | pcs-core `pcs_bench_ingest.v0.json` (synced from pcs-core) |
-| `FailureLocalizationResult.v0.schema.json` | Per-case localization in ingest |
-| `ExplainQualityReport.v0.schema.json` | Per-case explain quality in ingest |
-| `BenchmarkArtifactRef.v0.schema.json` | Optional artifact refs in ingest |
+| `FailureLocalizationResult.v0.schema.json` | `failure_localization/*.json` |
+| `ExplainQualityReport.v0.schema.json` | `explain_quality/*.json` |
 
-`repair_hint_manifest.v0.json` is a CertifyEdge aggregate of per-case `repair_hint_quality`
-objects for scoring (not a separate pcs-core schema yet).
-
-Each `CertificateBenchmarkRun.v0` validates as a superset of pcs-core `BenchmarkRun.v0`
-(projection strips CertifyEdge-only keys before pcs-bench ingest).
+CertifyEdge-only: `BenchmarkCaseSpec.v0`, `CertificateBenchmarkSuite.v0`, `BenchmarkArtifactRef.v0`.
 
 ## Sync
 
 ```bash
-make sync-pcs-schemas              # certificates + handoff + benchmark schemas
-make sync-pcs-benchmark-schemas    # benchmark-only refresh
-make check-pcs-benchmark-schemas   # drift gate (requires local pcs-core checkout)
+make sync-pcs-schemas
+make sync-pcs-benchmark-schemas
+make check-pcs-benchmark-schemas   # drift vs pcs-core
 ```
 
-`common.defs.json` merges pcs-core benchmark vocabulary with CertifyEdge-only defs
-(`certificate_benchmark_case_category`, `repair_hint_quality`, etc.).
+`common.defs.json` merges pcs-core vocabulary with CertifyEdge-only definitions.

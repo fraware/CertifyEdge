@@ -175,10 +175,9 @@ pub fn responsible_component_for_failure_code(failure_code: &str) -> &'static st
     }
     match failure_code {
         "policy_hash_missing" => "handoff",
-        "unknown_profile"
-        | "unknown_property_id"
-        | "unsupported_profile"
-        | "profile_not_found" => "certificate_producer",
+        "unknown_profile" | "unknown_property_id" | "unsupported_profile" | "profile_not_found" => {
+            "certificate_producer"
+        }
         "unauthorized_tool_call" | "unknown_authorization_status" => "runtime_producer",
         "result_hash_mismatch"
         | "run_hash_mismatch"
@@ -231,7 +230,10 @@ pub fn repair_hint_quality_from_hint(
 
 fn with_digest(mut doc: Value) -> Value {
     if let Some(obj) = doc.as_object_mut() {
-        obj.insert("signature_or_digest".to_string(), Value::String(String::new()));
+        obj.insert(
+            "signature_or_digest".to_string(),
+            Value::String(String::new()),
+        );
         let digest = canonical_hash(&Value::Object(obj.clone()));
         obj.insert("signature_or_digest".to_string(), Value::String(digest));
     }
@@ -340,9 +342,8 @@ pub fn emit_pcs_benchmark_artifacts(input: PcsBenchmarkEmitInput<'_>) -> Result<
     }
 
     let cert_native = serde_json::to_value(input.coverage).map_err(|e| e.to_string())?;
-    crate::pcs_schema::validate_certificate_coverage_report_schema(&cert_native).map_err(|e| {
-        format!("certificate coverage report schema: {e}")
-    })?;
+    crate::pcs_schema::validate_certificate_coverage_report_schema(&cert_native)
+        .map_err(|e| format!("certificate coverage report schema: {e}"))?;
     write_json_file(
         &input.out_dir.join("certificate_coverage_report.v0.json"),
         &cert_native,
@@ -356,7 +357,9 @@ pub fn emit_pcs_benchmark_artifacts(input: PcsBenchmarkEmitInput<'_>) -> Result<
     let ambiguous_localizations: Vec<Value> = input
         .case_results
         .iter()
-        .filter(|r| r.kind == "invalid" || r.case_category.as_deref() == Some("rejected_certificate"))
+        .filter(|r| {
+            r.kind == "invalid" || r.case_category.as_deref() == Some("rejected_certificate")
+        })
         .filter_map(|r| {
             let fallback = r
                 .expected_failure_code
@@ -436,12 +439,8 @@ pub fn emit_pcs_benchmark_artifacts(input: PcsBenchmarkEmitInput<'_>) -> Result<
     let workflow_id = workflow_id_for_profile(input.profile_id);
     let failure_localization_reports =
         build_failure_localization_reports(&suite_id, input.case_results, meta)?;
-    let explain_quality_reports = build_explain_quality_reports(
-        &suite_id,
-        workflow_id,
-        input.case_results,
-        meta,
-    )?;
+    let explain_quality_reports =
+        build_explain_quality_reports(&suite_id, workflow_id, input.case_results, meta)?;
     let explain_quality_coverage = build_suite_explain_quality_coverage(
         &suite_id,
         workflow_id,
@@ -471,10 +470,7 @@ pub fn emit_pcs_benchmark_artifacts(input: PcsBenchmarkEmitInput<'_>) -> Result<
     crate::pcs_schema::validate_profile_coverage_report_schema(&profile_coverage)
         .map_err(|e| format!("profile coverage report schema: {e}"))?;
 
-    write_json_file(
-        &input.out_dir.join("benchmark_report.v0.json"),
-        &report,
-    )?;
+    write_json_file(&input.out_dir.join("benchmark_report.v0.json"), &report)?;
     write_json_file(
         &input.out_dir.join("profile_coverage_report.v0.json"),
         &profile_coverage,
@@ -599,9 +595,7 @@ fn build_benchmark_artifact_ref(
         .get("signature_or_digest")
         .and_then(|v| v.as_str())
         .filter(|s| !s.is_empty())
-        .ok_or_else(|| {
-            format!("embedded {artifact_type} at {path} missing signature_or_digest")
-        })?;
+        .ok_or_else(|| format!("embedded {artifact_type} at {path} missing signature_or_digest"))?;
     let doc = with_digest(json!({
         "schema_version": "v0",
         "artifact_type": artifact_type,
@@ -756,7 +750,8 @@ fn build_failure_localization_reports(
             });
         let run_id = format!("bench-run-{}", result.case_id);
         let loc_code = failure_code_for_localization(result, &expected_code);
-        let expected_component = if result.case_category.as_deref() == Some("rejected_certificate") {
+        let expected_component = if result.case_category.as_deref() == Some("rejected_certificate")
+        {
             responsible_component_for_failure_code(&loc_code).to_string()
         } else {
             result
@@ -775,7 +770,9 @@ fn build_failure_localization_reports(
             .repair_hint_quality
             .as_ref()
             .map(|q| normalize_responsible_component(&q.responsible_component))
-            .unwrap_or_else(|| responsible_component_for_failure_code(&observed_loc_code).to_string());
+            .unwrap_or_else(|| {
+                responsible_component_for_failure_code(&observed_loc_code).to_string()
+            });
         let localized_correctly = case_failure_localization_accurate(result);
         let doc = with_digest(json!({
             "schema_version": "v0",
@@ -791,8 +788,12 @@ fn build_failure_localization_reports(
             "source_commit": meta.source_commit,
             "signature_or_digest": ""
         }));
-        crate::pcs_schema::validate_failure_localization_result_schema(&doc)
-            .map_err(|e| format!("failure localization ({}, case {}): {e}", suite_id, result.case_id))?;
+        crate::pcs_schema::validate_failure_localization_result_schema(&doc).map_err(|e| {
+            format!(
+                "failure localization ({}, case {}): {e}",
+                suite_id, result.case_id
+            )
+        })?;
         reports.push(doc);
     }
     Ok(reports)
@@ -802,9 +803,7 @@ fn explain_section_present(result: &CaseRunResult, section: &str) -> bool {
     let signals = &result.explain_signals;
     match section {
         "provenance" => {
-            result.handoff_validation_ok
-                || signals.certificate_emitted
-                || signals.cx_has_provenance
+            result.handoff_validation_ok || signals.certificate_emitted || signals.cx_has_provenance
         }
         "hashes" => {
             result.handoff_validation_ok
@@ -846,7 +845,11 @@ fn explain_section_notes(result: &CaseRunResult, section: &str, present: bool) -
         return String::new();
     }
     let mut parts = vec![format!("certifyedge benchmark case {}", result.case_id)];
-    if let Some(code) = result.actual_failure_code.as_deref().filter(|s| !s.is_empty()) {
+    if let Some(code) = result
+        .actual_failure_code
+        .as_deref()
+        .filter(|s| !s.is_empty())
+    {
         parts.push(format!("failure_code={code}"));
     }
     if let Some(status) = result.actual_certificate_status.as_deref() {
@@ -913,7 +916,7 @@ fn build_explain_quality_reports(
         let mut present_count = 0usize;
         for section in EXPLAIN_QUALITY_SECTIONS {
             let present = explain_section_present(result, section);
-            if required_sections.contains(&section) {
+            if required_sections.contains(section) {
                 if present {
                     present_count += 1;
                 } else {
@@ -955,8 +958,12 @@ fn build_explain_quality_reports(
             "source_commit": meta.source_commit,
             "signature_or_digest": ""
         }));
-        crate::pcs_schema::validate_explain_quality_report_schema(&doc)
-            .map_err(|e| format!("explain quality ({}, case {}): {e}", suite_id, result.case_id))?;
+        crate::pcs_schema::validate_explain_quality_report_schema(&doc).map_err(|e| {
+            format!(
+                "explain quality ({}, case {}): {e}",
+                suite_id, result.case_id
+            )
+        })?;
         reports.push(doc);
     }
     Ok(reports)
@@ -982,16 +989,13 @@ fn collect_suite_commands_and_logs(
     let mut logs = Vec::new();
     for result in case_results {
         if !result.errors.is_empty() {
-            logs.push(format!(
-                "[{}] {}",
-                result.case_id,
-                result.errors.join("; ")
-            ));
+            logs.push(format!("[{}] {}", result.case_id, result.errors.join("; ")));
         }
     }
     (commands, logs)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_pcs_bench_ingest_from_parts(
     _out_dir: &Path,
     suite_id: &str,
@@ -1009,8 +1013,8 @@ fn build_pcs_bench_ingest_from_parts(
         core_runs,
         coverage_reports,
         profile_coverage_reports,
-        &failure_localization_reports,
-        &explain_quality_reports,
+        failure_localization_reports,
+        explain_quality_reports,
         meta,
     )?;
 
@@ -1061,7 +1065,10 @@ fn build_suite_explain_quality_coverage(
             .get("sections_required_count")
             .and_then(|v| v.as_u64())
             .unwrap_or(0) as usize;
-        score_sum += report.get("quality_score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        score_sum += report
+            .get("quality_score")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0);
     }
     let n = explain_reports.len().max(1);
     let quality_score = (score_sum / n as f64).clamp(0.0, 1.0);
@@ -1117,7 +1124,10 @@ pub fn validate_pcs_benchmark_output_dir(out_dir: &Path) -> Result<(), String> {
     for name in REQUIRED_BENCHMARK_OUTPUT_FILES {
         let path = out_dir.join(name);
         if !path.is_file() {
-            return Err(format!("missing required benchmark output: {}", path.display()));
+            return Err(format!(
+                "missing required benchmark output: {}",
+                path.display()
+            ));
         }
     }
 
@@ -1144,9 +1154,7 @@ pub fn validate_pcs_benchmark_output_dir(out_dir: &Path) -> Result<(), String> {
         serde_json::from_str(&std::fs::read_to_string(&cert_cov_path).map_err(|e| e.to_string())?)
             .map_err(|e| e.to_string())?;
     crate::pcs_schema::validate_certificate_coverage_report_schema(&cert_cov)?;
-    if cert_cov.get("artifact").and_then(|v| v.as_str())
-        != Some("CertificateCoverageReport.v0")
-    {
+    if cert_cov.get("artifact").and_then(|v| v.as_str()) != Some("CertificateCoverageReport.v0") {
         return Err(format!(
             "{}: expected CertificateCoverageReport.v0 artifact",
             cert_cov_path.display()
@@ -1167,9 +1175,7 @@ pub fn validate_pcs_benchmark_output_dir(out_dir: &Path) -> Result<(), String> {
         return Err("profile_coverage_report.details missing templates_checked".into());
     }
     if !details.contains_key("release_mode_required_fields") {
-        return Err(
-            "profile_coverage_report.details missing release_mode_required_fields".into(),
-        );
+        return Err("profile_coverage_report.details missing release_mode_required_fields".into());
     }
 
     let repair_path = out_dir.join("repair_hint_quality_report.v0.json");
@@ -1179,7 +1185,8 @@ pub fn validate_pcs_benchmark_output_dir(out_dir: &Path) -> Result<(), String> {
     crate::pcs_schema::validate_coverage_report_schema(&repair_cov)?;
 
     let ingest: Value = serde_json::from_str(
-        &std::fs::read_to_string(out_dir.join("pcs_bench_ingest.v0.json")).map_err(|e| e.to_string())?,
+        &std::fs::read_to_string(out_dir.join("pcs_bench_ingest.v0.json"))
+            .map_err(|e| e.to_string())?,
     )
     .map_err(|e| e.to_string())?;
     let runs = report
@@ -1188,8 +1195,12 @@ pub fn validate_pcs_benchmark_output_dir(out_dir: &Path) -> Result<(), String> {
         .ok_or_else(|| "benchmark_report.runs must be an array".to_string())?;
 
     crate::pcs_schema::validate_pcs_bench_ingest_schema(&ingest)?;
-    if ingest.get("suite_id").and_then(|v| v.as_str()) != report.get("benchmark_suite_id").and_then(|v| v.as_str()) {
-        return Err("pcs_bench_ingest.suite_id must match benchmark_report.benchmark_suite_id".into());
+    if ingest.get("suite_id").and_then(|v| v.as_str())
+        != report.get("benchmark_suite_id").and_then(|v| v.as_str())
+    {
+        return Err(
+            "pcs_bench_ingest.suite_id must match benchmark_report.benchmark_suite_id".into(),
+        );
     }
     if ingest.get("workflow_id").and_then(|v| v.as_str()).is_none() {
         return Err("pcs_bench_ingest.workflow_id is required".into());
@@ -1221,12 +1232,12 @@ pub fn validate_pcs_benchmark_output_dir(out_dir: &Path) -> Result<(), String> {
         .get("coverage_reports")
         .and_then(|v| v.as_array())
         .ok_or_else(|| "pcs_bench_ingest.coverage_reports must be an array".to_string())?;
-    let has_cert_cov = coverage_reports.iter().any(|r| {
-        r.get("metric").and_then(|v| v.as_str()) == Some("certificate_completeness")
-    });
-    let has_repair_cov = coverage_reports.iter().any(|r| {
-        r.get("metric").and_then(|v| v.as_str()) == Some("repair_hint_quality")
-    });
+    let has_cert_cov = coverage_reports
+        .iter()
+        .any(|r| r.get("metric").and_then(|v| v.as_str()) == Some("certificate_completeness"));
+    let has_repair_cov = coverage_reports
+        .iter()
+        .any(|r| r.get("metric").and_then(|v| v.as_str()) == Some("repair_hint_quality"));
     if !has_cert_cov || !has_repair_cov {
         return Err(
             "pcs_bench_ingest.coverage_reports must include certificate_completeness and repair_hint_quality"
@@ -1273,7 +1284,10 @@ pub fn validate_pcs_benchmark_output_dir(out_dir: &Path) -> Result<(), String> {
         .iter()
         .filter(|r| r.get("observed_status").and_then(|v| v.as_str()) == Some("failed"))
         .count();
-    if let Some(localizations) = ingest.get("failure_localization_reports").and_then(|v| v.as_array()) {
+    if let Some(localizations) = ingest
+        .get("failure_localization_reports")
+        .and_then(|v| v.as_array())
+    {
         if failed_run_count > 0 && localizations.is_empty() {
             return Err(
                 "pcs_bench_ingest.failure_localization_reports must be non-empty when benchmark runs include failures"
@@ -1281,12 +1295,14 @@ pub fn validate_pcs_benchmark_output_dir(out_dir: &Path) -> Result<(), String> {
             );
         }
         for (idx, loc) in localizations.iter().enumerate() {
-            crate::pcs_schema::validate_failure_localization_result_schema(loc)
-                .map_err(|e| format!("pcs_bench_ingest.failure_localization_reports[{idx}]: {e}"))?;
+            crate::pcs_schema::validate_failure_localization_result_schema(loc).map_err(|e| {
+                format!("pcs_bench_ingest.failure_localization_reports[{idx}]: {e}")
+            })?;
         }
     } else if failed_run_count > 0 {
         return Err(
-            "pcs_bench_ingest.failure_localization_reports required for failed benchmark runs".into(),
+            "pcs_bench_ingest.failure_localization_reports required for failed benchmark runs"
+                .into(),
         );
     }
     let rejection_case_ids: std::collections::BTreeSet<String> = ingest_runs
@@ -1294,13 +1310,18 @@ pub fn validate_pcs_benchmark_output_dir(out_dir: &Path) -> Result<(), String> {
         .filter_map(|r| {
             let failed = r.get("observed_status").and_then(|v| v.as_str()) == Some("failed");
             if failed {
-                r.get("case_id").and_then(|v| v.as_str()).map(str::to_string)
+                r.get("case_id")
+                    .and_then(|v| v.as_str())
+                    .map(str::to_string)
             } else {
                 None
             }
         })
         .collect();
-    if let Some(explains) = ingest.get("explain_quality_reports").and_then(|v| v.as_array()) {
+    if let Some(explains) = ingest
+        .get("explain_quality_reports")
+        .and_then(|v| v.as_array())
+    {
         if !rejection_case_ids.is_empty() && explains.is_empty() {
             return Err(
                 "pcs_bench_ingest.explain_quality_reports must be non-empty for rejection/failure cases"
@@ -1310,16 +1331,15 @@ pub fn validate_pcs_benchmark_output_dir(out_dir: &Path) -> Result<(), String> {
         for (idx, exp) in explains.iter().enumerate() {
             crate::pcs_schema::validate_explain_quality_report_schema(exp)
                 .map_err(|e| format!("pcs_bench_ingest.explain_quality_reports[{idx}]: {e}"))?;
-            let score = exp.get("quality_score").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let score = exp
+                .get("quality_score")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0);
             let case_id = exp.get("case_id").and_then(|v| v.as_str()).unwrap_or("");
             let required: Vec<&str> = exp
                 .get("required_sections")
                 .and_then(|v| v.as_array())
-                .map(|a| {
-                    a.iter()
-                        .filter_map(|v| v.as_str())
-                        .collect()
-                })
+                .map(|a| a.iter().filter_map(|v| v.as_str()).collect())
                 .unwrap_or_default();
             let is_rejection_grade = required
                 .iter()
@@ -1337,7 +1357,9 @@ pub fn validate_pcs_benchmark_output_dir(out_dir: &Path) -> Result<(), String> {
     let artifact_refs = ingest
         .get("artifact_refs")
         .and_then(|v| v.as_array())
-        .ok_or_else(|| "pcs_bench_ingest.artifact_refs must be present for certifyedge producer".to_string())?;
+        .ok_or_else(|| {
+            "pcs_bench_ingest.artifact_refs must be present for certifyedge producer".to_string()
+        })?;
     if artifact_refs.is_empty() {
         return Err("pcs_bench_ingest.artifact_refs must be non-empty".into());
     }
@@ -1371,7 +1393,9 @@ pub fn validate_pcs_benchmark_output_dir(out_dir: &Path) -> Result<(), String> {
                 .map(|a| a.as_slice())
                 .unwrap_or(&[]),
             other => {
-                return Err(format!("artifact_refs[{idx}] unsupported artifact_type {other:?}"));
+                return Err(format!(
+                    "artifact_refs[{idx}] unsupported artifact_type {other:?}"
+                ));
             }
         };
         if !embedded
@@ -1393,7 +1417,10 @@ pub fn validate_pcs_benchmark_output_dir(out_dir: &Path) -> Result<(), String> {
             continue;
         }
         let bytes = std::fs::read(&sidecar_path).map_err(|e| {
-            format!("read {} for artifact ref digest check: {e}", sidecar_path.display())
+            format!(
+                "read {} for artifact ref digest check: {e}",
+                sidecar_path.display()
+            )
         })?;
         if artifact_type == "BenchmarkRun.v0" {
             let run_doc: Value = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
@@ -1411,7 +1438,10 @@ pub fn validate_pcs_benchmark_output_dir(out_dir: &Path) -> Result<(), String> {
             continue;
         }
         let on_disk: Value = serde_json::from_slice(&bytes).map_err(|e| {
-            format!("parse {} for artifact ref digest check: {e}", sidecar_path.display())
+            format!(
+                "parse {} for artifact ref digest check: {e}",
+                sidecar_path.display()
+            )
         })?;
         let on_disk_digest = on_disk
             .get("signature_or_digest")
@@ -1452,7 +1482,10 @@ pub fn validate_pcs_benchmark_output_dir(out_dir: &Path) -> Result<(), String> {
 
     let runs_dir = out_dir.join("runs");
     if !runs_dir.is_dir() {
-        return Err(format!("missing runs/ directory under {}", out_dir.display()));
+        return Err(format!(
+            "missing runs/ directory under {}",
+            out_dir.display()
+        ));
     }
     let run_files: Vec<_> = std::fs::read_dir(&runs_dir)
         .map_err(|e| e.to_string())?
@@ -1490,9 +1523,10 @@ pub fn validate_pcs_benchmark_output_dir(out_dir: &Path) -> Result<(), String> {
             ));
         }
     }
-    if let Some(cov) = coverage_reports.iter().find(|r| {
-        r.get("metric").and_then(|v| v.as_str()) == Some("certificate_completeness")
-    }) {
+    if let Some(cov) = coverage_reports
+        .iter()
+        .find(|r| r.get("metric").and_then(|v| v.as_str()) == Some("certificate_completeness"))
+    {
         if let Some(sidecar) = cov
             .get("details")
             .and_then(|d| d.get("sidecar_artifact_paths"))
@@ -1534,10 +1568,9 @@ pub fn validate_pcs_benchmark_output_dir(out_dir: &Path) -> Result<(), String> {
             return Err(format!("unexpected run path: {rel}"));
         }
         let run_path = out_dir.join(rel);
-        let run_doc: Value = serde_json::from_str(
-            &std::fs::read_to_string(&run_path).map_err(|e| e.to_string())?,
-        )
-        .map_err(|e| e.to_string())?;
+        let run_doc: Value =
+            serde_json::from_str(&std::fs::read_to_string(&run_path).map_err(|e| e.to_string())?)
+                .map_err(|e| e.to_string())?;
         crate::pcs_schema::validate_certificate_benchmark_run_schema(&run_doc)?;
         let core = crate::pcs_schema::benchmark_run_core_for_ingest(&run_doc);
         crate::pcs_schema::validate_benchmark_run_schema(&core)
@@ -1550,7 +1583,9 @@ pub fn validate_pcs_benchmark_output_dir(out_dir: &Path) -> Result<(), String> {
         let ingest_run = ingest_runs
             .iter()
             .find(|r| r.get("case_id").and_then(|v| v.as_str()) == Some(case_id))
-            .ok_or_else(|| format!("pcs_bench_ingest missing benchmark run for case_id {case_id}"))?;
+            .ok_or_else(|| {
+                format!("pcs_bench_ingest missing benchmark run for case_id {case_id}")
+            })?;
         let file_core = crate::pcs_schema::benchmark_run_core_for_ingest(&run_doc);
         if ingest_run != &file_core {
             return Err(format!(
@@ -1568,7 +1603,9 @@ pub fn validate_pcs_benchmark_output_dir(out_dir: &Path) -> Result<(), String> {
         .and_then(|v| v.as_array())
         .ok_or_else(|| "pcs_bench_ingest.commands must be an array".to_string())?;
     if commands.is_empty() {
-        return Err("pcs_bench_ingest.commands must be non-empty for release-grade producer output".into());
+        return Err(
+            "pcs_bench_ingest.commands must be non-empty for release-grade producer output".into(),
+        );
     }
 
     let evidence_grade = report
@@ -1605,7 +1642,10 @@ fn validate_artifact_refs_cover_embedded(ingest: &Value, out_dir: &Path) -> Resu
         ("BenchmarkRun.v0", "benchmark_runs"),
         ("CoverageReport.v0", "coverage_reports"),
         ("ProfileCoverageReport.v0", "profile_coverage_reports"),
-        ("FailureLocalizationResult.v0", "failure_localization_reports"),
+        (
+            "FailureLocalizationResult.v0",
+            "failure_localization_reports",
+        ),
         ("ExplainQualityReport.v0", "explain_quality_reports"),
     ];
     for (artifact_type, field) in embedded_types {
@@ -1632,7 +1672,9 @@ fn validate_artifact_refs_cover_embedded(ingest: &Value, out_dir: &Path) -> Resu
 
     let manifest_path = out_dir.join("repair_hint_manifest.v0.json");
     if manifest_path.is_file() {
-        let listed = refs.iter().any(|r| r.get("path").and_then(|v| v.as_str()) == Some("repair_hint_manifest.v0.json"));
+        let listed = refs.iter().any(|r| {
+            r.get("path").and_then(|v| v.as_str()) == Some("repair_hint_manifest.v0.json")
+        });
         if listed {
             return Err(
                 "artifact_refs must not list repair_hint_manifest.v0.json (document in sidecar_artifact_paths only)"
@@ -1656,13 +1698,17 @@ fn validate_sidecar_artifact_paths_on_disk(ingest: &Value, out_dir: &Path) -> Re
         .get("details")
         .and_then(|d| d.get("sidecar_artifact_paths"))
         .and_then(|v| v.as_object())
-        .ok_or_else(|| "certificate_completeness.details.sidecar_artifact_paths required".to_string())?;
+        .ok_or_else(|| {
+            "certificate_completeness.details.sidecar_artifact_paths required".to_string()
+        })?;
     for (key, value) in sidecar {
         let Some(path) = value.as_str() else {
             if value.is_null() && key == "repair_hint_manifest" {
                 continue;
             }
-            return Err(format!("sidecar_artifact_paths.{key} must be a path string or null"));
+            return Err(format!(
+                "sidecar_artifact_paths.{key} must be a path string or null"
+            ));
         };
         let file_path = out_dir.join(path);
         if !file_path.is_file() {
@@ -1787,6 +1833,7 @@ fn certificate_status_for_benchmark(status: &str) -> String {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn metric_summary(
     metric_id: &str,
     score: f64,

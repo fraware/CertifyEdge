@@ -6,9 +6,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::pcs_benchmark_bridge::{
     build_json_summary, case_failure_localization_accurate, emit_pcs_benchmark_artifacts,
-    repair_hint_quality_from_hint,
-    responsible_component_for_failure_code, BenchmarkCertificatesJsonSummary,
-    PcsBenchmarkEmitInput, RepairHintQuality, CERTIFICATE_BENCHMARK_SUITE_SCHEMA,
+    repair_hint_quality_from_hint, responsible_component_for_failure_code,
+    BenchmarkCertificatesJsonSummary, PcsBenchmarkEmitInput, RepairHintQuality,
+    CERTIFICATE_BENCHMARK_SUITE_SCHEMA,
 };
 use crate::trace_certificate::counterexample_to_json;
 
@@ -361,10 +361,7 @@ fn run_single_case(
             repair_hint_quality: None,
             expected_failure_code: spec.expected_failure_code.clone(),
             expected_certificate_status: spec.expected_certificate_status.clone(),
-            expected_repair_hint_kind: spec
-                .expected_repair_hint
-                .as_ref()
-                .map(|r| r.kind.clone()),
+            expected_repair_hint_kind: spec.expected_repair_hint.as_ref().map(|r| r.kind.clone()),
             expected_responsible_component,
             expect_counterexample: spec.expect_counterexample,
             expect_formal_facts: spec.expect_formal_facts,
@@ -378,8 +375,8 @@ fn run_single_case(
         });
     }
 
-    let profile_resolution_ok = spec.profile_id == expected_profile_id
-        && spec.profile_id == profile.property_id;
+    let profile_resolution_ok =
+        spec.profile_id == expected_profile_id && spec.profile_id == profile.property_id;
 
     let handoff_path = case_dir.join(&spec.handoff_file);
     let handoff_validation_ok = refresh_handoff_digest_file(&handoff_path).is_ok()
@@ -452,8 +449,8 @@ fn run_single_case(
         }
     };
 
-    let needs_formal_facts = spec.expect_formal_facts
-        || case_category.as_deref() == Some("formal_facts");
+    let needs_formal_facts =
+        spec.expect_formal_facts || case_category.as_deref() == Some("formal_facts");
     let mut formal_facts_ok = !needs_formal_facts;
     if needs_formal_facts {
         match emitted_certificate.as_ref() {
@@ -498,7 +495,9 @@ fn run_single_case(
     let expected_status = spec.expected_certificate_status.as_deref();
     let status_match = expected_status == actual_status.as_deref();
     if !status_match {
-        errors.push(format!("status: expected {expected_status:?}, got {actual_status:?}"));
+        errors.push(format!(
+            "status: expected {expected_status:?}, got {actual_status:?}"
+        ));
     }
 
     let failure_code_match = match (
@@ -576,10 +575,7 @@ fn run_single_case(
         repair_hint_quality,
         expected_failure_code: spec.expected_failure_code.clone(),
         expected_certificate_status: spec.expected_certificate_status.clone(),
-        expected_repair_hint_kind: spec
-            .expected_repair_hint
-            .as_ref()
-            .map(|r| r.kind.clone()),
+        expected_repair_hint_kind: spec.expected_repair_hint.as_ref().map(|r| r.kind.clone()),
         expected_responsible_component,
         expect_counterexample: spec.expect_counterexample,
         expect_formal_facts: spec.expect_formal_facts,
@@ -599,9 +595,7 @@ fn expected_localization_component(
 ) -> Option<String> {
     let category = case_category.or(spec.case_category.as_deref());
     if category == Some("rejected_certificate") {
-        return Some(
-            responsible_component_for_failure_code("rejected_certificate").to_string(),
-        );
+        return Some(responsible_component_for_failure_code("rejected_certificate").to_string());
     }
     if let Some(component) = spec
         .expected_repair_hint
@@ -709,12 +703,18 @@ fn infer_case_category(case_id: &str, folder_kind: &str) -> Option<String> {
     }
     const MAP: &[(&str, &str)] = &[
         ("missing_qc_event", "rejected_certificate"),
-        ("unauthorized_release", "invalid_policy_or_property_violation"),
+        (
+            "unauthorized_release",
+            "invalid_policy_or_property_violation",
+        ),
         ("trace_hash_mismatch", "invalid_hash_mismatch"),
         ("property_id_mismatch", "invalid_source_provenance"),
         ("unauthorized_tool_call", "unauthorized_tool_call"),
         ("missing_policy_hash", "missing_policy_hash"),
-        ("unknown_authorization_status", "unknown_authorization_status"),
+        (
+            "unknown_authorization_status",
+            "unknown_authorization_status",
+        ),
         ("policy_hash_mismatch", "policy_hash_mismatch"),
         ("dataset_hash_mismatch", "dataset_hash_mismatch"),
         ("environment_digest_mismatch", "environment_digest_mismatch"),
@@ -882,7 +882,8 @@ fn evaluate_repair_hint_with_capture(
             failure_code: Some(code.to_string()),
         };
     };
-    let repair = evaluate_repair_hint_from_actual(profile, spec, Some(&hint), responsible.as_deref());
+    let repair =
+        evaluate_repair_hint_from_actual(profile, spec, Some(&hint), responsible.as_deref());
     RepairEvalOutcome {
         checks: repair,
         hint: Some(hint),
@@ -928,21 +929,19 @@ fn build_coverage_report(
 
     let valid_accepted = valid_results
         .iter()
-        .filter(|r| r.status_match && r.actual_certificate_status.as_deref() == Some("CertificateChecked"))
+        .filter(|r| {
+            r.status_match && r.actual_certificate_status.as_deref() == Some("CertificateChecked")
+        })
         .count();
     let invalid_rejected = invalid_results
         .iter()
-        .filter(|r| {
-            r.status_match
-                && r.actual_certificate_status.as_deref() == Some("Rejected")
-        })
+        .filter(|r| r.status_match && r.actual_certificate_status.as_deref() == Some("Rejected"))
         .count();
 
     let localization_cases: Vec<_> = results
         .iter()
         .filter(|r| {
-            r.kind == "invalid"
-                || r.case_category.as_deref() == Some("rejected_certificate")
+            r.kind == "invalid" || r.case_category.as_deref() == Some("rejected_certificate")
         })
         .collect();
     let failure_denom = localization_cases.len();

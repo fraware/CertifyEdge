@@ -1,12 +1,14 @@
 # CertifyEdge PCS v0.1 runbook shortcuts (requires: cargo, optional: pcs from pcs-core)
 
 CARGO ?= cargo
+# Prefer python3; on Windows/Git Bash use: make PYTHON=python ...
 PYTHON ?= python3
+export PYTHON
 SPEC ?= templates/hospital_lab/qc_release.stl
 TRACE ?= tests/labtrust/valid_trace.json
 CERT ?= trace_certificate.json
 
-.PHONY: build test pcs-test runbook clean-checkout clean-checkout-certified fixtures release-run sync-pcs-core-rc check-pcs-core-rc sync-pcs-schemas sync-pcs-benchmark-schemas check-pcs-benchmark-schemas sync-pcs-hash-vectors check-pcs-hash-vectors check-pcs-registry validate-profiles check-profiles write-handoff-fixture generate-certificate-benchmarks validate-certificate-benchmarks benchmark-certificates validate-benchmark-outputs pcs-bench-producer pcs-bench-producer-all-profiles validate-pcs-bench-ingest check-trace emit-certificate verify-certificate install-cli substrate-test bazel-pcs-test pcs-bench-producer-gate
+.PHONY: build test pcs-test runbook clean-checkout clean-checkout-certified fixtures release-run sync-pcs-core-rc check-pcs-core-rc sync-pcs-schemas sync-pcs-benchmark-schemas check-pcs-benchmark-schemas sync-pcs-hash-vectors check-pcs-hash-vectors sync-pcs-registry check-pcs-registry validate-profiles check-profiles write-handoff-fixture generate-certificate-benchmarks validate-certificate-benchmarks benchmark-certificates validate-benchmark-outputs pcs-bench-producer pcs-bench-producer-all-profiles validate-pcs-bench-ingest check-trace emit-certificate verify-certificate install-cli substrate-test bazel-pcs-test pcs-bench-producer-gate
 
 build:
 	$(CARGO) build -p certifyedge
@@ -71,6 +73,9 @@ sync-pcs-hash-vectors:
 
 check-pcs-hash-vectors:
 	bash ./scripts/check-pcs-hash-vectors-drift.sh
+
+sync-pcs-registry:
+	bash ./scripts/sync-pcs-registry-contributions.sh
 
 check-pcs-registry:
 	bash ./scripts/check-pcs-registry-contribution-drift.sh

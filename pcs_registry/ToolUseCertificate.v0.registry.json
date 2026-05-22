@@ -21,27 +21,35 @@
     "checker",
     "checker_version",
     "status",
+    "violations",
     "source_repo",
     "source_commit",
     "signature_or_digest"
   ],
   "semantic_checks": [
     {
-      "check_id": "trace_hash_matches_runtime_receipt",
+      "check_id": "tool_trace_hash_matches_certificate",
       "severity": "release_blocking",
       "responsible_component": "CertifyEdge",
       "execution_required_in_release_mode": true,
       "allowed_to_skip": false
     },
     {
-      "check_id": "policy_hash_matches_runtime_policy",
+      "check_id": "policy_hash_matches_certificate",
       "severity": "release_blocking",
       "responsible_component": "CertifyEdge",
       "execution_required_in_release_mode": true,
       "allowed_to_skip": false
     },
     {
-      "check_id": "status_is_certificate_checked_for_release",
+      "check_id": "certificate_status_checked_for_release",
+      "severity": "release_blocking",
+      "responsible_component": "CertifyEdge",
+      "execution_required_in_release_mode": true,
+      "allowed_to_skip": false
+    },
+    {
+      "check_id": "no_unauthorized_tool_calls",
       "severity": "release_blocking",
       "responsible_component": "CertifyEdge",
       "execution_required_in_release_mode": true,
@@ -53,11 +61,19 @@
       "responsible_component": "CertifyEdge",
       "execution_required_in_release_mode": true,
       "allowed_to_skip": false
+    },
+    {
+      "check_id": "signature_or_digest_valid",
+      "severity": "release_blocking",
+      "responsible_component": "CertifyEdge",
+      "execution_required_in_release_mode": true,
+      "allowed_to_skip": false
     }
   ],
   "consumer_repos": [
-    "CertifyEdge",
-    "Provability Fabric"
+    "Provability Fabric",
+    "Scientific Memory",
+    "pcs-core"
   ],
   "canonical_hash_required": true,
   "release_mode_required": true,

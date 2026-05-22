@@ -109,7 +109,7 @@ cargo clippy --workspace -- -D warnings
 
 ## Continuous integration
 
-The default pipeline runs `cargo fmt --check`, `cargo test --workspace`, and `bazel test --config=ci //tests/pipeline_integration:pipeline_integration`. Further checks can be added as new targets exist. Details: [ADR 002](adr/002-ci-integration-test.md); full index: [Documentation](README.md).
+CI runs the legacy workspace tests plus the full PCS v0.1 gate (profiles, certificate benchmarks, pcs-core validation, optional LabTrust-Gym clean-checkout). Details: [ADR 002](adr/002-ci-integration-test.md). PCS contributors: [PCS guide — pre-release checklist](pcs-guide.md#pre-release-checklist) and `make pcs-test`.
 
 ## Troubleshooting
 
@@ -128,7 +128,7 @@ bazel test --config=ci //tests/pipeline_integration:pipeline_integration --test_
 
 - Read [CONTRIBUTING.md](../CONTRIBUTING.md)
 - Explore `services/certificate/` and `services/stl-compiler/`
-- PCS certificate engine: [pcs-certificate-profile.md](pcs-certificate-profile.md), [pcs-handoff.md](pcs-handoff.md); `make validate-profiles` checks the property profile registry
+- PCS certificate engine: [pcs-guide.md](pcs-guide.md)
 
 ## Support
 

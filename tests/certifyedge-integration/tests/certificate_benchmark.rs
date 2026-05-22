@@ -34,7 +34,8 @@ fn run_suite(profile_id: &str, cases_subdir: &str) {
     .unwrap_or_else(|e| panic!("benchmark {profile_id}: {e}"));
     let run = &outcome.suite;
     assert_eq!(
-        run.cases_passed, run.cases_run,
+        run.cases_passed,
+        run.cases_run,
         "benchmark {profile_id}: {}/{} passed; see {}/benchmark_report.v0.json",
         run.cases_passed,
         run.cases_run,
@@ -62,10 +63,7 @@ fn run_suite(profile_id: &str, cases_subdir: &str) {
 
 #[test]
 fn certificate_benchmark_hospital_lab_qc_release() {
-    run_suite(
-        "hospital_lab.qc_release",
-        "hospital_lab_qc_release",
-    );
+    run_suite("hospital_lab.qc_release", "hospital_lab_qc_release");
 }
 
 #[test]

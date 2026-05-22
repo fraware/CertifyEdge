@@ -2,18 +2,37 @@
 
 ## Documentation
 
-- [Documentation index](docs/README.md) — quick start, ADRs, and links
-- [STL compiler crate](services/stl-compiler/README.md) — service-specific build and API notes
+- [Documentation index](docs/README.md)
+- [PCS guide](docs/pcs-guide.md) — certificate engine, benchmarks, release checklist
+- [STL compiler crate](services/stl-compiler/README.md) — legacy STL/SMT stack
 
 ## Build and test
 
-- **Rust:** The toolchain version is pinned in `rust-toolchain.toml` (currently **1.88.0**, driven by dependency requirements on crates.io).
-- **Rust:** From the repository root, `cargo check --workspace` and `cargo test --workspace`. The end-to-end integration test lives in the `integration_tests` package: `cargo test -p integration_tests`.
-- **Bazel:** Install [Bazelisk](https://github.com/bazelbuild/bazelisk). From the repository root run `bazel test --config=ci //tests/pipeline_integration:pipeline_integration`. Example library targets: `//services/stl-compiler:stl_compiler_lib`, `//services/smt-verifier:smt_verifier`, `//services/certificate:certificate`.
+- **Rust:** Toolchain pinned in `rust-toolchain.toml` (currently **1.88.0**).
+- **Workspace:** `cargo check --workspace` and `cargo test --workspace`.
+- **Legacy integration test:** `cargo test -p integration_tests`.
+- **Bazel:** `bazel test --config=ci //tests/pipeline_integration:pipeline_integration`.
+
+## PCS v0.1 changes
+
+If you touch profiles, certificates, benchmarks, handoffs, or PCS scripts, run before opening a PR:
+
+```bash
+export CERTIFYEDGE_SOURCE_COMMIT="$(git rev-parse HEAD)"
+make pcs-test
+```
+
+For benchmark or ingest changes, also run:
+
+```bash
+make pcs-bench-producer-all-profiles
+```
+
+Full pre-release sequence: [docs/pcs-guide.md#pre-release-checklist](docs/pcs-guide.md#pre-release-checklist).
 
 ## Git hooks (optional)
 
-To block Cursor IDE `Co-authored-by: Cursor <cursoragent@cursor.com>` trailers from commit messages:
+To block Cursor IDE `Co-authored-by: Cursor <cursoragent@cursor.com>` trailers:
 
 ```bash
 git config core.hooksPath .githooks
@@ -22,10 +41,11 @@ git config core.hooksPath .githooks
 ## Pull requests
 
 1. Fork and branch from `main`.
-2. Keep changes focused; match existing style and naming.
-3. Run `cargo fmt --all` (continuous integration runs `cargo fmt --all -- --check`) and ensure `cargo test --workspace` passes, or explain any exceptions in the pull request.
-4. If you change Bazel files or `.proto` definitions, run the Bazel integration test command above.
+2. Keep changes focused; match existing style.
+3. Run `cargo fmt --all` (CI runs `cargo fmt --all -- --check`).
+4. Run the tests above for the areas you changed.
+5. If you change Bazel files or `.proto` definitions, run the Bazel integration test.
 
 ## License
 
-By contributing, you agree that your contributions are licensed under the Apache License 2.0, as described in [LICENSE](LICENSE).
+Contributions are licensed under the Apache License 2.0 — see [LICENSE](LICENSE).
